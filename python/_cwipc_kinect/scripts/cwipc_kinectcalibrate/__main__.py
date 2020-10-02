@@ -49,7 +49,7 @@ POINTS_VIDEOLAT = [
 
       
 def main():
-    parser = argparse.ArgumentParser(description="Calibrate cwipc_realsense2 capturer")
+    parser = argparse.ArgumentParser(description="Calibrate cwipc_kinect capturer")
     def twofloats(s):
         f1, f2 = s.split(',')
         return float(f1), float(f2)

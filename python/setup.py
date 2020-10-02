@@ -31,7 +31,7 @@ setup(
     # There are some restrictions on what makes a valid project name
     # specification here:
     # https://packaging.python.org/specifications/core-metadata/#name
-    name='cwipc_realsense2',  # Required
+    name='cwipc_kinect',  # Required
 
     # Versions should comply with PEP 440:
     # https://www.python.org/dev/peps/pep-0440/
@@ -44,7 +44,7 @@ setup(
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
     # https://packaging.python.org/specifications/core-metadata/#summary
-    description='Python interface to cwipc_realsense2 libraries (ctypes-based)',  # Optional
+    description='Python interface to cwipc_kinect libraries (ctypes-based)',  # Optional
 
     # This is an optional longer description of your project that represents
     # the body of text which users will see when they visit PyPI.
@@ -156,10 +156,7 @@ setup(
     # executes the function `main` from this package when invoked:
     entry_points={  # Optional
         'console_scripts': [
-            'cwipc_certh2config=_cwipc_realsense2.scripts.cwipc_certh2config:main',
-            'cwipc_rs2offlinedir=_cwipc_realsense2.scripts.cwipc_rs2offlinedir:main',
-            'cwipc_rs2offlinepy=_cwipc_realsense2.scripts.cwipc_rs2offlinepy:main',
-            'cwipc_rs2calibrate=_cwipc_realsense2.scripts.cwipc_rs2calibrate:main',
+            'cwipc_kinectcalibrate=_cwipc_kinect.scripts.cwipc_kinectcalibrate:main',
         ],
     },
 

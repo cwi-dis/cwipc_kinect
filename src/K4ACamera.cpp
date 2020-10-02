@@ -79,7 +79,7 @@ K4ACamera::K4ACamera(rs2::context& ctx, MFCaptureConfig& configuration, int _cam
 	aligner(RS2_STREAM_DEPTH)
 {
 #ifdef CWIPC_DEBUG
-		std::cout << "MFCapture: creating camera " << serial << std::endl;
+		std::cout << "K4ACapture: creating camera " << serial << std::endl;
 #endif
 	_init_filters();
 }

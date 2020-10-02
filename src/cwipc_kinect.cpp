@@ -5,16 +5,12 @@
 
 #include "cwipc_util/api_pcl.h"
 #include "cwipc_util/api.h"
-#include "cwipc_realsense2/api.h"
-#include "cwipc_realsense2/utils.h"
+#include "cwipc_kinect/api.h"
+#include "cwipc_kinect/utils.h"
 
-#include "cwipc_realsense2/multiFrame.hpp"
 
 // Global variables (constants, really)
 
-
-_CWIPC_KINECT_EXPORT int CWIPC_RS2_FORMAT_Z16 = RS2_FORMAT_Z16;
-_CWIPC_KINECT_EXPORT int CWIPC_RS2_FORMAT_RGB8 = RS2_FORMAT_RGB8;
 
 cwipc_vector* add_vectors(cwipc_vector a, cwipc_vector b, cwipc_vector *result) {
 	if (result) {
@@ -61,18 +57,18 @@ cwipc_vector* cross_vectors(cwipc_vector a, cwipc_vector b, cwipc_vector *result
 	return result;
 }
 
-class cwipc_source_realsense2_impl : public cwipc_tiledsource {
+class cwipc_source_kinect_impl : public cwipc_tiledsource {
 friend class cwipc_source_rs2offline_impl;
 protected:
-    MFCapture *m_grabber;
-    cwipc_source_realsense2_impl(MFCapture *obj)
+    K4ACapture *m_grabber;
+    cwipc_source_kinect_impl(K4ACapture *obj)
     : m_grabber(obj)
     {}
 public:
     cwipc_source_realsense2_impl(const char *configFilename=NULL)
 		: m_grabber(NULL)
 	{ 
-		m_grabber = new MFCapture(configFilename); 
+		m_grabber = new K4ACapture(configFilename); 
 	}
 
     ~cwipc_source_realsense2_impl()

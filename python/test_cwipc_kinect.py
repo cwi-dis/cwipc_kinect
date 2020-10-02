@@ -1,6 +1,6 @@
 import unittest
 import cwipc
-import _cwipc_realsense2
+import _cwipc_kinect
 import os
 import sys
 import tempfile
@@ -13,9 +13,9 @@ if 0:
     # - run `python3 test_cwipc_util`
     # - Attach to python in the XCode debugger
     # - press return to python3.
-    import _cwipc_realsense2
-    #_cwipc_realsense2._cwipc_realsense2_dll('/Users/jack/src/VRTogether/cwipc_realsense2/build-xcode/lib/Debug/libcwipc_realsense2.dylib')
-    _cwipc_realsense2._cwipc_realsense2_dll('C:/Users/vrtogether/src/VRtogether/cwipc_realsense2/build/bin/RelWithDebInfo/cwipc_realsense2.dll')
+    import _cwipc_kinect
+    #_cwipc_kinect._cwipc_kinect_dll('/Users/jack/src/VRTogether/cwipc_kinect/build-xcode/lib/Debug/libcwipc_kinect.dylib')
+    _cwipc_kinect._cwipc_kinect_dll('C:/Users/vrtogether/src/VRtogether/cwipc_kinect/build/bin/RelWithDebInfo/cwipc_kinect.dll')
     print('Type return after attaching in XCode debugger (pid=%d) - ' % os.getpid())
     sys.stdin.readline()
 
@@ -24,7 +24,7 @@ if 0:
 #
 if 'CWIPC_TEST_DLL' in os.environ:
     filename = os.environ['CWIPC_TEST_DLL']
-    dllobj = _cwipc_realsense2._cwipc_realsense2_dll(filename)
+    dllobj = _cwipc_kinect._cwipc_kinect_dll(filename)
 
 #
 # Find directories for test inputs and outputs
@@ -35,21 +35,21 @@ TEST_FIXTURES_DIR=os.path.join(_topdir, "tests", "fixtures")
 print('xxxjack', _thisdir, _topdir, TEST_FIXTURES_DIR)
 TEST_OUTPUT_DIR=os.path.join(TEST_FIXTURES_DIR, "output")
 if not os.access(TEST_OUTPUT_DIR, os.W_OK):
-    TEST_OUTPUT_DIR=tempfile.mkdtemp('cwipc_realsense2_test')
+    TEST_OUTPUT_DIR=tempfile.mkdtemp('cwipc_kinect_test')
 
 class TestApi(unittest.TestCase):
     
     def _open_grabber(self):
         try:
-            grabber = _cwipc_realsense2.cwipc_realsense2()
+            grabber = _cwipc_kinect.cwipc_kinect()
         except cwipc.CwipcError as arg:
-            if str(arg) == 'cwipc_realsense2: no realsense cameras found':
+            if str(arg) == 'cwipc_kinect: no kinect cameras found':
                 self.skipTest(str(arg))
             raise
         return grabber
         
-    def test_cwipc_realsense2(self):
-        """Test that we can grab a realsense2 image"""
+    def test_cwipc_kinect(self):
+        """Test that we can grab a kinect image"""
         grabber = None
         pc = None
         try:
@@ -62,8 +62,8 @@ class TestApi(unittest.TestCase):
             if grabber: grabber.free()
             if pc: pc.free()
 
-    def test_cwipc_realsense2_tileinfo(self):
-        """Test that we can get tileinfo from a realsense2 grabber"""
+    def test_cwipc_kinect_tileinfo(self):
+        """Test that we can get tileinfo from a kinect grabber"""
         grabber = None
         try:
             grabber = self._open_grabber()
@@ -84,40 +84,6 @@ class TestApi(unittest.TestCase):
                     self.assertIn('camera', tileInfo)
         finally:
             if grabber: grabber.free()
-
-    def test_cwipc_rs2offline(self):
-        """Test that we can create a pointcloud from offline images"""
-        if sys.platform == 'linux':
-            self.skipTest('rs2offline destructor will hang on Linux')
-        grabber = None
-        pc = None
-        try:
-            conffile = os.path.join(TEST_FIXTURES_DIR, 'input', 'offlineconfig.xml')
-            settings = _cwipc_realsense2.cwipc_offline_settings(
-                color=_cwipc_realsense2.cwipc_offline_camera_settings(
-                    width=640,
-                    height=480,
-                    bpp=3,
-                    fps=60,
-                    format=_cwipc_realsense2.RS2_FORMAT_RGB8()
-                ),
-                depth=_cwipc_realsense2.cwipc_offline_camera_settings(
-                    width=640,
-                    height=480,
-                    bpp=2,
-                    fps=60,
-                    format=_cwipc_realsense2.RS2_FORMAT_Z16()
-                ),
-        
-            )
-            converter = _cwipc_realsense2.cwipc_rs2offline(settings, conffile)
-            grabber = converter.get_source()
-            self.assertFalse(grabber.eof())
-            self.assertFalse(grabber.available(True))
-        finally:
-            if grabber: grabber.free()
-            if pc: pc.free()
-
 
     def _verify_pointcloud(self, pc):
         points = pc.get_points()

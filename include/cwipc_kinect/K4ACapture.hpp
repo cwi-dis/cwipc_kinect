@@ -6,7 +6,6 @@
 #include <mutex>
 #include <condition_variable>
 
-#include <librealsense2/rs.hpp>
 
 #include "defs.h"
 
@@ -20,13 +19,13 @@
 
 class K4ACamera;
 
-class CWIPC_DLL_ENTRY MFCapture {
+class CWIPC_DLL_ENTRY K4ACapture {
 protected:
-	MFCapture(int dummy);
+	K4ACapture(int dummy);
 public:
 	// methods
-	MFCapture(const char *configFilename=NULL);
-	virtual ~MFCapture();
+	K4ACapture(const char *configFilename=NULL);
+	virtual ~K4ACapture();
 	cwipc_pcl_pointcloud get_pointcloud(uint64_t *timestamp); // API function that returns the merged pointcloud and timestamp
 	bool pointcloud_available(bool wait);					  // Returns true if a pointcloud is available
 	cwipc_pcl_pointcloud get_mostRecentPointCloud();                     // return the merged cloud most recently captured/merged (don't grab a new one)
@@ -40,8 +39,8 @@ public:
 	int numberOfPCsProduced;
     bool no_cameras;                        // True of no cameras attached
 protected:
-	rs2::context ctx;				// librealsense2 context (coordinates all cameras)
-	virtual void _create_cameras(rs2::device_list devs);
+//	rs2::context ctx;				// librealsense2 context (coordinates all cameras)
+	virtual void _create_cameras(/*rs2::device_list devs*/);
 	std::vector<K4ACamera*> cameras;                // Storage of camera specifics
 	void _control_thread_main();              // Internal: main thread that controls per-camera grabbing and processing and combines pointclouds.
 	bool stopped;

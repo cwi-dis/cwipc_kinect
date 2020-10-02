@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10.0)
 
-set(INSTALL_PATH ${CMAKE_INSTALL_DATADIR}/cwipc_realsense2/python)
+set(INSTALL_PATH ${CMAKE_INSTALL_DATADIR}/cwipc_kinect/python)
 set(DEST_INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/${INSTALL_PATH})
 
 find_package(Python3 COMPONENTS Interpreter)
@@ -14,8 +14,8 @@ if(NOT Python3_FOUND)
     endif()
 endif()
 
-install(FILES test_cwipc_realsense2.py setup.py DESTINATION ${INSTALL_PATH})
-install(DIRECTORY _cwipc_realsense2 DESTINATION ${INSTALL_PATH} PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
+install(FILES test_cwipc_kinect.py setup.py DESTINATION ${INSTALL_PATH})
+install(DIRECTORY _cwipc_kinect DESTINATION ${INSTALL_PATH} PATTERN "__pycache__" EXCLUDE PATTERN "*.pyc" EXCLUDE)
 if(Python3_FOUND)
 	install(CODE "MESSAGE(\"Installing Python modules with ${DEST_INSTALL_PATH}/setup.py\")")
 	install(CODE "execute_process(COMMAND ${Python3_EXECUTABLE} setup.py install WORKING_DIRECTORY ${DEST_INSTALL_PATH} )")
@@ -25,14 +25,14 @@ endif()
 
 if(Python3_FOUND)
 	add_test(NAME run_python_tests
-		COMMAND ${Python3_EXECUTABLE} test_cwipc_realsense2.py
+		COMMAND ${Python3_EXECUTABLE} test_cwipc_kinect.py
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 	)
 	add_test(NAME test_calibrator
-		COMMAND ${Python3_EXECUTABLE} -m _cwipc_realsense2.scripts.cwipc_rs2calibrate --auto
+		COMMAND ${Python3_EXECUTABLE} -m _cwipc_kinect.scripts.cwipc_kinectcalibrate --auto
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 	)
-	# Ensure the cwipc_realsense2 dynamic library and cwipc python module can be found by the tests
+	# Ensure the cwipc_kinect dynamic library and cwipc python module can be found by the tests
 	if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 		set_property(TEST run_python_tests PROPERTY ENVIRONMENT DYLD_LIBRARY_PATH=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}:$ENV{DYLD_LIBRARY_PATH})
 		set_property(TEST run_python_tests APPEND PROPERTY ENVIRONMENT PYTHONPATH=${cwipc_util_PYTHON_DIRS}:$ENV{PYTHONPATH})
@@ -49,9 +49,9 @@ if(Python3_FOUND)
 	if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
 		# Jack doesn't understand why modifying PATH doesn't seem to work on Windows...
 		# Jack doesn't understand why we need the "Release" here, which should already be in CMAKE_RUNTIME_OUTPUT_DIRECTORY...
-		set_property(TEST run_python_tests PROPERTY ENVIRONMENT CWIPC_TEST_DLL=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release/cwipc_realsense2.dll)
+		set_property(TEST run_python_tests PROPERTY ENVIRONMENT CWIPC_TEST_DLL=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release/cwipc_kinect.dll)
 		set_property(TEST run_python_tests APPEND PROPERTY ENVIRONMENT PYTHONPATH=${cwipc_util_PYTHON_DIRS};$ENV{PYTHONPATH})
-		set_property(TEST test_calibrator PROPERTY ENVIRONMENT CWIPC_TEST_DLL=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release/cwipc_realsense2.dll)
+		set_property(TEST test_calibrator PROPERTY ENVIRONMENT CWIPC_TEST_DLL=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Release/cwipc_kinect.dll)
 		set_property(TEST test_calibrator APPEND PROPERTY ENVIRONMENT PYTHONPATH=${cwipc_util_PYTHON_DIRS};$ENV{PYTHONPATH})
 	endif()
 endif()

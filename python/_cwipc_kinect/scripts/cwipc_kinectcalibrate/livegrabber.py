@@ -1,14 +1,14 @@
 import sys
 import os
 import cwipc
-import cwipc.realsense2
+import cwipc.kinect
 
 #
 # Windows search path is horrible. Work around it for testing with an environment variable
 #
 if 'CWIPC_TEST_DLL' in os.environ:
     filename = os.environ['CWIPC_TEST_DLL']
-    dllobj = cwipc.realsense2._cwipc_realsense2_dll(filename)
+    dllobj = cwipc.kinect._cwipc_kinect_dll(filename)
 
 from .pointcloud import Pointcloud
 import os.path
@@ -30,7 +30,7 @@ class LiveGrabber:
             self.cameraconfig = CameraConfig('', read=False)
             self.cameraconfig.fillDefault()
         try:
-            self.grabber = cwipc.realsense2.cwipc_realsense2()
+            self.grabber = cwipc.kinect.cwipc_kinect()
         except cwipc.CwipcError as exc:
             print(f'Error opening camera: {exc}', file=sys.stderr)
             return False

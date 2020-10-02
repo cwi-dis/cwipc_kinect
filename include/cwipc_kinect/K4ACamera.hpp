@@ -27,7 +27,7 @@ public:
 	void dump_color_frame(const std::string& filename);
 	uint64_t get_capture_timestamp();
 public:
-	// This is public because MFCapture needs it when dumping the color images
+	// This is public because K4ACapture needs it when dumping the color images
 	rs2::frameset current_frameset;
 	float pointSize;
 public:

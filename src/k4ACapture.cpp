@@ -19,23 +19,17 @@
 #endif
 
 #include <chrono>
-#if 0
-#include <cstdint>
-#include "cwipc_realsense2/multiFrame.hpp"
-#include "cwipc_realsense2/api.h"
-#include "cwipc_realsense2/utils.h"
-#endif
 
 #include "cwipc_realsense2/defs.h"
 #include "cwipc_realsense2/utils.h"
-#include "cwipc_realsense2/MFCapture.hpp"
+#include "cwipc_realsense2/K4ACapture.hpp"
 #include "cwipc_realsense2/K4ACamera.hpp"
 
-// Static variable used to print a warning message when we re-create an MFCapture
+// Static variable used to print a warning message when we re-create an K4ACapture
 // if there is another one open.
 static int numberOfCapturersActive = 0;
 
-MFCapture::MFCapture(int dummy)
+K4ACapture::K4ACapture(int dummy)
 :	numberOfPCsProduced(0),
     no_cameras(true),
 	mergedPC_is_fresh(false),
@@ -46,13 +40,13 @@ MFCapture::MFCapture(int dummy)
 	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
-MFCapture::MFCapture(const char *configFilename)
+K4ACapture::K4ACapture(const char *configFilename)
 :	numberOfPCsProduced(0),
     no_cameras(false),
 	mergedPC_is_fresh(false),
 	mergedPC_want_new(false)
 {
-	// First check that no other MFCapture is active within this process (trying to catch programmer errors)
+	// First check that no other K4ACapture is active within this process (trying to catch programmer errors)
 	numberOfCapturersActive++;
 	if (numberOfCapturersActive > 1) {
 		mf_log_warning("multiFrame: Warning: attempting to create capturer while one is already active.");
@@ -81,7 +75,7 @@ MFCapture::MFCapture(const char *configFilename)
 		if (dev.get_info(RS2_CAMERA_INFO_NAME) == platform_camera_name) continue;
 		// Found a realsense camera. Create a default data entry for it.
 #ifdef CWIPC_DEBUG
-		std::cout << "MFCapture: looking at camera " << dev.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
+		std::cout << "K4ACapture: looking at camera " << dev.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
 #endif
 		K4ACameraData cd;
 		cd.serial = std::string(dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
@@ -224,15 +218,15 @@ MFCapture::MFCapture(const char *configFilename)
 	// start our run thread (which will drive the capturers and merge the pointclouds)
 	//
 	stopped = false;
-	control_thread = new std::thread(&MFCapture::_control_thread_main, this);
+	control_thread = new std::thread(&K4ACapture::_control_thread_main, this);
 }
 
-void MFCapture::_create_cameras(rs2::device_list devs) {
+void K4ACapture::_create_cameras(rs2::device_list devs) {
 	const std::string platform_camera_name = "Platform Camera";
 	for (auto dev : devs) {
 		if (dev.get_info(RS2_CAMERA_INFO_NAME) == platform_camera_name) continue;
 #ifdef CWIPC_DEBUG
-		std::cout << "MFCapture: opening camera " << dev.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
+		std::cout << "K4ACapture: opening camera " << dev.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
 #endif
 		// Found a realsense camera. Create a default data entry for it.
 		std::string serial(dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
@@ -245,7 +239,7 @@ void MFCapture::_create_cameras(rs2::device_list devs) {
 	}
 }
 
-MFCapture::~MFCapture() {
+K4ACapture::~K4ACapture() {
     if (no_cameras) {
         numberOfCapturersActive--;
         return;
@@ -277,7 +271,7 @@ MFCapture::~MFCapture() {
 }
 
 // API function that triggers the capture and returns the merged pointcloud and timestamp
-cwipc_pcl_pointcloud MFCapture::get_pointcloud(uint64_t *timestamp)
+cwipc_pcl_pointcloud K4ACapture::get_pointcloud(uint64_t *timestamp)
 {
     if (no_cameras) return nullptr;
 	*timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -296,7 +290,7 @@ cwipc_pcl_pointcloud MFCapture::get_pointcloud(uint64_t *timestamp)
 	return rv;
 }
 
-float MFCapture::get_pointSize()
+float K4ACapture::get_pointSize()
 {
     if (no_cameras) return 0;
 	float rv = 99999;
@@ -307,7 +301,7 @@ float MFCapture::get_pointSize()
 	return rv;
 }
 
-bool MFCapture::pointcloud_available(bool wait)
+bool K4ACapture::pointcloud_available(bool wait)
 {
     if (no_cameras) return false;
 	_request_new_pointcloud();
@@ -318,10 +312,10 @@ bool MFCapture::pointcloud_available(bool wait)
 	return mergedPC_is_fresh;
 }
 
-void MFCapture::_control_thread_main()
+void K4ACapture::_control_thread_main()
 {
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "MFCapture: processing thread started" << std::endl;
+	std::cerr << "K4ACapture: processing thread started" << std::endl;
 #endif
 	while(!stopped) {
 		{
@@ -391,12 +385,12 @@ void MFCapture::_control_thread_main()
         mergedPC_is_fresh_cv.notify_all();
 	}
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "MFCapture: processing thread stopped" << std::endl;
+	std::cerr << "K4ACapture: processing thread stopped" << std::endl;
 #endif
 }
 
 // return the merged cloud 
-cwipc_pcl_pointcloud MFCapture::get_mostRecentPointCloud()
+cwipc_pcl_pointcloud K4ACapture::get_mostRecentPointCloud()
 {
     if (no_cameras) return nullptr;
 	// This call doesn't need a fresh pointcloud (Jack thinks), but it does need one that is
@@ -405,7 +399,7 @@ cwipc_pcl_pointcloud MFCapture::get_mostRecentPointCloud()
 	return mergedPC;
 }
 
-void MFCapture::_request_new_pointcloud()
+void K4ACapture::_request_new_pointcloud()
 {
 	std::unique_lock<std::mutex> mylock(mergedPC_mutex);
 	if (!mergedPC_want_new && !mergedPC_is_fresh) {
@@ -414,7 +408,7 @@ void MFCapture::_request_new_pointcloud()
 	}
 }
 
-void MFCapture::merge_views()
+void K4ACapture::merge_views()
 {
 	cwipc_pcl_pointcloud aligned_cld(new_cwipc_pcl_pointcloud());
 	mergedPC->clear();
@@ -447,7 +441,7 @@ void MFCapture::merge_views()
 	}
 }
 
-K4ACameraData& MFCapture::get_camera_data(std::string serial) {
+K4ACameraData& K4ACapture::get_camera_data(std::string serial) {
 	for (int i = 0; i < configuration.cameraData.size(); i++)
 		if (configuration.cameraData[i].serial == serial)
 			return configuration.cameraData[i];
@@ -455,7 +449,7 @@ K4ACameraData& MFCapture::get_camera_data(std::string serial) {
 	abort();
 }
 
-K4ACamera* MFCapture::get_camera(std::string serial) {
+K4ACamera* K4ACapture::get_camera(std::string serial) {
 	for (auto cam : cameras)
 		if (cam->serial == serial)
 			return cam;
