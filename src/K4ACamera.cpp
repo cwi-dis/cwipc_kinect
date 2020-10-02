@@ -15,15 +15,13 @@
 #define _CWIPC_KINECT_EXPORT __declspec(dllexport)
 #endif
 
-#include <librealsense2/rsutil.h>
-
-#include "cwipc_realsense2/defs.h"
-#include "cwipc_realsense2/utils.h"
-#include "cwipc_realsense2/K4ACamera.hpp"
+#include "cwipc_kinect/defs.h"
+#include "cwipc_kinect/utils.h"
+#include "cwipc_kinect/K4ACamera.hpp"
 
 #ifdef WITH_DUMP_VIDEO_FRAMES
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "cwipc_realsense2/stb_image_write.h"
+#include "cwipc_kinect/stb_image_write.h"
 #endif
 
 // Internal-only constructor for OfflineCamera constructor
@@ -126,8 +124,9 @@ bool K4ACamera::capture_frameset()
 void K4ACamera::start()
 {
 	assert(stopped);
+#ifdef notrs2
 	rs2::config cfg;
-	std::cerr << "cwipc_realsense2: multiFrame: starting camera " << serial << ": " << camera_width << "x" << camera_height << "@" << camera_fps << std::endl;
+	std::cerr << "cwipc_kinect: multiFrame: starting camera " << serial << ": " << camera_width << "x" << camera_height << "@" << camera_fps << std::endl;
 	cfg.enable_device(serial);
 	cfg.enable_stream(RS2_STREAM_COLOR, camera_width, camera_height, RS2_FORMAT_RGB8, camera_fps);
 	cfg.enable_stream(RS2_STREAM_DEPTH, camera_width, camera_height, RS2_FORMAT_Z16, camera_fps);
@@ -135,9 +134,11 @@ void K4ACamera::start()
 	// xxxjack need to allow setting things like laser power
 	auto profile = pipe.start(cfg);		// Start streaming with the configuration just set
 	_computePointSize(profile);
+#endif
 	pipe_started = true;
 }
 
+#ifdef notrs2
 void K4ACamera::_computePointSize(rs2::pipeline_profile profile)
 {
 
@@ -171,6 +172,7 @@ void K4ACamera::_computePointSize(rs2::pipeline_profile profile)
 	float rv = sqrt(pow(point1[0]-point0[0], 2)+pow(point1[1]-point0[1], 2)+pow(point1[2]-point0[2], 2));
 	pointSize = rv;
 }
+#endif
 
 void K4ACamera::stop()
 {
@@ -349,7 +351,7 @@ void K4ACamera::_processing_thread_main()
 			}
 		}
 		if (camData.cloud->size() == 0) {
-			std::cerr << "cwipc_realsense2: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
+			std::cerr << "cwipc_kinect: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
             //continue;
 		}
 		// Notify wait_for_pc that we're done.

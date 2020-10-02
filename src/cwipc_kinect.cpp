@@ -58,20 +58,19 @@ cwipc_vector* cross_vectors(cwipc_vector a, cwipc_vector b, cwipc_vector *result
 }
 
 class cwipc_source_kinect_impl : public cwipc_tiledsource {
-friend class cwipc_source_rs2offline_impl;
 protected:
     K4ACapture *m_grabber;
     cwipc_source_kinect_impl(K4ACapture *obj)
     : m_grabber(obj)
     {}
 public:
-    cwipc_source_realsense2_impl(const char *configFilename=NULL)
+    cwipc_source_kinect_impl(const char *configFilename=NULL)
 		: m_grabber(NULL)
 	{ 
 		m_grabber = new K4ACapture(configFilename); 
 	}
 
-    ~cwipc_source_realsense2_impl()
+    ~cwipc_source_kinect_impl()
 	{
         delete m_grabber;
         m_grabber = NULL;
@@ -179,90 +178,28 @@ public:
     }
 };
 
-class cwipc_source_rs2offline_impl : public cwipc_offline
-{
-protected:
-	MFOffline *m_offline;
-	cwipc_source_realsense2_impl *m_source;
-public:
-    cwipc_source_rs2offline_impl(MFOfflineSettings& settings, const char *configFilename=NULL)
-	:	m_offline(new MFOffline(settings, configFilename)),
-		m_source(new cwipc_source_realsense2_impl(m_offline))
-	{
-	}
-
-    ~cwipc_source_rs2offline_impl()
-	{
-		m_offline = NULL;
-		delete m_source;
-    }
-
-    void free()
-	{
-		m_offline = NULL;
-		delete m_source;
-		m_source = NULL;
-    }
-
-	cwipc_tiledsource* get_source()
-	{
-		return m_source;
-	}
-
-	bool feed(int camNum, int frameNum, void *colorBuffer, size_t colorSize, void *depthBuffer, size_t depthSize)
-	{
-		return m_offline->feed_image_data(camNum, frameNum, colorBuffer, colorSize, depthBuffer, depthSize);
-	}
-};
-
 //
 // C-compatible entry points
 //
 
-cwipc_tiledsource* cwipc_realsense2(const char *configFilename, char **errorMessage, uint64_t apiVersion)
+cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage, uint64_t apiVersion)
 {
 	if (apiVersion < CWIPC_API_VERSION_OLD || apiVersion > CWIPC_API_VERSION) {
 		if (errorMessage) {
-			*errorMessage = (char *)"cwipc_realsense2: incorrect apiVersion";
+			*errorMessage = (char *)"cwipc_kinect: incorrect apiVersion";
 		}
 		return NULL;
 	}
 	if (!MFCapture_versionCheck(errorMessage)) return NULL;
-    mf_warning_store = errorMessage;
-	cwipc_source_realsense2_impl *rv = new cwipc_source_realsense2_impl(configFilename);
-    mf_warning_store = NULL;
+    k4a_warning_store = errorMessage;
+	cwipc_source_kinect_impl *rv = new cwipc_source_kinect_impl(configFilename);
+    k4a_warning_store = NULL;
     // If the grabber found cameras everything is fine
     if (rv && rv->is_valid()) return rv;
     delete rv;
     if (errorMessage && *errorMessage == NULL) {
-        *errorMessage = (char *)"cwipc_realsense2: no realsense cameras found";
+        *errorMessage = (char *)"cwipc_kinect: no realsense cameras found";
     }
     return NULL;
 }
 
-cwipc_offline* cwipc_rs2offline(MFOfflineSettings settings, const char *configFilename, char **errorMessage, uint64_t apiVersion)
-{
-	if (apiVersion < CWIPC_API_VERSION_OLD || apiVersion > CWIPC_API_VERSION) {
-		if (errorMessage) {
-			*errorMessage = (char *)"cwipc_realsense2: incorrect apiVersion";
-		}
-		return NULL;
-	}
-	if (!MFCapture_versionCheck(errorMessage)) return NULL;
-	return new cwipc_source_rs2offline_impl(settings, configFilename);
-}
-
-void cwipc_offline_free(cwipc_offline* obj, int camNum, void *colorBuffer, size_t colorSize, void *depthBuffer, size_t depthSize)
-{
-	obj->free();
-}
-
-cwipc_tiledsource* cwipc_offline_get_source(cwipc_offline* obj)
-{
-	return obj->get_source();
-}
-
-bool cwipc_offline_feed(cwipc_offline* obj, int camNum, int frameNum, void *colorBuffer, size_t colorSize, void *depthBuffer, size_t depthSize)
-{
-	return obj->feed(camNum, frameNum, colorBuffer, colorSize, depthBuffer, depthSize);
-}

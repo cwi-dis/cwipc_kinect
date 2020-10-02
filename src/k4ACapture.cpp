@@ -20,10 +20,10 @@
 
 #include <chrono>
 
-#include "cwipc_realsense2/defs.h"
-#include "cwipc_realsense2/utils.h"
-#include "cwipc_realsense2/K4ACapture.hpp"
-#include "cwipc_realsense2/K4ACamera.hpp"
+#include "cwipc_kinect/defs.h"
+#include "cwipc_kinect/utils.h"
+#include "cwipc_kinect/K4ACapture.hpp"
+#include "cwipc_kinect/K4ACamera.hpp"
 
 // Static variable used to print a warning message when we re-create an K4ACapture
 // if there is another one open.
@@ -49,7 +49,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	// First check that no other K4ACapture is active within this process (trying to catch programmer errors)
 	numberOfCapturersActive++;
 	if (numberOfCapturersActive > 1) {
-		mf_log_warning("multiFrame: Warning: attempting to create capturer while one is already active.");
+		k4a_log_warning("multiFrame: Warning: attempting to create capturer while one is already active.");
 	}
 
 	// Determine how many realsense cameras (not platform cameras like webcams) are connected
@@ -97,7 +97,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	if (configFilename == NULL) {
 		configFilename = "cameraconfig.xml";
 	}
-	if (!mf_file2config(configFilename, &configuration)) {
+	if (!k4a_file2config(configFilename, &configuration)) {
 
 		// the configuration file did not fully match the current situation so we have to update the admin
 		std::vector<std::string> serials;
@@ -115,7 +115,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 			if ((find(serials.begin(), serials.end(), cd.serial) != serials.end()))
 				realcams.push_back(cd);
 			else
-				mf_log_warning("multiFrame: Warning: camera " + cd.serial + " is not connected");
+				k4a_log_warning("multiFrame: Warning: camera " + cd.serial + " is not connected");
 		}
 		// Reduce the active configuration to cameras that are connected
 		configuration.cameraData = realcams;
@@ -166,7 +166,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 				}
 			}
 			if (!foundSensorSupportingSync) {
-                mf_log_warning(std::string("multiFrame: Warning: camera ") + dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER) + " does not support inter-camera-sync");
+                k4a_log_warning(std::string("multiFrame: Warning: camera ") + dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER) + " does not support inter-camera-sync");
 			}
 		}
 	}
@@ -205,7 +205,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 		for (auto cam: cameras)
 			cam->start();
 	} catch(const rs2::error& e) {
-		mf_log_warning("exception while starting camera: " + e.get_failed_function() + ": " + e.what());
+		k4a_log_warning("exception while starting camera: " + e.get_failed_function() + ": " + e.what());
 		throw;
 	}
 	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -258,15 +258,15 @@ K4ACapture::~K4ACapture() {
 		stopped = true;
   		control_thread->join();
 	}
-	std::cerr << "cwipc_realsense2: multiFrame: stopped all cameras\n";
+	std::cerr << "cwipc_kinect: multiFrame: stopped all cameras\n";
 	// Delete all cameras (which will stop their threads as well)
 	for (auto cam : cameras)
 		delete cam;
 	cameras.clear();
-	std::cerr << "cwipc_realsense2: multiFrame: deleted all cameras\n";
+	std::cerr << "cwipc_kinect: multiFrame: deleted all cameras\n";
 	// Print some minimal statistics of this run
 	float deltaT = (stopTime - starttime) / 1000.0;
-	std::cerr << "cwipc_realsense2: ran for " << deltaT << " seconds, produced " << numberOfPCsProduced << " pointclouds at " << numberOfPCsProduced / deltaT << " fps." << std::endl;
+	std::cerr << "cwipc_kinect: ran for " << deltaT << " seconds, produced " << numberOfPCsProduced << " pointclouds at " << numberOfPCsProduced / deltaT << " fps." << std::endl;
 	numberOfCapturersActive--;
 }
 
@@ -363,11 +363,11 @@ void K4ACapture::_control_thread_main()
         merge_views();
         if (mergedPC->size() > 0) {
 #ifdef CWIPC_DEBUG
-            std::cerr << "cwipc_realsense2: multiFrame: capturer produced a merged cloud of " << mergedPC->size() << " points" << std::endl;
+            std::cerr << "cwipc_kinect: multiFrame: capturer produced a merged cloud of " << mergedPC->size() << " points" << std::endl;
 #endif
         } else {
 #ifdef CWIPC_DEBUG
-            std::cerr << "cwipc_realsense2: multiFrame: Warning: capturer got an empty pointcloud\n";
+            std::cerr << "cwipc_kinect: multiFrame: Warning: capturer got an empty pointcloud\n";
 #endif
 #if 0
             // HACK to make sure the encoder does not get an empty pointcloud
@@ -427,7 +427,7 @@ void K4ACapture::merge_views()
 
 	if (configuration.cloud_resolution > 0) {
 #ifdef CWIPC_DEBUG
-		std::cerr << "cwipc_realsense2: multiFrame: Points before reduction: " << mergedPC->size() << std::endl;
+		std::cerr << "cwipc_kinect: multiFrame: Points before reduction: " << mergedPC->size() << std::endl;
 #endif
 		pcl::VoxelGrid<cwipc_pcl_point> grd;
 		grd.setInputCloud(mergedPC);
@@ -436,7 +436,7 @@ void K4ACapture::merge_views()
 		grd.filter(*mergedPC);
 
 #ifdef CWIPC_DEBUG
-		std::cerr << "cwipc_realsense2: multiFrame: Points after reduction: " << mergedPC->size() << std::endl;
+		std::cerr << "cwipc_kinect: multiFrame: Points after reduction: " << mergedPC->size() << std::endl;
 #endif
 	}
 }
@@ -445,7 +445,7 @@ K4ACameraData& K4ACapture::get_camera_data(std::string serial) {
 	for (int i = 0; i < configuration.cameraData.size(); i++)
 		if (configuration.cameraData[i].serial == serial)
 			return configuration.cameraData[i];
-	mf_log_warning("cwipc_realsense2: multiFrame: unknown camera " + serial);
+	k4a_log_warning("cwipc_kinect: multiFrame: unknown camera " + serial);
 	abort();
 }
 
