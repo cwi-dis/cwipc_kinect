@@ -1,6 +1,6 @@
 
 #if defined(WIN32) || defined(_WIN32)
-#define _CWIPC_REALSENSE2_EXPORT __declspec(dllexport)
+#define _CWIPC_KINECT_EXPORT __declspec(dllexport)
 #endif
 
 #include "cwipc_util/api_pcl.h"
@@ -13,8 +13,8 @@
 // Global variables (constants, really)
 
 
-_CWIPC_REALSENSE2_EXPORT int CWIPC_RS2_FORMAT_Z16 = RS2_FORMAT_Z16;
-_CWIPC_REALSENSE2_EXPORT int CWIPC_RS2_FORMAT_RGB8 = RS2_FORMAT_RGB8;
+_CWIPC_KINECT_EXPORT int CWIPC_RS2_FORMAT_Z16 = RS2_FORMAT_Z16;
+_CWIPC_KINECT_EXPORT int CWIPC_RS2_FORMAT_RGB8 = RS2_FORMAT_RGB8;
 
 cwipc_vector* add_vectors(cwipc_vector a, cwipc_vector b, cwipc_vector *result) {
 	if (result) {

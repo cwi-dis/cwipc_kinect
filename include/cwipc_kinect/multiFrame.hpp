@@ -39,7 +39,7 @@
 using namespace std::chrono;
 #endif
 #include "cwipc_realsense2/MFCapture.hpp"
-#include "cwipc_realsense2/MFCamera.hpp"
+#include "cwipc_realsense2/K4ACamera.hpp"
 #include "cwipc_realsense2/MFOffline.hpp"
 #include "cwipc_realsense2/MFOfflineCamera.hpp"
 

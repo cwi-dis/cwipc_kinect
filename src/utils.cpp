@@ -4,7 +4,7 @@
 //  Created by Fons Kuijk on 12-12-18.
 //
 #if defined(WIN32) || defined(_WIN32)
-#define _CWIPC_REALSENSE2_EXPORT __declspec(dllexport)
+#define _CWIPC_KINECT_EXPORT __declspec(dllexport)
 #endif
 #include "cwipc_realsense2/defs.h"
 #include "cwipc_realsense2/utils.h"
@@ -98,7 +98,7 @@ bool mf_file2config(const char* filename, MFCaptureConfig* config)
 	while (cameraElement)
 	{
 		const char * serial = cameraElement->Attribute("serial");
-		MFCameraData* cd;
+		K4ACameraData* cd;
 
 		int i = 0;
 		while (i < config->cameraData.size()) {
@@ -113,7 +113,7 @@ bool mf_file2config(const char* filename, MFCaptureConfig* config)
 			if (!allnewcameras)
 				loadOkay = false;
 
-			cd = new MFCameraData();
+			cd = new K4ACameraData();
 			boost::shared_ptr<Eigen::Affine3d> trafo(new Eigen::Affine3d());
 			boost::shared_ptr<Eigen::Affine3d> intrinsicTrafo(new Eigen::Affine3d());
 			intrinsicTrafo->setIdentity();
@@ -248,7 +248,7 @@ void mf_config2file(const char* filename, MFCaptureConfig* config)
 	postprocessing->LinkEndChild(parameters);
 
 	cameraconfig->LinkEndChild(new TiXmlComment(" backgroundx, backgroundy and backgroudz if not 0 position the camera's background plane "));
-	for (MFCameraData cd : config->cameraData) {
+	for (K4ACameraData cd : config->cameraData) {
 		TiXmlElement* cam = new TiXmlElement("camera");
 		cam->SetAttribute("serial", cd.serial.c_str());
 		cam->SetDoubleAttribute("backgroundx", cd.background.x);

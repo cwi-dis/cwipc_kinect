@@ -5,7 +5,7 @@
 //
 
 #if defined(WIN32) || defined(_WIN32)
-#define _CWIPC_REALSENSE2_EXPORT __declspec(dllexport)
+#define _CWIPC_KINECT_EXPORT __declspec(dllexport)
 #endif
 
 #include "cwipc_realsense2/multiFrame.hpp"

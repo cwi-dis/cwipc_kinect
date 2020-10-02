@@ -14,7 +14,7 @@
 // This is the dll source, so define external symbols as dllexport on windows.
 
 #if defined(WIN32) || defined(_WIN32)
-#define _CWIPC_REALSENSE2_EXPORT __declspec(dllexport)
+#define _CWIPC_KINECT_EXPORT __declspec(dllexport)
 #define CWIPC_DLL_ENTRY __declspec(dllexport)
 #endif
 
@@ -29,7 +29,7 @@
 #include "cwipc_realsense2/defs.h"
 #include "cwipc_realsense2/utils.h"
 #include "cwipc_realsense2/MFCapture.hpp"
-#include "cwipc_realsense2/MFCamera.hpp"
+#include "cwipc_realsense2/K4ACamera.hpp"
 
 // Static variable used to print a warning message when we re-create an MFCapture
 // if there is another one open.
@@ -73,9 +73,9 @@ MFCapture::MFCapture(const char *configFilename)
 		return;
 	}
 	//
-	// Enumerate over all connected cameras, create their default MFCameraData structures
+	// Enumerate over all connected cameras, create their default K4ACameraData structures
 	// and set any hardware options (for example for sync).
-	// We will create the actual MFCamera objects later, after we have read the configuration file.
+	// We will create the actual K4ACamera objects later, after we have read the configuration file.
 	//
 	for (auto dev : devs) {
 		if (dev.get_info(RS2_CAMERA_INFO_NAME) == platform_camera_name) continue;
@@ -83,7 +83,7 @@ MFCapture::MFCapture(const char *configFilename)
 #ifdef CWIPC_DEBUG
 		std::cout << "MFCapture: looking at camera " << dev.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
 #endif
-		MFCameraData cd;
+		K4ACameraData cd;
 		cd.serial = std::string(dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
 		boost::shared_ptr<Eigen::Affine3d> default_trafo(new Eigen::Affine3d());
 		default_trafo->setIdentity();
@@ -107,7 +107,7 @@ MFCapture::MFCapture(const char *configFilename)
 
 		// the configuration file did not fully match the current situation so we have to update the admin
 		std::vector<std::string> serials;
-		std::vector<MFCameraData> realcams;
+		std::vector<K4ACameraData> realcams;
 
 		// collect serial numbers of all connected cameras
 		for (auto dev : devs) {
@@ -117,7 +117,7 @@ MFCapture::MFCapture(const char *configFilename)
 		}
 
 		// collect all camera's in the config that are connected
-		for (MFCameraData cd : configuration.cameraData) {
+		for (K4ACameraData cd : configuration.cameraData) {
 			if ((find(serials.begin(), serials.end(), cd.serial) != serials.end()))
 				realcams.push_back(cd);
 			else
@@ -238,9 +238,9 @@ void MFCapture::_create_cameras(rs2::device_list devs) {
 		std::string serial(dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
 		std::string camUsb(dev.get_info(RS2_CAMERA_INFO_USB_TYPE_DESCRIPTOR));
 
-		MFCameraData& cd = get_camera_data(serial);
+		K4ACameraData& cd = get_camera_data(serial);
 		int camera_index = cameras.size();
-		auto cam = new MFCamera(ctx, configuration, camera_index, cd, camUsb);
+		auto cam = new K4ACamera(ctx, configuration, camera_index, cd, camUsb);
 		cameras.push_back(cam);
 	}
 }
@@ -420,13 +420,13 @@ void MFCapture::merge_views()
 	mergedPC->clear();
 	// Pre-allocate space in the merged pointcloud
 	size_t nPoints = 0;
-	for (MFCameraData cd : configuration.cameraData) {
+	for (K4ACameraData cd : configuration.cameraData) {
 		cwipc_pcl_pointcloud cam_cld = cd.cloud;
 		nPoints += cam_cld->size();
 	}
 	mergedPC->reserve(nPoints);
 	// Now merge all pointclouds
-	for (MFCameraData cd : configuration.cameraData) {
+	for (K4ACameraData cd : configuration.cameraData) {
 		cwipc_pcl_pointcloud cam_cld = cd.cloud;
 		*mergedPC += *cam_cld;
 	}
@@ -447,7 +447,7 @@ void MFCapture::merge_views()
 	}
 }
 
-MFCameraData& MFCapture::get_camera_data(std::string serial) {
+K4ACameraData& MFCapture::get_camera_data(std::string serial) {
 	for (int i = 0; i < configuration.cameraData.size(); i++)
 		if (configuration.cameraData[i].serial == serial)
 			return configuration.cameraData[i];
@@ -455,7 +455,7 @@ MFCameraData& MFCapture::get_camera_data(std::string serial) {
 	abort();
 }
 
-MFCamera* MFCapture::get_camera(std::string serial) {
+K4ACamera* MFCapture::get_camera(std::string serial) {
 	for (auto cam : cameras)
 		if (cam->serial == serial)
 			return cam;

@@ -4,8 +4,8 @@
 //  Created by Fons Kuijk on 12-12-18.
 //
 
-#ifndef cwipc_realsense2_defs_h
-#define cwipc_realsense2_defs_h
+#ifndef cwipc_kinect_defs_h
+#define cwipc_kinect_defs_h
 
 #include <pcl/common/transforms.h>
 #include <pcl/common/common_headers.h>
@@ -15,12 +15,13 @@
 #define WITH_DUMP_VIDEO_FRAMES
 
 //
-// Definitions of types used across cwipc_realsense2, cwipc_codec and cwipc_util.
+// Definitions of types used across cwipc_kinect, cwipc_codec and cwipc_util.
 //
 #include "cwipc_util/api_pcl.h"
 #include "offlinedefs.h"
 
-struct MFCameraSettings {
+struct K4ACameraSettings {
+#ifdef notrs2
 	bool do_decimation = false;
 	int decimation_value = 1;             // int value between 2 and 8
 	bool do_threshold = true;
@@ -35,9 +36,12 @@ struct MFCameraSettings {
 	double temporal_alpha = 0.4;	      // val between 0 and 1
 	int temporal_delta = 20;	          // val between 1 and 100
 	int temporal_percistency = 3;         // val between 0 and 8
+#else
+	int dummy;
+#endif
 };
 
-struct MFCameraData {
+struct K4ACameraData {
 	std::string serial;		// Serial number of this camera
 	boost::shared_ptr<Eigen::Affine3d> trafo;	//!< Transformation matrix from camera coorindates to world coordinates
 	boost::shared_ptr<Eigen::Affine3d> intrinsicTrafo;	//!< offline only: matrix to convert color to depth coordinates
@@ -47,6 +51,7 @@ struct MFCameraData {
 };
 
 struct MFCaptureConfig {
+#ifdef notrs2
 	// system data
 	int usb3_width = 1280;
 	int usb3_height = 720;
@@ -70,10 +75,11 @@ struct MFCaptureConfig {
 	// special features
 	std::string cwi_special_feature = ""; // Specifier for temporary development specific feature
 
-	MFCameraSettings default_camera_settings;
+	K4ACameraSettings default_camera_settings;
 	// realsense specific post processing filtering
 
 	// per camera data
-	std::vector<MFCameraData> cameraData;
+	std::vector<K4ACameraData> cameraData;
+#endif
 };
-#endif /* cwipc_realsense2_defs_h */
+#endif /* cwipc_kinect_defs_h */

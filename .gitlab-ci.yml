@@ -22,11 +22,11 @@ build_linux:
     - apt-get install -y libusb-1.0 libusb-dev
     - apt-get install -y libglfw3 libglfw3-dev
 # Install realsense2 from its private list of repos
-    - apt-key adv --keyserver keys.gnupg.net --recv-key C8B3A55A6F3EFCDE || apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key C8B3A55A6F3EFCDE
-    - add-apt-repository -y "deb http://realsense-hw-public.s3.amazonaws.com/Debian/apt-repo bionic main" -u
-    - apt-get install -y librealsense2-dkms
-    - apt-get install -y librealsense2-utils
-    - apt-get install -y librealsense2-dev
+#    - apt-key adv --keyserver keys.gnupg.net --recv-key C8B3A55A6F3EFCDE || apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key C8B3A55A6F3EFCDE
+#    - add-apt-repository -y "deb http://realsense-hw-public.s3.amazonaws.com/Debian/apt-repo bionic main" -u
+#    - apt-get install -y librealsense2-dkms
+#    - apt-get install -y librealsense2-utils
+#    - apt-get install -y librealsense2-dev
 # Install Deployment repo and dependencies
     - apt-get install -y python3-pip
     - mkdir deployment-helpers
@@ -48,10 +48,10 @@ build_linux:
     - make test ARGS=--output-on-failure
     - make install DESTDIR=../dist-ubuntu1804
     - cd ..
-    - tar --directory dist-ubuntu1804/usr/local -cvaf cwipc_realsense2_ubuntu1804_$CI_BUILD_TAG.tgz .
+    - tar --directory dist-ubuntu1804/usr/local -cvaf cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz .
   artifacts:
     paths:
-      - cwipc_realsense2_ubuntu1804_$CI_BUILD_TAG.tgz
+      - cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz
       
 build_osx:
   stage: build
@@ -85,10 +85,10 @@ build_osx:
     - make test ARGS=--output-on-failure
     - make install DESTDIR=../dist-osx1014
     - cd ..
-    - tar --directory dist-osx1014/usr/local -z -cvf cwipc_realsense2_osx1014_$CI_BUILD_TAG.tgz .
+    - tar --directory dist-osx1014/usr/local -z -cvf cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz .
   artifacts:
     paths:
-      - cwipc_realsense2_osx1014_$CI_BUILD_TAG.tgz
+      - cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz
       
 build_win:
   stage: build
@@ -112,7 +112,7 @@ build_win:
     - (zipfile=$PWD/cwipc_util_win1064_*.zip && cd /cygdrive/c/dist-win && unzip $zipfile)
   script:
     - mkdir -p build
-    - export ziplocation=$(pwd)/cwipc_realsense2_win1064_$CI_BUILD_TAG.zip
+    - export ziplocation=$(pwd)/cwipc_kinect_win1064_$CI_BUILD_TAG.zip
     - export CTEST_OUTPUT_ON_FAILURE=1
     - cd build
     - cmake .. -G "Visual Studio 15 2017 Win64" -DCMAKE_INSTALL_PREFIX="C:/dist-win/installed"
@@ -124,7 +124,7 @@ build_win:
     - (cd /cygdrive/c/dist-win && zip -r $ziplocation installed)
   artifacts:
     paths:
-      - cwipc_realsense2_win1064_$CI_BUILD_TAG.zip
+      - cwipc_kinect_win1064_$CI_BUILD_TAG.zip
 
 deploy_all:
   stage: deploy
@@ -148,8 +148,8 @@ deploy_all:
   - cd ..
   script:
     - mkdir deliverables
-    - mv cwipc_realsense2_ubuntu1804_$CI_BUILD_TAG.tgz cwipc_realsense2_osx1014_$CI_BUILD_TAG.tgz cwipc_realsense2_win1064_$CI_BUILD_TAG.zip deliverables
-    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --notag cwipc_realsense2_ubuntu1804_$CI_BUILD_TAG.tgz cwipc_realsense2_osx1014_$CI_BUILD_TAG.tgz cwipc_realsense2_win1064_$CI_BUILD_TAG.zip
+    - mv cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz cwipc_kinect_win1064_$CI_BUILD_TAG.zip deliverables
+    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --notag cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz cwipc_kinect_win1064_$CI_BUILD_TAG.zip
   
 
 deploy_all_untagged:
@@ -173,8 +173,8 @@ deploy_all_untagged:
   - cd ..
   script:
     - mkdir deliverables
-    - mv cwipc_realsense2_ubuntu1804_$CI_BUILD_TAG.tgz cwipc_realsense2_osx1014_$CI_BUILD_TAG.tgz cwipc_realsense2_win1064_$CI_BUILD_TAG.zip deliverables
+    - mv cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz cwipc_kinect_win1064_$CI_BUILD_TAG.zip deliverables
     - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --tag_name latest --release_name latest --deleterelease || true
     - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --tag_name latest --release_name latest --deletetag || true
-    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --tag_name latest --release_name latest --branch_to_tag "$CI_COMMIT_REF_NAME" cwipc_realsense2_ubuntu1804_$CI_BUILD_TAG.tgz cwipc_realsense2_osx1014_$CI_BUILD_TAG.tgz cwipc_realsense2_win1064_$CI_BUILD_TAG.zip
+    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --tag_name latest --release_name latest --branch_to_tag "$CI_COMMIT_REF_NAME" cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz cwipc_kinect_win1064_$CI_BUILD_TAG.zip
   

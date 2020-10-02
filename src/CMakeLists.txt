@@ -13,7 +13,7 @@ add_library(cwipc_realsense2
 	cwipc_realsense2.cpp 
 	multiFrame.cpp 
 	MFCapture.cpp 
-	MFCamera.cpp 
+	K4ACamera.cpp 
 	MFOffline.cpp 
 	MFOfflineCamera.cpp 
 	utils.cpp 
@@ -28,7 +28,7 @@ target_sources(cwipc_realsense2
 	"../include/cwipc_realsense2/utils.h"
 	"../include/cwipc_realsense2/multiFrame.hpp"
 	"../include/cwipc_realsense2/MFCapture.hpp"
-	"../include/cwipc_realsense2/MFCamera.hpp"
+	"../include/cwipc_realsense2/K4ACamera.hpp"
 	"../include/cwipc_realsense2/MFOffline.hpp"
 	"../include/cwipc_realsense2/MFOfflineCamera.hpp"
 	"../include/cwipc_realsense2/window_util.hpp"

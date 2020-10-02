@@ -18,7 +18,7 @@
 #endif
 #endif
 
-class MFCamera;
+class K4ACamera;
 
 class CWIPC_DLL_ENTRY MFCapture {
 protected:
@@ -30,8 +30,8 @@ public:
 	cwipc_pcl_pointcloud get_pointcloud(uint64_t *timestamp); // API function that returns the merged pointcloud and timestamp
 	bool pointcloud_available(bool wait);					  // Returns true if a pointcloud is available
 	cwipc_pcl_pointcloud get_mostRecentPointCloud();                     // return the merged cloud most recently captured/merged (don't grab a new one)
-	MFCameraData& get_camera_data(std::string serial);
-	MFCamera* get_camera(std::string serial);
+	K4ACameraData& get_camera_data(std::string serial);
+	K4ACamera* get_camera(std::string serial);
 	float get_pointSize();
 
 	// variables
@@ -42,7 +42,7 @@ public:
 protected:
 	rs2::context ctx;				// librealsense2 context (coordinates all cameras)
 	virtual void _create_cameras(rs2::device_list devs);
-	std::vector<MFCamera*> cameras;                // Storage of camera specifics
+	std::vector<K4ACamera*> cameras;                // Storage of camera specifics
 	void _control_thread_main();              // Internal: main thread that controls per-camera grabbing and processing and combines pointclouds.
 	bool stopped;
 	std::thread *control_thread;

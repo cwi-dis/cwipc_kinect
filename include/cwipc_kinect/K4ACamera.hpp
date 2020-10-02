@@ -1,24 +1,22 @@
-#ifndef cwipc_realsense_MFCamera_hpp
-#define cwipc_realsense_MFCamera_hpp
+#ifndef cwipc_realsense_K4ACamera_hpp
+#define cwipc_realsense_K4ACamera_hpp
 #pragma once
 
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 
-#include <librealsense2/rs.hpp>
-
 #include "defs.h"
 
-class MFCamera {
+class K4ACamera {
 private:
-	MFCamera(const MFCamera&);	// Disable copy constructor
-	MFCamera& operator=(const MFCamera&);	// Disable assignment
+	K4ACamera(const K4ACamera&);	// Disable copy constructor
+	K4ACamera& operator=(const K4ACamera&);	// Disable assignment
 protected:
-	MFCamera(int _camera_index, rs2::context& ctx, MFCaptureConfig& configuration, MFCameraData& _camData);
+	K4ACamera(int _camera_index, rs2::context& ctx, MFCaptureConfig& configuration, K4ACameraData& _camData);
 public:
-	MFCamera(rs2::context& ctx, MFCaptureConfig& configuration, int _camera_index, MFCameraData& _camData, std::string _usb="0");
-	virtual ~MFCamera();
+	K4ACamera(rs2::context& ctx, MFCaptureConfig& configuration, int _camera_index, K4ACameraData& _camData, std::string _usb="0");
+	virtual ~K4ACamera();
 
 	void start();
 	virtual void start_capturer();
@@ -50,8 +48,8 @@ protected:
 	rs2::frame_queue captured_frame_queue;
 	void transformPoint(cwipc_pcl_point& out, const rs2::vertex& in);
 private:
-	MFCameraData& camData;
-	MFCameraSettings& camSettings;
+	K4ACameraData& camData;
+	K4ACameraSettings& camSettings;
 	bool high_speed_connection;
 
 	int camera_width;
@@ -85,4 +83,4 @@ private:
 	void _init_filters();
 
 };
-#endif // cwipc_realsense_MFCamera_hpp
+#endif // cwipc_realsense_K4ACamera_hpp

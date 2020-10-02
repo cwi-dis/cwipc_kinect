@@ -7,7 +7,7 @@
 #  minimum required cmake version: 3.10.0
 cmake_minimum_required(VERSION 3.10.0)
 
-project(cwipc_realsense2)
+project(cwipc_kinect)
 
 # Save the command line compile commands in the build output
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
@@ -55,9 +55,9 @@ add_definitions(${PCL_DEFINITIONS})
 #
 # Find realsense (either with pkgconfig or with cmake)
 #
-find_package(REALSENSE2 REQUIRED)
-include_directories(${REALSENSE2_INCLUDE_DIRS})
-link_directories(${REALSENSE2_LIBRARY_DIRS})
+#find_package(REALSENSE2 REQUIRED)
+#include_directories(${REALSENSE2_INCLUDE_DIRS})
+#link_directories(${REALSENSE2_LIBRARY_DIRS})
 
 # we need the thirdparty tinyXML for the test programs.
 include(third-party/tinyXML/CMakeLists.txt)

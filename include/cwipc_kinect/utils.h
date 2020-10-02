@@ -8,11 +8,11 @@
 #define cwipw_realsense_utils_h
 #pragma once
 
-#ifndef _CWIPC_REALSENSE2_EXPORT
+#ifndef _CWIPC_KINECT_EXPORT
 #if defined(WIN32) || defined(_WIN32)
-#define _CWIPC_REALSENSE2_EXPORT __declspec(dllimport)
+#define _CWIPC_KINECT_EXPORT __declspec(dllimport)
 #else
-#define _CWIPC_REALSENSE2_EXPORT 
+#define _CWIPC_KINECT_EXPORT 
 #endif
 #endif
 
@@ -21,14 +21,14 @@
 
 struct MFCaptureConfig;
 
-_CWIPC_REALSENSE2_EXPORT void mf_log_warning(std::string warning);
-_CWIPC_REALSENSE2_EXPORT extern char **mf_warning_store;
+_CWIPC_KINECT_EXPORT void mf_log_warning(std::string warning);
+_CWIPC_KINECT_EXPORT extern char **mf_warning_store;
 
-_CWIPC_REALSENSE2_EXPORT bool mf_file2config(const char* filename, MFCaptureConfig* config);
+_CWIPC_KINECT_EXPORT bool mf_file2config(const char* filename, MFCaptureConfig* config);
 
 // store the current camera transformation setting into a xml document
-_CWIPC_REALSENSE2_EXPORT void mf_config2file(const char* filename, MFCaptureConfig* config);
+_CWIPC_KINECT_EXPORT void mf_config2file(const char* filename, MFCaptureConfig* config);
 
-_CWIPC_REALSENSE2_EXPORT bool mf_noChromaRemoval(cwipc_pcl_point* p);
+_CWIPC_KINECT_EXPORT bool mf_noChromaRemoval(cwipc_pcl_point* p);
 
 #endif /* cwipw_realsense_utils_h */

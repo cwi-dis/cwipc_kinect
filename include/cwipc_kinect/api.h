@@ -5,11 +5,11 @@
 #include "offlinedefs.h"
 
 /* Ensure we have the right dllexport or dllimport on windows */
-#ifndef _CWIPC_REALSENSE2_EXPORT
+#ifndef _CWIPC_KINECT_EXPORT
 #if defined(WIN32) || defined(_WIN32)
-#define _CWIPC_REALSENSE2_EXPORT __declspec(dllimport)
+#define _CWIPC_KINECT_EXPORT __declspec(dllimport)
 #else
-#define _CWIPC_REALSENSE2_EXPORT 
+#define _CWIPC_KINECT_EXPORT 
 #endif
 #endif
 
@@ -53,8 +53,8 @@ typedef struct _cwipc_offline {
 extern "C" {
 #endif
 
-extern _CWIPC_REALSENSE2_EXPORT int CWIPC_RS2_FORMAT_RGB8;	//!< Constant: 24-bit RGB pixels
-extern _CWIPC_REALSENSE2_EXPORT int CWIPC_RS2_FORMAT_Z16;	//!< Constant: 16-bit Depth pixels
+extern _CWIPC_KINECT_EXPORT int CWIPC_RS2_FORMAT_RGB8;	//!< Constant: 24-bit RGB pixels
+extern _CWIPC_KINECT_EXPORT int CWIPC_RS2_FORMAT_Z16;	//!< Constant: 16-bit Depth pixels
 
 /** \brief Capture pointclouds from realsense2 cameras.
  * \param configFilename An option string with the filename of the camera configuration file.
@@ -67,7 +67,7 @@ extern _CWIPC_REALSENSE2_EXPORT int CWIPC_RS2_FORMAT_Z16;	//!< Constant: 16-bit 
  * similar to the `cwipc_synthetic()` source.
  */
 
-_CWIPC_REALSENSE2_EXPORT cwipc_tiledsource* cwipc_realsense2(const char *configFilename, char **errorMessage, uint64_t apiVersion);
+_CWIPC_KINECT_EXPORT cwipc_tiledsource* cwipc_realsense2(const char *configFilename, char **errorMessage, uint64_t apiVersion);
 
 /** \brief Capture pointclouds from offline realsense2 images.
  * \param settings Structure containing settings for the offline capturer
@@ -81,7 +81,7 @@ _CWIPC_REALSENSE2_EXPORT cwipc_tiledsource* cwipc_realsense2(const char *configF
  * cameras.
  */
 
-_CWIPC_REALSENSE2_EXPORT cwipc_offline* cwipc_rs2offline(MFOfflineSettings settings, const char *configFilename, char **errorMessage, uint64_t apiVersion);
+_CWIPC_KINECT_EXPORT cwipc_offline* cwipc_rs2offline(MFOfflineSettings settings, const char *configFilename, char **errorMessage, uint64_t apiVersion);
 
 /** \brief Feed image data into an offline pointcloud constructor.
  * \param obj The cwipc_offline object to feed data to.
@@ -97,15 +97,15 @@ _CWIPC_REALSENSE2_EXPORT cwipc_offline* cwipc_rs2offline(MFOfflineSettings setti
  * After all cameras have been fed data the get() method can be used to retrieve the resulting pointcloud.
  */
 
-_CWIPC_REALSENSE2_EXPORT bool cwipc_offline_feed(cwipc_offline* obj, int camNum, int frameNum, void *colorBuffer, size_t colorSize, void *depthBuffer, size_t depthSize);
+_CWIPC_KINECT_EXPORT bool cwipc_offline_feed(cwipc_offline* obj, int camNum, int frameNum, void *colorBuffer, size_t colorSize, void *depthBuffer, size_t depthSize);
 
 /** \brief Free the offline converter.
  */
-_CWIPC_REALSENSE2_EXPORT void cwipc_offline_free(cwipc_offline* obj, int camNum, void *colorBuffer, size_t colorSize, void *depthBuffer, size_t depthSize);
+_CWIPC_KINECT_EXPORT void cwipc_offline_free(cwipc_offline* obj, int camNum, void *colorBuffer, size_t colorSize, void *depthBuffer, size_t depthSize);
 
 /** \brief Return the pointcloud source for this converter.
  */
-_CWIPC_REALSENSE2_EXPORT cwipc_tiledsource* cwipc_offline_get_source(cwipc_offline* obj);
+_CWIPC_KINECT_EXPORT cwipc_tiledsource* cwipc_offline_get_source(cwipc_offline* obj);
 #ifdef __cplusplus
 };
 #endif

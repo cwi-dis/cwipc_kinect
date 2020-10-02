@@ -11,7 +11,7 @@
 // This is the dll source, so define external symbols as dllexport on windows.
 
 #if defined(WIN32) || defined(_WIN32)
-#define _CWIPC_REALSENSE2_EXPORT __declspec(dllexport)
+#define _CWIPC_KINECT_EXPORT __declspec(dllexport)
 #define CWIPC_DLL_ENTRY __declspec(dllexport)
 #endif
 
@@ -26,7 +26,7 @@ MFOffline::MFOffline(MFOfflineSettings& settings, const char *configFilename)
 	bool ok = mf_file2config(configFilename, &configuration);
 	assert(ok);
 	int camera_index = 0;
-	for (MFCameraData& cd : configuration.cameraData) {
+	for (K4ACameraData& cd : configuration.cameraData) {
 		cd.cloud = new_cwipc_pcl_pointcloud();
 		auto cam = new MFOfflineCamera(ctx, configuration, camera_index, cd, settings);
 		feeders.push_back(cam);

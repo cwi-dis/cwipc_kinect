@@ -12,14 +12,14 @@
 // This is the dll source, so define external symbols as dllexport on windows.
 
 #if defined(WIN32) || defined(_WIN32)
-#define _CWIPC_REALSENSE2_EXPORT __declspec(dllexport)
+#define _CWIPC_KINECT_EXPORT __declspec(dllexport)
 #endif
 
 #include <librealsense2/rsutil.h>
 
 #include "cwipc_realsense2/defs.h"
 #include "cwipc_realsense2/utils.h"
-#include "cwipc_realsense2/MFCamera.hpp"
+#include "cwipc_realsense2/K4ACamera.hpp"
 
 #ifdef WITH_DUMP_VIDEO_FRAMES
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -27,7 +27,7 @@
 #endif
 
 // Internal-only constructor for OfflineCamera constructor
-MFCamera::MFCamera(int _camera_index, rs2::context& ctx, MFCaptureConfig& configuration, MFCameraData& _camData)
+K4ACamera::K4ACamera(int _camera_index, rs2::context& ctx, MFCaptureConfig& configuration, K4ACameraData& _camData)
 :	pointSize(0), minx(0), minz(0), maxz(0),
 	camera_index(_camera_index),
 	serial(_camData.serial),
@@ -54,7 +54,7 @@ MFCamera::MFCamera(int _camera_index, rs2::context& ctx, MFCaptureConfig& config
 	_init_filters();
 }
 
-MFCamera::MFCamera(rs2::context& ctx, MFCaptureConfig& configuration, int _camera_index, MFCameraData& _camData, std::string _usb)
+K4ACamera::K4ACamera(rs2::context& ctx, MFCaptureConfig& configuration, int _camera_index, K4ACameraData& _camData, std::string _usb)
 :	pointSize(0), minx(0), minz(0), maxz(0),
 	camera_index(_camera_index),
 	serial(_camData.serial),
@@ -84,15 +84,15 @@ MFCamera::MFCamera(rs2::context& ctx, MFCaptureConfig& configuration, int _camer
 	_init_filters();
 }
 
-MFCamera::~MFCamera()
+K4ACamera::~K4ACamera()
 {
 #ifdef CWIPC_DEBUG
-	std::cout << "MFCamera: destroying " << serial << std::endl;
+	std::cout << "K4ACamera: destroying " << serial << std::endl;
 #endif
 	assert(stopped);
 }
 
-void MFCamera::_init_filters()
+void K4ACamera::_init_filters()
 {
 	if (!do_depth_filtering) return;
 	if (camSettings.do_decimation) {
@@ -117,13 +117,13 @@ void MFCamera::_init_filters()
 	}
 }
 
-bool MFCamera::capture_frameset()
+bool K4ACamera::capture_frameset()
 {
 	return captured_frame_queue.try_wait_for_frame(&current_frameset);
 }
 
 // Configure and initialize caputuring of one camera
-void MFCamera::start()
+void K4ACamera::start()
 {
 	assert(stopped);
 	rs2::config cfg;
@@ -138,7 +138,7 @@ void MFCamera::start()
 	pipe_started = true;
 }
 
-void MFCamera::_computePointSize(rs2::pipeline_profile profile)
+void K4ACamera::_computePointSize(rs2::pipeline_profile profile)
 {
 
 	// Get the 3D distance between camera and (0,0,0) or use 1m if unreasonable
@@ -172,7 +172,7 @@ void MFCamera::_computePointSize(rs2::pipeline_profile profile)
 	pointSize = rv;
 }
 
-void MFCamera::stop()
+void K4ACamera::stop()
 {
 	assert(!stopped);
 	stopped = true;
@@ -184,20 +184,20 @@ void MFCamera::stop()
 	processing_done_cv.notify_one();
 }
 
-void MFCamera::start_capturer()
+void K4ACamera::start_capturer()
 {
 	assert(stopped);
 	stopped = false;
 	_start_capture_thread();
-	processing_thread = new std::thread(&MFCamera::_processing_thread_main, this);
+	processing_thread = new std::thread(&K4ACamera::_processing_thread_main, this);
 }
 
-void MFCamera::_start_capture_thread()
+void K4ACamera::_start_capture_thread()
 {
-	grabber_thread = new std::thread(&MFCamera::_capture_thread_main, this);
+	grabber_thread = new std::thread(&K4ACamera::_capture_thread_main, this);
 }
 
-void MFCamera::_capture_thread_main()
+void K4ACamera::_capture_thread_main()
 {
 #ifdef CWIPC_DEBUG_THREAD
 	std::cerr << "frame capture: cam=" << serial << " thread started" << std::endl;
@@ -216,7 +216,7 @@ void MFCamera::_capture_thread_main()
 #endif
 }
 
-void MFCamera::_processing_thread_main()
+void K4ACamera::_processing_thread_main()
 {
 #ifdef CWIPC_DEBUG_THREAD
 	std::cerr << "frame processing: cam=" << serial << " thread started" << std::endl;
@@ -361,32 +361,32 @@ void MFCamera::_processing_thread_main()
 #endif
 }
 
-void MFCamera::transformPoint(cwipc_pcl_point& out, const rs2::vertex& in)
+void K4ACamera::transformPoint(cwipc_pcl_point& out, const rs2::vertex& in)
 {
 	out.x = (*camData.trafo)(0,0)*in.x + (*camData.trafo)(0,1)*in.y + (*camData.trafo)(0,2)*in.z + (*camData.trafo)(0,3);
 	out.y = (*camData.trafo)(1,0)*in.x + (*camData.trafo)(1,1)*in.y + (*camData.trafo)(1,2)*in.z + (*camData.trafo)(1,3);
 	out.z = (*camData.trafo)(2,0)*in.x + (*camData.trafo)(2,1)*in.y + (*camData.trafo)(2,2)*in.z + (*camData.trafo)(2,3);
 }
 
-void MFCamera::create_pc_from_frames()
+void K4ACamera::create_pc_from_frames()
 {
 	processing_frame_queue.enqueue(current_frameset);
 }
 
-void MFCamera::wait_for_pc()
+void K4ACamera::wait_for_pc()
 {
 	std::unique_lock<std::mutex> lock(processing_mutex);
 	processing_done_cv.wait(lock, [this]{ return processing_done; });
 	processing_done = false;
 }
 
-uint64_t MFCamera::get_capture_timestamp()
+uint64_t K4ACamera::get_capture_timestamp()
 {
 	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
 void
-MFCamera::dump_color_frame(const std::string& filename)
+K4ACamera::dump_color_frame(const std::string& filename)
 {
 #ifdef WITH_DUMP_VIDEO_FRAMES
 		rs2::video_frame color = current_frameset.get_color_frame();
