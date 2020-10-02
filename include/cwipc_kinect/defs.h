@@ -54,25 +54,22 @@ struct K4ACameraData {
 
 struct K4ACaptureConfig {
 #ifdef notrs2
-	// system data
-	int usb3_width = 1280;
-	int usb3_height = 720;
-	int usb3_fps = 30;
-	int usb2_width = 640;
-	int usb2_height = 480;
-	int usb2_fps = 15;
 
 	// processing data
 	bool background_removal = false;      // If true reduces pointcloud to forground object
-	bool greenscreen_removal = false;	  // If true include greenscreen removal
 	bool depth_filtering = false;         // If true perform post filtering on depth frame
-	double height_min = 0.0;			  // If height_min != height_max perform height filtering
-	double height_max = 0.0;			  // If height_min != height_max perform height filtering
-	double cloud_resolution = 0.0;        // Resolution of voxelized pointclouds
 	bool density = false;			  	  // Grab with high density (alternative is high accuracy)
 	bool tiling = false;	              // If true produce tiled stream
 	double tiling_resolution = 0.01;      // Resolution of tiling process
 	std::string tiling_method = "";       // Method of tiling process
+#endif
+	int width = 1280;
+	int height = 720;
+	int fps = 30;
+	bool greenscreen_removal = false;	  // If true include greenscreen removal
+	double height_min = 0.0;			  // If height_min != height_max perform height filtering
+	double height_max = 0.0;			  // If height_min != height_max perform height filtering
+	double cloud_resolution = 0.0;        // Resolution of voxelized pointclouds
 
 	// special features
 	std::string cwi_special_feature = ""; // Specifier for temporary development specific feature
@@ -82,6 +79,5 @@ struct K4ACaptureConfig {
 
 	// per camera data
 	std::vector<K4ACameraData> cameraData;
-#endif
 };
 #endif /* cwipc_kinect_defs_h */

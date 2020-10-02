@@ -29,23 +29,18 @@ K4ACamera::K4ACamera(k4a_was_rs2_context& ctx, K4ACaptureConfig& configuration, 
 	camera_index(_camera_index),
 	serial(_camData.serial),
 	stopped(true),
-	captured_frame_queue(1),
+//notrs2	captured_frame_queue(1),
 	camData(_camData),
 	camSettings(configuration.default_camera_settings),
 	high_speed_connection(_usb[0] == '3'),
-	camera_width(high_speed_connection ? configuration.usb3_width : configuration.usb2_width),
-	camera_height(high_speed_connection ? configuration.usb3_height : configuration.usb2_height),
-	camera_fps(high_speed_connection ? configuration.usb3_fps : configuration.usb2_fps),
-	do_depth_filtering(configuration.depth_filtering),
-	do_background_removal(configuration.background_removal),
+	camera_width(configuration.width),
+	camera_height(configuration.height),
+	camera_fps(configuration.fps),
 	do_greenscreen_removal(configuration.greenscreen_removal),
 	do_height_filtering(configuration.height_min != configuration.height_max),
 	height_min(configuration.height_min),
 	height_max(configuration.height_max),
-	grabber_thread(nullptr),
-	processing_frame_queue(1),
-	pipe(ctx),
-	pipe_started(false)
+	grabber_thread(nullptr)
 {
 #ifdef CWIPC_DEBUG
 		std::cout << "K4ACapture: creating camera " << serial << std::endl;
@@ -90,7 +85,11 @@ void K4ACamera::_init_filters()
 
 bool K4ACamera::capture_frameset()
 {
+#ifdef notrs2
 	return captured_frame_queue.try_wait_for_frame(&current_frameset);
+#else
+	return false;
+#endif
 }
 
 // Configure and initialize caputuring of one camera
@@ -107,8 +106,8 @@ void K4ACamera::start()
 	// xxxjack need to allow setting things like laser power
 	auto profile = pipe.start(cfg);		// Start streaming with the configuration just set
 	_computePointSize(profile);
-#endif
 	pipe_started = true;
+#endif
 }
 
 #ifdef notrs2
@@ -153,8 +152,10 @@ void K4ACamera::stop()
 	stopped = true;
 	if (grabber_thread) grabber_thread->join();
 	if (processing_thread) processing_thread->join();
+#ifdef notrs2
 	if (pipe_started) pipe.stop();
 	pipe_started = false;
+#endif
 	processing_done = true;
 	processing_done_cv.notify_one();
 }
@@ -178,12 +179,14 @@ void K4ACamera::_capture_thread_main()
 	std::cerr << "frame capture: cam=" << serial << " thread started" << std::endl;
 #endif
 	while(!stopped) {
+#ifdef notrs2
 		// Wait to find if there is a next set of frames from the camera
 		rs2::frameset frames = pipe.wait_for_frames();
 #ifdef CWIPC_DEBUG_THREAD
 		std::cerr << "frame capture: cam=" << serial << ", seq=" << frames.get_frame_number() << std::endl;
 #endif
 		captured_frame_queue.enqueue(frames);
+#endif // notrs2
 		std::this_thread::yield();
 	}
 #ifdef CWIPC_DEBUG_THREAD
@@ -347,7 +350,9 @@ void K4ACamera::transformPoint(cwipc_pcl_point& out, const k4a_was_rs2_vertex& i
 
 void K4ACamera::create_pc_from_frames()
 {
+#ifdef notrs2
 	processing_frame_queue.enqueue(current_frameset);
+#endif // notrs2
 }
 
 void K4ACamera::wait_for_pc()

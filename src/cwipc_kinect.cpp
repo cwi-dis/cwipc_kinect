@@ -7,6 +7,7 @@
 #include "cwipc_util/api.h"
 #include "cwipc_kinect/api.h"
 #include "cwipc_kinect/utils.h"
+#include "cwipc_kinect/K4ACapture.hpp"
 
 
 // Global variables (constants, really)
@@ -190,7 +191,7 @@ cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage,
 		}
 		return NULL;
 	}
-	if (!MFCapture_versionCheck(errorMessage)) return NULL;
+//xxxjack 	if (!MFCapture_versionCheck(errorMessage)) return NULL;
     k4a_warning_store = errorMessage;
 	cwipc_source_kinect_impl *rv = new cwipc_source_kinect_impl(configFilename);
     k4a_warning_store = NULL;

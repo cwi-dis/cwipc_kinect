@@ -30,4 +30,9 @@ extern "C" {
 
 _CWIPC_KINECT_EXPORT cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage, uint64_t apiVersion);
 
+#ifdef __cplusplus
+}
+#endif
+
+
 #endif /* cwipc_realsense_api_h */

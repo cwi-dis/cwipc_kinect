@@ -223,8 +223,8 @@ K4ACapture::K4ACapture(const char *configFilename)
 	control_thread = new std::thread(&K4ACapture::_control_thread_main, this);
 }
 
+void K4ACapture::_create_cameras(/*rs2::device_list devs*/) {
 #ifdef notrs2
-void K4ACapture::_create_cameras(rs2::device_list devs) {
 	const std::string platform_camera_name = "Platform Camera";
 	for (auto dev : devs) {
 		if (dev.get_info(RS2_CAMERA_INFO_NAME) == platform_camera_name) continue;
@@ -240,8 +240,8 @@ void K4ACapture::_create_cameras(rs2::device_list devs) {
 		auto cam = new K4ACamera(ctx, configuration, camera_index, cd, camUsb);
 		cameras.push_back(cam);
 	}
-}
 #endif // notrs2
+}
 
 K4ACapture::~K4ACapture() {
     if (no_cameras) {
