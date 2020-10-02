@@ -32,7 +32,7 @@ void k4a_log_warning(std::string warning)
 
 
 // read and restore the camera transformation setting as stored in the configuration document
-bool k4a_file2config(const char* filename, MFCaptureConfig* config)
+bool k4a_file2config(const char* filename, K4ACaptureConfig* config)
 {
 	TiXmlDocument doc(filename);
 	bool loadOkay = doc.LoadFile();
@@ -188,7 +188,7 @@ bool k4a_file2config(const char* filename, MFCaptureConfig* config)
 }
 
 // store the current camera transformation setting into a xml document
-void k4a_config2file(const char* filename, MFCaptureConfig* config)
+void k4a_config2file(const char* filename, K4ACaptureConfig* config)
 {
 #ifdef notrs2
 	TiXmlDocument doc;

@@ -39,6 +39,6 @@ if(NOT OPENGL_FOUND)
 endif()
 list(APPEND DEPENDENCIES ${OPENGL_LIBRARIES})
 
-add_executable(cwipc_renderer cwipc_renderer.cpp)
+add_executable(cwipc_krenderer cwipc_krenderer.cpp)
 target_link_libraries(cwipc_renderer ${DEPENDENCIES})
 install(TARGETS cwipc_renderer RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

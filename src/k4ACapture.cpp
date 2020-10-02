@@ -51,6 +51,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	if (numberOfCapturersActive > 1) {
 		k4a_log_warning("multiFrame: Warning: attempting to create capturer while one is already active.");
 	}
+#ifdef notrs2
 
 	// Determine how many realsense cameras (not platform cameras like webcams) are connected
 	const std::string platform_camera_name = "Platform Camera";
@@ -214,6 +215,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	//
 	for (auto cam: cameras)
 		cam->start_capturer();
+#endif // notrs2
 	//
 	// start our run thread (which will drive the capturers and merge the pointclouds)
 	//
@@ -221,6 +223,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	control_thread = new std::thread(&K4ACapture::_control_thread_main, this);
 }
 
+#ifdef notrs2
 void K4ACapture::_create_cameras(rs2::device_list devs) {
 	const std::string platform_camera_name = "Platform Camera";
 	for (auto dev : devs) {
@@ -238,6 +241,7 @@ void K4ACapture::_create_cameras(rs2::device_list devs) {
 		cameras.push_back(cam);
 	}
 }
+#endif // notrs2
 
 K4ACapture::~K4ACapture() {
     if (no_cameras) {

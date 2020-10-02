@@ -24,35 +24,7 @@
 #include "cwipc_kinect/stb_image_write.h"
 #endif
 
-// Internal-only constructor for OfflineCamera constructor
-K4ACamera::K4ACamera(int _camera_index, rs2::context& ctx, MFCaptureConfig& configuration, K4ACameraData& _camData)
-:	pointSize(0), minx(0), minz(0), maxz(0),
-	camera_index(_camera_index),
-	serial(_camData.serial),
-	stopped(true),
-	captured_frame_queue(1),
-	camData(_camData),
-	camSettings(configuration.default_camera_settings),
-	high_speed_connection(true),
-	camera_width(0),
-	camera_height(0),
-	camera_fps(0),
-	do_depth_filtering(configuration.depth_filtering),
-	do_background_removal(configuration.background_removal),
-	do_greenscreen_removal(configuration.greenscreen_removal),
-	do_height_filtering(configuration.height_min != configuration.height_max),
-	height_min(configuration.height_min),
-	height_max(configuration.height_max),
-	grabber_thread(nullptr),
-	processing_frame_queue(1),
-	pipe(ctx),
-	pipe_started(false),
-	aligner(RS2_STREAM_DEPTH)
-{
-	_init_filters();
-}
-
-K4ACamera::K4ACamera(rs2::context& ctx, MFCaptureConfig& configuration, int _camera_index, K4ACameraData& _camData, std::string _usb)
+K4ACamera::K4ACamera(k4a_was_rs2_context& ctx, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData, std::string _usb)
 :	pointSize(0), minx(0), minz(0), maxz(0),
 	camera_index(_camera_index),
 	serial(_camData.serial),
@@ -73,8 +45,7 @@ K4ACamera::K4ACamera(rs2::context& ctx, MFCaptureConfig& configuration, int _cam
 	grabber_thread(nullptr),
 	processing_frame_queue(1),
 	pipe(ctx),
-	pipe_started(false),
-	aligner(RS2_STREAM_DEPTH)
+	pipe_started(false)
 {
 #ifdef CWIPC_DEBUG
 		std::cout << "K4ACapture: creating camera " << serial << std::endl;
@@ -93,6 +64,7 @@ K4ACamera::~K4ACamera()
 void K4ACamera::_init_filters()
 {
 	if (!do_depth_filtering) return;
+#ifdef notrs2
 	if (camSettings.do_decimation) {
 		dec_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, camSettings.decimation_value);
 	}
@@ -113,6 +85,7 @@ void K4ACamera::_init_filters()
 		temp_filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, camSettings.temporal_delta);
 		temp_filter.set_option(RS2_OPTION_HOLES_FILL, camSettings.temporal_percistency);
 	}
+#endif
 }
 
 bool K4ACamera::capture_frameset()
@@ -224,6 +197,7 @@ void K4ACamera::_processing_thread_main()
 	std::cerr << "frame processing: cam=" << serial << " thread started" << std::endl;
 #endif
 	while(!stopped) {
+#ifdef notrs2
 		// Wait for next frame to process. Allow aborting in case of stopped becoming false...
 		rs2::frameset processing_frameset;
 		bool ok = processing_frame_queue.try_wait_for_frame(&processing_frameset, 1000);
@@ -316,7 +290,7 @@ void K4ACamera::_processing_thread_main()
 					pt.g = texture_data[pi + 1];
 					pt.b = texture_data[pi + 2];
 					pt.a = camera_label;
-					if (!do_greenscreen_removal || mf_noChromaRemoval(&pt)) // chromakey removal
+					if (!do_greenscreen_removal || k4a_noChromaRemoval(&pt)) // chromakey removal
 						camData.cloud->push_back(pt);
 				}
 			}
@@ -346,7 +320,7 @@ void K4ACamera::_processing_thread_main()
                 // Unexpectedly, this does happen: 100% black points don't actually exist.
                 if (pt.r == 0 && pt.g == 0 && pt.b == 0) continue;
 				pt.a = camera_label;
-				if (!do_greenscreen_removal || mf_noChromaRemoval(&pt)) // chromakey removal
+				if (!do_greenscreen_removal || k4a_noChromaRemoval(&pt)) // chromakey removal
 					camData.cloud->push_back(pt);
 			}
 		}
@@ -357,13 +331,14 @@ void K4ACamera::_processing_thread_main()
 		// Notify wait_for_pc that we're done.
 		processing_done = true;
 		processing_done_cv.notify_one();
+#endif // notrs2
 	}
 #ifdef CWIPC_DEBUG_THREAD
 	std::cerr << "frame processing: cam=" << serial << " thread stopped" << std::endl;
 #endif
 }
 
-void K4ACamera::transformPoint(cwipc_pcl_point& out, const rs2::vertex& in)
+void K4ACamera::transformPoint(cwipc_pcl_point& out, const k4a_was_rs2_vertex& in)
 {
 	out.x = (*camData.trafo)(0,0)*in.x + (*camData.trafo)(0,1)*in.y + (*camData.trafo)(0,2)*in.z + (*camData.trafo)(0,3);
 	out.y = (*camData.trafo)(1,0)*in.x + (*camData.trafo)(1,1)*in.y + (*camData.trafo)(1,2)*in.z + (*camData.trafo)(1,3);
@@ -390,10 +365,12 @@ uint64_t K4ACamera::get_capture_timestamp()
 void
 K4ACamera::dump_color_frame(const std::string& filename)
 {
+#ifdef notrs2
 #ifdef WITH_DUMP_VIDEO_FRAMES
 		rs2::video_frame color = current_frameset.get_color_frame();
 		stbi_write_png(filename.c_str(), color.get_width(), color.get_height(),
 			color.get_bytes_per_pixel(), color.get_data(), color.get_stride_in_bytes());
+#endif
 #endif
 }
 

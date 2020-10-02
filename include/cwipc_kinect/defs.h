@@ -18,7 +18,9 @@
 // Definitions of types used across cwipc_kinect, cwipc_codec and cwipc_util.
 //
 #include "cwipc_util/api_pcl.h"
-#include "offlinedefs.h"
+
+typedef struct {} k4a_was_rs2_context;
+typedef struct {float x, y, z; } k4a_was_rs2_vertex;
 
 struct K4ACameraSettings {
 #ifdef notrs2
@@ -50,7 +52,7 @@ struct K4ACameraData {
 	cwipc_pcl_pointcloud cloud;	//!< Pointcloud most recently captured
 };
 
-struct MFCaptureConfig {
+struct K4ACaptureConfig {
 #ifdef notrs2
 	// system data
 	int usb3_width = 1280;

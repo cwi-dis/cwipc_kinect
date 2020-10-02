@@ -5,7 +5,6 @@
 //
 #include <iostream>
 #include <fstream>
-#include <libkinect/rs.hpp>
 
 #include "cwipc_util/api.h"
 #include "cwipc_kinect/api.h"
@@ -45,11 +44,6 @@ int main(int argc, char * argv[]) try
 	}
 	src->free();
 	return EXIT_SUCCESS;
-}
-catch (const rs2::error & e)
-{
-	std::cerr << "cwipc_renderer: Error calling " << e.get_failed_function() << "(" << e.get_failed_args() << "):\n    " << e.what() << std::endl;
-	return EXIT_FAILURE;
 }
 catch (const std::exception & e)
 {
