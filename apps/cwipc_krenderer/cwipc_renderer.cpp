@@ -5,10 +5,10 @@
 //
 #include <iostream>
 #include <fstream>
-#include <librealsense2/rs.hpp>
+#include <libkinect/rs.hpp>
 
 #include "cwipc_util/api.h"
-#include "cwipc_realsense2/api.h"
+#include "cwipc_kinect/api.h"
 
 void printhelp() {
 	std::cout << "\nThe cloud rendered by this application will automatically be centered with the view origin.\n";
@@ -27,9 +27,9 @@ int main(int argc, char * argv[]) try
 		std::cerr << "cwipc_renderer: ERROR: could not instantiate viewer: " << msg << std::endl;
 		return EXIT_FAILURE;
 	}
-	cwipc_source *src = cwipc_realsense2(NULL, &msg, CWIPC_API_VERSION);
+	cwipc_source *src = cwipc_kinect(NULL, &msg, CWIPC_API_VERSION);
 	if (src == NULL) {
-		std::cerr << "cwipc_renderer: ERROR: could not instantiate realsense2 grabber: " << msg << std::endl;
+		std::cerr << "cwipc_renderer: ERROR: could not instantiate kinect grabber: " << msg << std::endl;
 		return EXIT_FAILURE;
 	}
 	while (true) {

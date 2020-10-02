@@ -6,9 +6,9 @@ include_directories(
 	"../../include"
 	${PCL_INCLUDE_DIRS}
 )
-target_link_libraries(cwipc_multigrab cwipc_realsense2 cwipc_util ${PCL_LIBRARIES})
+target_link_libraries(cwipc_multigrab cwipc_kinect cwipc_util ${PCL_LIBRARIES})
 
 install(TARGETS cwipc_multigrab RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 add_test(NAME cwipc_multigrab COMMAND cwipc_multigrab 10 - )
-set_tests_properties(cwipc_multigrab PROPERTIES ENVIRONMENT CWIPC_REALSENSE2_TESTING=yes)
+set_tests_properties(cwipc_multigrab PROPERTIES ENVIRONMENT CWIPC_KINECT_TESTING=yes)

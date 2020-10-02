@@ -7,7 +7,7 @@
 #  minimum required cmake version: 3.10.0
 cmake_minimum_required(VERSION 3.10.0)
 
-set(DEPENDENCIES cwipc_realsense2)
+set(DEPENDENCIES cwipc_kinect)
 include_directories(../../include)
 #
 # Find glfw (or use slurped version)
@@ -39,6 +39,6 @@ if(NOT OPENGL_FOUND)
 endif()
 list(APPEND DEPENDENCIES ${OPENGL_LIBRARIES})
 
-add_executable(pcl_renderer pcl_renderer.cpp  window_util.cpp)
-target_link_libraries(pcl_renderer ${DEPENDENCIES})
-install(TARGETS pcl_renderer RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+add_executable(cwipc_renderer cwipc_renderer.cpp)
+target_link_libraries(cwipc_renderer ${DEPENDENCIES})
+install(TARGETS cwipc_renderer RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

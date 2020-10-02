@@ -3,14 +3,14 @@
 #include <stdlib.h>
 
 #include "cwipc_util/api_pcl.h"
-#include "cwipc_realsense2/api.h"
+#include "cwipc_kinect/api.h"
 
 int main(int argc, char** argv)
 {
 	//char *message = NULL;
 	if (argc < 3) {
 		std::cerr << "Usage: " << argv[0] << " count directory [configfile]" << std::endl;
-		std::cerr << "Creates COUNT pointclouds from a realsense2 camera and stores the PLY files in the given DIRECTORY" << std::endl;
+		std::cerr << "Creates COUNT pointclouds from a kinect camera and stores the PLY files in the given DIRECTORY" << std::endl;
 		return 2;
 	}
 	int count = atoi(argv[1]);
@@ -23,14 +23,14 @@ int main(int argc, char** argv)
 	if (argc == 3) {
 		configFile = argv[2];
 	}
-	generator = cwipc_realsense2(argv[3], &error, CWIPC_API_VERSION);
+	generator = cwipc_kinect(argv[3], &error, CWIPC_API_VERSION);
     if (generator == NULL) {
-        std::cerr << argv[0] << ": creating realsense2 grabber failed: " << error << std::endl;
-        if (getenv("CWIPC_REALSENSE2_TESTING") != NULL) return 0; // No failure while running tests, so we can at least test linking, etc.
+        std::cerr << argv[0] << ": creating kinect grabber failed: " << error << std::endl;
+        if (getenv("CWIPC_KINECT_TESTING") != NULL) return 0; // No failure while running tests, so we can at least test linking, etc.
         return 1;
     }
     if (error) {
-        std::cerr << argv[0] << ": warning while creating realsense2 grabber: " << error << std::endl;
+        std::cerr << argv[0] << ": warning while creating kinect grabber: " << error << std::endl;
     }
 	cwipc_tileinfo tif;
 	generator->get_tileinfo(0, &tif);
