@@ -1,14 +1,14 @@
 
 cmake_minimum_required(VERSION 3.10.0)
 
-add_executable(cwipc_multigrab cwipc_multigrab.cpp)
+add_executable(cwipc_kmultigrab cwipc_kmultigrab.cpp)
 include_directories(
 	"../../include"
 	${PCL_INCLUDE_DIRS}
 )
-target_link_libraries(cwipc_multigrab cwipc_kinect cwipc_util ${PCL_LIBRARIES})
+target_link_libraries(cwipc_kmultigrab cwipc_kinect cwipc_util ${PCL_LIBRARIES})
 
-install(TARGETS cwipc_multigrab RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS cwipc_kmultigrab RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-add_test(NAME cwipc_multigrab COMMAND cwipc_multigrab 10 - )
-set_tests_properties(cwipc_multigrab PROPERTIES ENVIRONMENT CWIPC_KINECT_TESTING=yes)
+add_test(NAME cwipc_kmultigrab COMMAND cwipc_kmultigrab 10 - )
+set_tests_properties(cwipc_kmultigrab PROPERTIES ENVIRONMENT CWIPC_KINECT_TESTING=yes)

@@ -70,18 +70,6 @@ if(NOT WIN32)
 endif()
 
 
-if(BUILD_GRAPHICAL_EXAMPLES)
-	if(PKG_CONFIG_FOUND)
-		pkg_check_modules(GLFW glfw3)
-	endif()
-	if(NOT GLFW_FOUND)
-		add_subdirectory(third-party/glfw)
-	endif()
-	
-	add_subdirectory(apps/pcl_renderer)
-	add_subdirectory(apps/pcl_align)
-endif()
-
 include_directories(include)
 
 add_subdirectory(src)

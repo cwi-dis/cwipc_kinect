@@ -11,4 +11,4 @@ target_link_libraries(cwipc_kgrab cwipc_kinect cwipc_util ${PCL_LIBRARIES})
 install(TARGETS cwipc_kgrab RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 add_test(NAME cwipc_kgrab COMMAND cwipc_kgrab 2 . )
-set_tests_properties(cwipc_grab PROPERTIES ENVIRONMENT CWIPC_KINECT_TESTING=yes)
+set_tests_properties(cwipc_kgrab PROPERTIES ENVIRONMENT CWIPC_KINECT_TESTING=yes)
