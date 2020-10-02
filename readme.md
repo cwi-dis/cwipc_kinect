@@ -1,4 +1,8 @@
-# cwipc_realsense2
+# cwipc_kinect
+
+**Note this file has not been updated yet for Kinect grabber**
+
+# Old contents, for realsense grabber
 
 This project has software for capturing point clouds using RealSense cameras. The software turns RealSense depth- and colorframes into a PCL pointcloud. It goes with apps to visualize the 3D pointcloud captured. The software runs with zero one or more RealSense cameras. If no cameras are found, pointclouds will be generated. If more depth cameras are connected, a configuration file named *cameraconfig.xml* to specify the merge conditions is expected (for details see: *Expected input*).
 
