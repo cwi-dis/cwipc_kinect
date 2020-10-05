@@ -282,8 +282,37 @@ void K4ACamera::_processing_thread_main()
 			std::cerr << "cwipc_kinect: cannot create point cloud" << std::endl;
 			break;
 		}
-		// xxxjack now loop over images and create points.
+		uint8_t* color_data = k4a_image_get_buffer(color);
+		int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
+		// now loop over images and create points.
+		for (int i = 0; i < color_image_width_pixels * color_image_height_pixels; i++)
+		{
+			cwipc_pcl_point point;
+			point.x = point_cloud_image_data[3 * i + 0];
+			point.y = point_cloud_image_data[3 * i + 1];
+			point.z = point_cloud_image_data[3 * i + 2];
+			if (point.z == 0) continue;
+
+			point.r = color_data[4 * i + 0];
+			point.g = color_data[4 * i + 1];
+			point.b = color_data[4 * i + 2];
+			uint8_t alpha = color_data[4 * i + 3];
+
+			if (point.r == 0 && point.g == 0 && point.b == 0 && alpha == 0) continue;
+
+			transformPoint(point);
+			if (do_height_filtering && (point.y < height_min || point.y > height_max)) continue;
+			if (!do_greenscreen_removal || k4a_noChromaRemoval(&point)) // chromakey removal
+				camData.cloud->push_back(point);
+		}
 		// xxxjack free all allocated images
+		if (camData.cloud->size() == 0) {
+			std::cerr << "cwipc_kinect: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
+			//continue;
+		}
+		// Notify wait_for_pc that we're done.
+		processing_done = true;
+		processing_done_cv.notify_one(); 
 #ifdef notrs2
 		// Wait for next frame to process. Allow aborting in case of stopped becoming false...
 		rs2::frameset processing_frameset;
@@ -425,11 +454,14 @@ void K4ACamera::_processing_thread_main()
 #endif
 }
 
-void K4ACamera::transformPoint(cwipc_pcl_point& out, const k4a_was_rs2_vertex& in)
+void K4ACamera::transformPoint(cwipc_pcl_point& pt)
 {
-	out.x = (*camData.trafo)(0,0)*in.x + (*camData.trafo)(0,1)*in.y + (*camData.trafo)(0,2)*in.z + (*camData.trafo)(0,3);
-	out.y = (*camData.trafo)(1,0)*in.x + (*camData.trafo)(1,1)*in.y + (*camData.trafo)(1,2)*in.z + (*camData.trafo)(1,3);
-	out.z = (*camData.trafo)(2,0)*in.x + (*camData.trafo)(2,1)*in.y + (*camData.trafo)(2,2)*in.z + (*camData.trafo)(2,3);
+	float x = (*camData.trafo)(0,0)*pt.x + (*camData.trafo)(0,1)*pt.y + (*camData.trafo)(0,2)*pt.z + (*camData.trafo)(0,3);
+	float y = (*camData.trafo)(1,0)*pt.x + (*camData.trafo)(1,1)*pt.y + (*camData.trafo)(1,2)*pt.z + (*camData.trafo)(1,3);
+	float z = (*camData.trafo)(2,0)*pt.x + (*camData.trafo)(2,1)*pt.y + (*camData.trafo)(2,2)*pt.z + (*camData.trafo)(2,3);
+	pt.x = x;
+	pt.y = y;
+	pt.z = z;
 }
 
 void K4ACamera::create_pc_from_frames()

@@ -46,7 +46,7 @@ protected:
 	void _processing_thread_main();
 	virtual void _start_capture_thread();
 	virtual void _capture_thread_main();
-	void transformPoint(cwipc_pcl_point& out, const k4a_was_rs2_vertex& in);
+	void transformPoint(cwipc_pcl_point& pt);
 private:
 	K4ACameraData& camData;
 	K4ACameraSettings& camSettings;
