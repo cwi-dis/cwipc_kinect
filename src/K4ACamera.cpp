@@ -90,7 +90,7 @@ bool K4ACamera::capture_frameset()
 #ifdef notrs2
 	return captured_frame_queue.try_wait_for_frame(&current_frameset);
 #else
-	return false;
+	return captured_frame_queue.try_dequeue(current_frameset);
 #endif
 }
 
@@ -104,11 +104,22 @@ void K4ACamera::start()
 	device_config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
 	device_config.camera_fps = K4A_FRAMES_PER_SECOND_30; // xxxjack
 	device_config.synchronized_images_only = true; // ensures that depth and color images are both available in the capture
+
+	k4a_calibration_t calibration;
+	if (K4A_RESULT_SUCCEEDED !=
+		k4a_device_get_calibration(device_handle, device_config.depth_mode, device_config.color_resolution, &calibration))
+	{
+		std::cerr << "cwipc_kinect: Failed to get calibration" << std::endl;
+		return;
+	}
+	transformation_handle = k4a_transformation_create(&calibration);
+
 	if (k4a_device_start_cameras(device_handle, &device_config) != K4A_RESULT_SUCCEEDED) {
 		std::cerr << "cwipc_kinect: multiFrame: failed to start camera " << serial << std::endl;
 		return;
 	}
 	std::cerr << "cwipc_kinect: multiFrame: starting camera " << serial << ": " << camera_width << "x" << camera_height << "@" << camera_fps << std::endl;
+	
 	capture_started = true;
 #ifdef notrs2
 	rs2::config cfg;
@@ -170,7 +181,10 @@ void K4ACamera::stop()
 	if (pipe_started) pipe.stop();
 	pipe_started = false;
 #endif
-	if (capture_started) k4a_device_stop_cameras(device_handle);
+	if (capture_started) {
+		k4a_device_stop_cameras(device_handle);
+		k4a_transformation_destroy(transformation_handle);
+	}
 	capture_started = false;
 	processing_done = true;
 	processing_done_cv.notify_one();
@@ -232,6 +246,44 @@ void K4ACamera::_processing_thread_main()
 	std::cerr << "frame processing: cam=" << serial << " thread started" << std::endl;
 #endif
 	while(!stopped) {
+		k4a_capture_t processing_frameset;
+		bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(1000));
+		if (!ok) continue;
+
+		std::lock_guard<std::mutex> lock(processing_mutex);
+		k4a_image_t depth = k4a_capture_get_depth_image(processing_frameset);
+		k4a_image_t color = k4a_capture_get_color_image(processing_frameset);
+
+		// Note: the following code uses color as the main source of resolution. To be decided.
+		int color_image_width_pixels = k4a_image_get_width_pixels(color);
+		int color_image_height_pixels = k4a_image_get_height_pixels(color);
+
+		k4a_image_t transformed_depth = NULL;
+		k4a_result_t sts;
+		sts = k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16, color_image_width_pixels, color_image_height_pixels, color_image_width_pixels * (int)sizeof(uint16_t), &transformed_depth);
+		if (sts != K4A_RESULT_SUCCEEDED) {
+			std::cerr << "cwipc_kinect: cannot create transformed depth image" << std::endl;
+			break;
+		}
+		k4a_image_t point_cloud_image = NULL;
+		sts = k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, color_image_width_pixels, color_image_height_pixels, color_image_width_pixels * 3 * (int)sizeof(int16_t), &point_cloud_image);
+		if (sts != K4A_RESULT_SUCCEEDED) {
+			std::cerr << "cwipc_kinect: cannot create pointcloud image" << std::endl;
+			break;
+		}
+
+		sts = k4a_transformation_depth_image_to_color_camera(transformation_handle, depth, transformed_depth);
+		if (sts != K4A_RESULT_SUCCEEDED) {
+			std::cerr << "cwipc_kinect: cannot transform depth image" << std::endl;
+			break;
+		}
+		sts = k4a_transformation_depth_image_to_point_cloud(transformation_handle, transformed_depth, K4A_CALIBRATION_TYPE_COLOR, point_cloud_image);
+		if (sts != K4A_RESULT_SUCCEEDED) {
+			std::cerr << "cwipc_kinect: cannot create point cloud" << std::endl;
+			break;
+		}
+		// xxxjack now loop over images and create points.
+		// xxxjack free all allocated images
 #ifdef notrs2
 		// Wait for next frame to process. Allow aborting in case of stopped becoming false...
 		rs2::frameset processing_frameset;
