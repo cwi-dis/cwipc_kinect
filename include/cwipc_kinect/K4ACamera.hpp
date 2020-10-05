@@ -9,6 +9,7 @@
 #include <k4a/k4a.h>
 
 #include "defs.h"
+#include "readerwriterqueue.h"
 
 class K4ACamera {
 private:
@@ -48,8 +49,8 @@ protected:
 private:
 	K4ACameraData& camData;
 	K4ACameraSettings& camSettings;
-	std::queue<k4a_capture_t> captured_frame_queue;
-	std::queue<k4a_capture_t> processing_frame_queue;
+	moodycamel::BlockingReaderWriterQueue<k4a_capture_t> captured_frame_queue;
+	moodycamel::BlockingReaderWriterQueue<k4a_capture_t> processing_frame_queue;
 	k4a_capture_t current_frameset;
 	int camera_width;
 	int camera_height;

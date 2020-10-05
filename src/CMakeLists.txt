@@ -26,6 +26,8 @@ target_sources(cwipc_kinect
 	"../include/cwipc_kinect/K4ACamera.hpp"
 	"../include/cwipc_kinect/window_util.hpp"
 	"../include/cwipc_kinect/stb_image_write.h"
+	"../include/cwipc_kinect/readerwriterqueue.h"
+	"../include/cwipc_kinect/atomicops.h"
 	"../include/cwipc_kinect/api.h"
 )
 
