@@ -458,12 +458,12 @@ void K4ACamera::_processing_thread_main()
 
 void K4ACamera::transformPoint(cwipc_pcl_point& pt)
 {
-	float x = (*camData.trafo)(0,0)*pt.x + (*camData.trafo)(0,1)*pt.y + (*camData.trafo)(0,2)*pt.z + (*camData.trafo)(0,3);
-	float y = (*camData.trafo)(1,0)*pt.x + (*camData.trafo)(1,1)*pt.y + (*camData.trafo)(1,2)*pt.z + (*camData.trafo)(1,3);
-	float z = (*camData.trafo)(2,0)*pt.x + (*camData.trafo)(2,1)*pt.y + (*camData.trafo)(2,2)*pt.z + (*camData.trafo)(2,3);
-	pt.x = x;
-	pt.y = y;
-	pt.z = z;
+	float x = pt.x / 1000.0;
+	float y = pt.y / 1000.0;
+	float z = pt.z / 1000.0;
+	pt.x = (*camData.trafo)(0,0)*x + (*camData.trafo)(0,1)*y + (*camData.trafo)(0,2)*z + (*camData.trafo)(0,3);
+	pt.y = (*camData.trafo)(1,0)*x + (*camData.trafo)(1,1)*y + (*camData.trafo)(1,2)*z + (*camData.trafo)(1,3);
+	pt.z = (*camData.trafo)(2,0)*x + (*camData.trafo)(2,1)*y + (*camData.trafo)(2,2)*z + (*camData.trafo)(2,3);
 }
 
 void K4ACamera::create_pc_from_frames()
