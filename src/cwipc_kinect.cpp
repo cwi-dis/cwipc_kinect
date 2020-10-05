@@ -199,7 +199,7 @@ cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage,
     if (rv && rv->is_valid()) return rv;
     delete rv;
     if (errorMessage && *errorMessage == NULL) {
-        *errorMessage = (char *)"cwipc_kinect: no realsense cameras found";
+        *errorMessage = (char *)"cwipc_kinect: no kinect cameras found";
     }
     return NULL;
 }

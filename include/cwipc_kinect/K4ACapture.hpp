@@ -40,7 +40,7 @@ public:
     bool no_cameras;                        // True of no cameras attached
 protected:
 //	k4a_was_rs2_context ctx;				// librealsense2 context (coordinates all cameras)
-	virtual void _create_cameras(/*rs2::device_list devs*/);
+	virtual void _create_cameras(k4a_device_t*, uint32_t);
 	std::vector<K4ACamera*> cameras;                // Storage of camera specifics
 	void _control_thread_main();              // Internal: main thread that controls per-camera grabbing and processing and combines pointclouds.
 	bool stopped;

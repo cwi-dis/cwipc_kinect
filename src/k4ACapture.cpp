@@ -70,6 +70,31 @@ K4ACapture::K4ACapture(const char *configFilename)
 		no_cameras = true;
 		return;
 	}
+	std::vector<std::string> serials;
+	k4a_device_t* camera_handles = new k4a_device_t[camera_count];
+	for (uint32_t i = 0; i < camera_count; i++) {
+		if (k4a_device_open(i, &camera_handles[i]) != K4A_RESULT_SUCCEEDED) {
+			k4a_log_warning("xxxjack k4a_device_open failed");
+			continue;
+		}
+		K4ACameraData cd;
+		char serial_buf[64];
+		size_t serial_buf_size = sizeof(serial_buf) / sizeof(serial_buf[0]);
+		if (k4a_device_get_serialnum(camera_handles[i], serial_buf, &serial_buf_size) != K4A_RESULT_SUCCEEDED) {
+			k4a_log_warning("xxxjack get_serialnum failed");
+			continue;
+		}
+		cd.serial = std::string(serial_buf);
+		serials.push_back(serial_buf);
+		boost::shared_ptr<Eigen::Affine3d> default_trafo(new Eigen::Affine3d());
+		default_trafo->setIdentity();
+		cd.trafo = default_trafo;
+		cd.intrinsicTrafo = default_trafo;
+		cd.cloud = new_cwipc_pcl_pointcloud();
+		cd.background = { 0, 0, 0 };
+		cd.cameraposition = { 0, 0, 0 };
+		configuration.cameraData.push_back(cd);
+	}
 #ifdef notrs2
 	//
 	// Enumerate over all connected cameras, create their default K4ACameraData structures
@@ -93,6 +118,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 		cd.cameraposition = { 0, 0, 0 };
 		configuration.cameraData.push_back(cd);
 	}
+#endif // notrs2
 
 	//
 	// Read the configuration. We do this only now because for historical reasons the configuration
@@ -100,7 +126,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	// current hardware setup. To be fixed at some point.
 	//
 	if (configFilename == NULL) {
-		configFilename = "cameraconfig.xml";
+		configFilename = "k4aconfig.xml";
 	}
 	if (!k4a_file2config(configFilename, &configuration)) {
 
@@ -108,12 +134,6 @@ K4ACapture::K4ACapture(const char *configFilename)
 		std::vector<std::string> serials;
 		std::vector<K4ACameraData> realcams;
 
-		// collect serial numbers of all connected cameras
-		for (auto dev : devs) {
-			if (dev.get_info(RS2_CAMERA_INFO_NAME) != platform_camera_name) {
-				serials.push_back(std::string(dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER)));
-			}
-		}
 
 		// collect all camera's in the config that are connected
 		for (K4ACameraData cd : configuration.cameraData) {
@@ -125,6 +145,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 		// Reduce the active configuration to cameras that are connected
 		configuration.cameraData = realcams;
 	}
+#ifdef notrs2
     // Set various camera hardware parameters (white balance and such)
     for (auto dev : devs) {
         auto allSensors = dev.query_sensors();
@@ -176,8 +197,9 @@ K4ACapture::K4ACapture(const char *configFilename)
 		}
 	}
 #endif // WITH_INTER_CAM_SYNC
+#endif // notrs2
 	// Now we have all the configuration information. Open the cameras.
-	_create_cameras(devs);
+	_create_cameras(camera_handles, camera_count);
 
 	// Create an empty pointcloud just in case anyone calls get_mostRecentPointcloud() before one is generated.
 	mergedPC = new_cwipc_pcl_pointcloud();
@@ -203,6 +225,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 		configuration.cameraData[i].cameraposition.z = pnt.z;
 	}
 
+#ifdef notrs2
 	//
 	// start the cameras
 	//
@@ -227,7 +250,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	control_thread = new std::thread(&K4ACapture::_control_thread_main, this);
 }
 
-void K4ACapture::_create_cameras(/*rs2::device_list devs*/) {
+void K4ACapture::_create_cameras(k4a_device_t *cameras, uint32_t camera_count) {
 #ifdef notrs2
 	const std::string platform_camera_name = "Platform Camera";
 	for (auto dev : devs) {
