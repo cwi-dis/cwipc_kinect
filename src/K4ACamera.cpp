@@ -6,8 +6,8 @@
 #include <cstdlib>
 
 // Define to get (a little) debug prints
-#define CWIPC_DEBUG
-#define CWIPC_DEBUG_THREAD
+#undef CWIPC_DEBUG
+#undef CWIPC_DEBUG_THREAD
 
 // This is the dll source, so define external symbols as dllexport on windows.
 
@@ -33,7 +33,7 @@ K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int 
 	capture_started(false),
 	camData(_camData),
 	camSettings(configuration.default_camera_settings),
-	captured_frame_queue(0),
+	captured_frame_queue(1),
 	processing_frame_queue(4),
 	camera_width(configuration.width),
 	camera_height(configuration.height),
@@ -221,8 +221,10 @@ void K4ACamera::_capture_thread_main()
 			k4a_log_warning("k4a_device_get_capture failed");
 			break;
 		}
+		assert(capture_handle != NULL);
 		if (!captured_frame_queue.try_enqueue(capture_handle)) {
 			// Queue is full. discard.
+//			std::cerr << "frame capture: try_enqueue failed" << std::endl;
 			k4a_capture_release(capture_handle);
 		}
 #ifdef notrs2
@@ -247,9 +249,9 @@ void K4ACamera::_processing_thread_main()
 #endif
 	while(!stopped) {
 		k4a_capture_t processing_frameset;
-		bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(1000));
+		bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(10000));
 		if (!ok) continue;
-
+		assert(processing_frameset);
 		std::lock_guard<std::mutex> lock(processing_mutex);
 		k4a_image_t depth = k4a_capture_get_depth_image(processing_frameset);
 		k4a_image_t color = k4a_capture_get_color_image(processing_frameset);
@@ -466,6 +468,7 @@ void K4ACamera::transformPoint(cwipc_pcl_point& pt)
 
 void K4ACamera::create_pc_from_frames()
 {
+	assert(current_frameset);
 	processing_frame_queue.enqueue(current_frameset);
 }
 

@@ -352,9 +352,18 @@ void K4ACapture::_control_thread_main()
         // Step one: grab frames from all cameras. This should happen as close together in time as possible,
         // because that gives use he biggest chance we have the same frame (or at most off-by-one) for each
         // camera.
+		bool all_captures_ok = true;
         for(auto cam : cameras) {
-            if (!cam->capture_frameset()) continue;
+			if (!cam->capture_frameset()) {
+				all_captures_ok = false;
+				continue;
+			}
         }
+		if (!all_captures_ok) {
+			//std::cerr << "K4ACapture: xxxjack not all captures succeeded. Retrying." << std::endl;
+			continue;
+		}
+		//std::cerr << "K4ACapture: xxxjack got captures" << std::endl;
         // And get the best timestamp
         uint64_t timestamp = 0;
         for(auto cam: cameras) {
