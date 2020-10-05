@@ -6,16 +6,16 @@
 #include <mutex>
 #include <condition_variable>
 
+#include <k4a/k4a.h>
+
 #include "defs.h"
 
 class K4ACamera {
 private:
 	K4ACamera(const K4ACamera&);	// Disable copy constructor
 	K4ACamera& operator=(const K4ACamera&);	// Disable assignment
-protected:
-	K4ACamera(int _camera_index, k4a_was_rs2_context& ctx, K4ACaptureConfig& configuration, K4ACameraData& _camData);
 public:
-	K4ACamera(k4a_was_rs2_context& ctx, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData, std::string _usb="0");
+	K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData);
 	virtual ~K4ACamera();
 
 	void start();
@@ -33,6 +33,7 @@ public:
 	double minx;
 	double minz;
 	double maxz;
+	k4a_device_t device_handle;
 	int camera_index;
 	std::string serial;
 
@@ -47,8 +48,9 @@ protected:
 private:
 	K4ACameraData& camData;
 	K4ACameraSettings& camSettings;
-	bool high_speed_connection;
-
+	std::queue<k4a_capture_t> captured_frame_queue;
+	std::queue<k4a_capture_t> processing_frame_queue;
+	k4a_capture_t current_frameset;
 	int camera_width;
 	int camera_height;
 	int camera_fps;

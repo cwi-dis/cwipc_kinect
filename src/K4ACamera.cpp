@@ -24,15 +24,14 @@
 #include "cwipc_kinect/stb_image_write.h"
 #endif
 
-K4ACamera::K4ACamera(k4a_was_rs2_context& ctx, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData, std::string _usb)
+K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData)
 :	pointSize(0), minx(0), minz(0), maxz(0),
+	device_handle(_handle),
 	camera_index(_camera_index),
 	serial(_camData.serial),
 	stopped(true),
-//notrs2	captured_frame_queue(1),
 	camData(_camData),
 	camSettings(configuration.default_camera_settings),
-	high_speed_connection(_usb[0] == '3'),
 	camera_width(configuration.width),
 	camera_height(configuration.height),
 	camera_fps(configuration.fps),
@@ -158,6 +157,7 @@ void K4ACamera::stop()
 #endif
 	processing_done = true;
 	processing_done_cv.notify_one();
+	k4a_device_close(device_handle);
 }
 
 void K4ACamera::start_capturer()
@@ -179,6 +179,18 @@ void K4ACamera::_capture_thread_main()
 	std::cerr << "frame capture: cam=" << serial << " thread started" << std::endl;
 #endif
 	while(!stopped) {
+		k4a_capture_t capture_handle;
+		if (k4a_capture_create(&capture_handle) != K4A_RESULT_SUCCEEDED) {
+			k4a_log_warning("k4a_capture_create failed");
+			break;
+		}
+		k4a_wait_result_t ok = k4a_device_get_capture(device_handle, &capture_handle, K4A_WAIT_INFINITE);
+		if (ok != K4A_RESULT_SUCCEEDED) {
+			std::cerr << "frame capture: error " << ok << std::endl;
+			k4a_log_warning("k4a_device_get_capture failed");
+			break;
+		}
+		captured_frame_queue.push(capture_handle);
 #ifdef notrs2
 		// Wait to find if there is a next set of frames from the camera
 		rs2::frameset frames = pipe.wait_for_frames();
@@ -353,6 +365,7 @@ void K4ACamera::create_pc_from_frames()
 #ifdef notrs2
 	processing_frame_queue.enqueue(current_frameset);
 #endif // notrs2
+	processing_frame_queue.push(current_frameset);
 }
 
 void K4ACamera::wait_for_pc()

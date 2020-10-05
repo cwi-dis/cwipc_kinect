@@ -137,10 +137,14 @@ K4ACapture::K4ACapture(const char *configFilename)
 
 		// collect all camera's in the config that are connected
 		for (K4ACameraData cd : configuration.cameraData) {
+#if 1 // xxxjack find() doesn't work??!?
+			realcams.push_back(cd);
+#else
 			if ((find(serials.begin(), serials.end(), cd.serial) != serials.end()))
 				realcams.push_back(cd);
 			else
 				k4a_log_warning("multiFrame: Warning: camera " + cd.serial + " is not connected");
+#endif
 		}
 		// Reduce the active configuration to cameras that are connected
 		configuration.cameraData = realcams;
@@ -199,7 +203,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 #endif // WITH_INTER_CAM_SYNC
 #endif // notrs2
 	// Now we have all the configuration information. Open the cameras.
-	_create_cameras(camera_handles, camera_count);
+	_create_cameras(camera_handles, serials, camera_count);
 
 	// Create an empty pointcloud just in case anyone calls get_mostRecentPointcloud() before one is generated.
 	mergedPC = new_cwipc_pcl_pointcloud();
@@ -250,24 +254,21 @@ K4ACapture::K4ACapture(const char *configFilename)
 	control_thread = new std::thread(&K4ACapture::_control_thread_main, this);
 }
 
-void K4ACapture::_create_cameras(k4a_device_t *cameras, uint32_t camera_count) {
-#ifdef notrs2
-	const std::string platform_camera_name = "Platform Camera";
-	for (auto dev : devs) {
-		if (dev.get_info(RS2_CAMERA_INFO_NAME) == platform_camera_name) continue;
+void K4ACapture::_create_cameras(k4a_device_t *camera_handles, std::vector<std::string> serials, uint32_t camera_count) {
+	int serial_index = 0;
+	for(uint32_t i=0; i<camera_count; i++) {
+		if (camera_handles[i] == NULL) continue;
 #ifdef CWIPC_DEBUG
-		std::cout << "K4ACapture: opening camera " << dev.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
+		std::cout << "K4ACapture: opening camera " << cameras[i] << std::endl;
 #endif
 		// Found a realsense camera. Create a default data entry for it.
-		std::string serial(dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
-		std::string camUsb(dev.get_info(RS2_CAMERA_INFO_USB_TYPE_DESCRIPTOR));
+		std::string serial(serials[serial_index++]);
 
 		K4ACameraData& cd = get_camera_data(serial);
 		int camera_index = cameras.size();
-		auto cam = new K4ACamera(ctx, configuration, camera_index, cd, camUsb);
+		auto cam = new K4ACamera(camera_handles[i], configuration, camera_index, cd);
 		cameras.push_back(cam);
 	}
-#endif // notrs2
 }
 
 K4ACapture::~K4ACapture() {
