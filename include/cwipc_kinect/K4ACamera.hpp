@@ -40,6 +40,7 @@ public:
 
 protected:
 	bool stopped;
+	bool capture_started;
 	std::thread *processing_thread;
 	void _computePointSize(/*rs2::pipeline_profile profile*/);
 	void _processing_thread_main();

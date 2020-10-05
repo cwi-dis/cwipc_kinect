@@ -30,8 +30,11 @@ K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int 
 	camera_index(_camera_index),
 	serial(_camData.serial),
 	stopped(true),
+	capture_started(false),
 	camData(_camData),
 	camSettings(configuration.default_camera_settings),
+	captured_frame_queue(0),
+	processing_frame_queue(4),
 	camera_width(configuration.width),
 	camera_height(configuration.height),
 	camera_fps(configuration.fps),
@@ -95,6 +98,18 @@ bool K4ACamera::capture_frameset()
 void K4ACamera::start()
 {
 	assert(stopped);
+	k4a_device_configuration_t device_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+	device_config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
+	device_config.color_resolution = K4A_COLOR_RESOLUTION_720P; // xxxjack
+	device_config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+	device_config.camera_fps = K4A_FRAMES_PER_SECOND_30; // xxxjack
+	device_config.synchronized_images_only = true; // ensures that depth and color images are both available in the capture
+	if (k4a_device_start_cameras(device_handle, &device_config) != K4A_RESULT_SUCCEEDED) {
+		std::cerr << "cwipc_kinect: multiFrame: failed to start camera " << serial << std::endl;
+		return;
+	}
+	std::cerr << "cwipc_kinect: multiFrame: starting camera " << serial << ": " << camera_width << "x" << camera_height << "@" << camera_fps << std::endl;
+	capture_started = true;
 #ifdef notrs2
 	rs2::config cfg;
 	std::cerr << "cwipc_kinect: multiFrame: starting camera " << serial << ": " << camera_width << "x" << camera_height << "@" << camera_fps << std::endl;
@@ -155,6 +170,8 @@ void K4ACamera::stop()
 	if (pipe_started) pipe.stop();
 	pipe_started = false;
 #endif
+	if (capture_started) k4a_device_stop_cameras(device_handle);
+	capture_started = false;
 	processing_done = true;
 	processing_done_cv.notify_one();
 	k4a_device_close(device_handle);
@@ -190,7 +207,10 @@ void K4ACamera::_capture_thread_main()
 			k4a_log_warning("k4a_device_get_capture failed");
 			break;
 		}
-		captured_frame_queue.push(capture_handle);
+		if (!captured_frame_queue.try_enqueue(capture_handle)) {
+			// Queue is full. discard.
+			k4a_capture_release(capture_handle);
+		}
 #ifdef notrs2
 		// Wait to find if there is a next set of frames from the camera
 		rs2::frameset frames = pipe.wait_for_frames();
@@ -362,10 +382,7 @@ void K4ACamera::transformPoint(cwipc_pcl_point& out, const k4a_was_rs2_vertex& i
 
 void K4ACamera::create_pc_from_frames()
 {
-#ifdef notrs2
 	processing_frame_queue.enqueue(current_frameset);
-#endif // notrs2
-	processing_frame_queue.push(current_frameset);
 }
 
 void K4ACamera::wait_for_pc()
