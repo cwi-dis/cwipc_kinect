@@ -30,7 +30,7 @@ target_sources(cwipc_kinect
 )
 
 target_link_libraries(cwipc_kinect PUBLIC cwipc_util)
-target_link_libraries(cwipc_kinect PRIVATE ${PCL_LIBRARIES})
+target_link_libraries(cwipc_kinect PRIVATE ${PCL_LIBRARIES} ${KINECT_LIBRARIES})
 
 install(TARGETS cwipc_kinect
     EXPORT cwipc_kinect

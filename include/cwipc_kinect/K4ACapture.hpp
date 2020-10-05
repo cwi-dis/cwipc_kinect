@@ -5,7 +5,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-
+#include <k4a/k4a.h>
 
 #include "defs.h"
 

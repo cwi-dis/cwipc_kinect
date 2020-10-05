@@ -62,11 +62,15 @@ K4ACapture::K4ACapture(const char *configFilename)
 			camera_count++;
 		}
 	}
+#else
+	int camera_count = k4a_device_get_installed_count();
+#endif
 	if (camera_count == 0) {
 		// no camera connected, so we'll return nothing
-        no_cameras = true;
+		no_cameras = true;
 		return;
 	}
+#ifdef notrs2
 	//
 	// Enumerate over all connected cameras, create their default K4ACameraData structures
 	// and set any hardware options (for example for sync).

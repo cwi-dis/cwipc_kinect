@@ -58,6 +58,14 @@ add_definitions(${PCL_DEFINITIONS})
 #find_package(REALSENSE2 REQUIRED)
 #include_directories(${REALSENSE2_INCLUDE_DIRS})
 #link_directories(${REALSENSE2_LIBRARY_DIRS})
+#
+# Find Kinect for Azure SDK
+# xxxjack manual hardcoded pathname for now.
+set(KINECT_LIBRARY_DIRS "C:/Program Files/Azure Kinect SDK v1.4.1/sdk/windows-desktop/amd64/release/lib")
+set(KINECT_INCLUDE_DIRS "C:/Program Files/Azure Kinect SDK v1.4.1/sdk/include")
+set(KINECT_LIBRARIES k4a.lib)
+include_directories(${KINECT_INCLUDE_DIRS})
+link_directories(${KINECT_LIBRARY_DIRS})
 
 # we need the thirdparty tinyXML for the test programs.
 include(third-party/tinyXML/CMakeLists.txt)
