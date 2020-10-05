@@ -229,24 +229,17 @@ K4ACapture::K4ACapture(const char *configFilename)
 		configuration.cameraData[i].cameraposition.z = pnt.z;
 	}
 
-#ifdef notrs2
 	//
 	// start the cameras
 	//
-	try {
-		for (auto cam: cameras)
-			cam->start();
-	} catch(const rs2::error& e) {
-		k4a_log_warning("exception while starting camera: " + e.get_failed_function() + ": " + e.what());
-		throw;
-	}
+	for (auto cam: cameras)
+		cam->start();
 	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	//
 	// start the per-camera capture threads
 	//
 	for (auto cam: cameras)
 		cam->start_capturer();
-#endif // notrs2
 	//
 	// start our run thread (which will drive the capturers and merge the pointclouds)
 	//
