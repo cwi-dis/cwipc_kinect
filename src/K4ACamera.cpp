@@ -308,6 +308,11 @@ void K4ACamera::_processing_thread_main()
 				camData.cloud->push_back(point);
 		}
 		// xxxjack free all allocated images
+		k4a_image_release(point_cloud_image);
+		k4a_image_release(color);
+		k4a_image_release(depth);
+		k4a_image_release(transformed_depth);
+		k4a_capture_release(processing_frameset);
 		if (camData.cloud->size() == 0) {
 			std::cerr << "cwipc_kinect: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
 			//continue;
