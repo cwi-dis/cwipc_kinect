@@ -24,8 +24,8 @@ class LiveGrabber:
         self.grabber = None
         
     def open(self):
-        if os.path.exists('cameraconfig.xml'):
-            self.cameraconfig = CameraConfig('cameraconfig.xml')
+        if os.path.exists('cameraconfig_k4a.xml'):
+            self.cameraconfig = CameraConfig('cameraconfig_k4a.xml')
         else:
             self.cameraconfig = CameraConfig('', read=False)
             self.cameraconfig.fillDefault()
@@ -53,11 +53,11 @@ class LiveGrabber:
             for sn in hwSerials:
                 if not sn in fileSerials:
                     ok = False
-                    print(f'Camera {sn} is attached but not in cameraconfig.xml')
+                    print(f'Camera {sn} is attached but not in cameraconfig_k4a.xml')
             for sn in fileSerials:
                 if not sn in hwSerials:
                     ok = False
-                    print(f'Camera {sn} is in cameraconfig.xml but not attached')
+                    print(f'Camera {sn} is in cameraconfig_k4a.xml but not attached')
             if not ok:
                 print('Use --clean to calibrate this new hardware setup (or attach the right cameras)')
                 return False

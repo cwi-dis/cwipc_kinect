@@ -53,19 +53,19 @@ class Calibrator:
         
     def open(self, grabber, clean, reuse):
         if clean:
-            if os.path.exists('cameraconfig.xml'):
-                os.unlink('cameraconfig.xml')
+            if os.path.exists('cameraconfig_k4a.xml'):
+                os.unlink('cameraconfig_k4a.xml')
         elif reuse:
             pass
-        elif os.path.exists('cameraconfig.xml'):
-            self.ui.show_error('%s: cameraconfig.xml already exists, please supply --clean or --reuse argument' % sys.argv[0])
+        elif os.path.exists('cameraconfig_k4a.xml'):
+            self.ui.show_error('%s: cameraconfig_k4a.xml already exists, please supply --clean or --reuse argument' % sys.argv[0])
             sys.exit(1)
         self.grabber = grabber
         ok = self.grabber.open()
         if not ok:
             return False
         self.cameraserial = self.grabber.getserials()
-        self.cameraconfig = CameraConfig('cameraconfig.xml', read=False)
+        self.cameraconfig = CameraConfig('cameraconfig_k4a.xml', read=False)
         self.cameraconfig.copyFrom(self.grabber.cameraconfig)
         return True
 

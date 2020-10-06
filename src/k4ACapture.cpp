@@ -126,7 +126,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	// current hardware setup. To be fixed at some point.
 	//
 	if (configFilename == NULL) {
-		configFilename = "k4aconfig.xml";
+		configFilename = "cameraconfig_k4a.xml";
 	}
 	if (!k4a_file2config(configFilename, &configuration)) {
 
