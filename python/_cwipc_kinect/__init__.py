@@ -6,27 +6,9 @@ from cwipc.util import cwipc_tiledsource_p
 
 __all__ = [
     "cwipc_kinect",
-    "cwipc_rs2offline",
     "_cwipc_kinect_dll"
 ]
 
-class cwipc_offline_camera_settings(ctypes.Structure):
-    _fields_ = [
-        ("width", ctypes.c_int),
-        ("height", ctypes.c_int),
-        ("bpp", ctypes.c_int),
-        ("fps", ctypes.c_int),
-        ("format", ctypes.c_int)
-    ]
-    
-class cwipc_offline_settings(ctypes.Structure):
-    _fields_ = [
-        ("color", cwipc_offline_camera_settings),
-        ("depth", cwipc_offline_camera_settings),
-    ]
-class cwipc_offline_p(ctypes.c_void_p):
-    pass
-    
 _cwipc_kinect_dll_reference = None
 
 #
