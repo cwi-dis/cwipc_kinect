@@ -42,10 +42,9 @@ bool k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		return false;
 	}
 
-#ifdef notrs2
 	TiXmlHandle docHandle(&doc);
 	TiXmlElement* configElement = docHandle.FirstChild("file").FirstChild("CameraConfig").ToElement();
-
+#ifdef notrs2
 	// get the system related information
 	TiXmlElement* systemElement = configElement->FirstChildElement("system");
 	if (systemElement) {
@@ -56,29 +55,36 @@ bool k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		systemElement->QueryIntAttribute("usb3height", &(config->usb3_height));
 		systemElement->QueryIntAttribute("usb3fps", &(config->usb3_fps));
 	}
+#endif
 
     // get the processing related information
     TiXmlElement* postprocessingElement = configElement->FirstChildElement("postprocessing");
     if (postprocessingElement) {
+#ifdef notrs2
 		postprocessingElement->QueryBoolAttribute("depthfiltering", &(config->depth_filtering));
 		postprocessingElement->QueryBoolAttribute("backgroundremoval", &(config->background_removal));
 		postprocessingElement->QueryBoolAttribute("greenscreenremoval", &(config->greenscreen_removal));
+#endif
 		postprocessingElement->QueryDoubleAttribute("height_min", &(config->height_min));
 		postprocessingElement->QueryDoubleAttribute("height_max", &(config->height_max));
+#ifdef notrs2
 		postprocessingElement->QueryDoubleAttribute("cloudresolution", &(config->cloud_resolution));
 		postprocessingElement->QueryBoolAttribute("tiling", &(config->tiling));
 		postprocessingElement->QueryBoolAttribute("density", &(config->density));
 		postprocessingElement->QueryDoubleAttribute("tilingresolution", &(config->tiling_resolution));
 		const char* method = postprocessingElement->Attribute("tilingmethod");
 		if (method) config->tiling_method.assign(method);
-        
+#endif
         TiXmlElement* parameterElement = postprocessingElement->FirstChildElement("depthfilterparameters");
         if (parameterElement) {
+#ifdef notrs2
 			parameterElement->QueryBoolAttribute("do_decimation", &(config->default_camera_settings.do_decimation));
 			parameterElement->QueryIntAttribute("decimation_value", &(config->default_camera_settings.decimation_value));
+#endif
 			parameterElement->QueryBoolAttribute("do_threshold", &(config->default_camera_settings.do_threshold));
 			parameterElement->QueryDoubleAttribute("threshold_near", &(config->default_camera_settings.threshold_near));
 			parameterElement->QueryDoubleAttribute("threshold_far", &(config->default_camera_settings.threshold_far));
+#ifdef notrs2
 			parameterElement->QueryBoolAttribute("do_spatial", &(config->default_camera_settings.do_spatial));
 			parameterElement->QueryIntAttribute("spatial_iterations", &(config->default_camera_settings.spatial_iterations));
 			parameterElement->QueryDoubleAttribute("spatial_alpha", &(config->default_camera_settings.spatial_alpha));
@@ -88,7 +94,8 @@ bool k4a_file2config(const char* filename, K4ACaptureConfig* config)
 			parameterElement->QueryDoubleAttribute("temporal_alpha", &(config->default_camera_settings.temporal_alpha));
 			parameterElement->QueryIntAttribute("temporal_delta", &(config->default_camera_settings.temporal_delta));
 			parameterElement->QueryIntAttribute("temporal_percistency", &(config->default_camera_settings.temporal_percistency));
-        }
+#endif
+		}
     }
     
 	bool allnewcameras = config->cameraData.size() == 0; // if empty we have to set up a new administration
@@ -183,7 +190,6 @@ bool k4a_file2config(const char* filename, K4ACaptureConfig* config)
     if (!loadOkay) {
         k4a_log_warning("multiFrame: available hardware camera configuration does not match configuration file");
     }
-#endif // notrs2
 	return loadOkay;
 }
 

@@ -23,12 +23,12 @@ typedef struct {} k4a_was_rs2_context;
 typedef struct {float x, y, z; } k4a_was_rs2_vertex;
 
 struct K4ACameraSettings {
-#ifdef notrs2
-	bool do_decimation = false;
-	int decimation_value = 1;             // int value between 2 and 8
 	bool do_threshold = true;
 	double threshold_near = 0.15;         // float, near point for distance threshold
 	double threshold_far = 6.0;           // float, far point for distance threshold
+#ifdef notrs2
+	bool do_decimation = false;
+	int decimation_value = 1;             // int value between 2 and 8
 	bool do_spatial = true;
 	int spatial_iterations = 2;           // int val between 1 and 5
 	double spatial_alpha = 0.5;          // val between 0.25 and 1.0
@@ -38,8 +38,6 @@ struct K4ACameraSettings {
 	double temporal_alpha = 0.4;	      // val between 0 and 1
 	int temporal_delta = 20;	          // val between 1 and 100
 	int temporal_percistency = 3;         // val between 0 and 8
-#else
-	int dummy;
 #endif
 };
 

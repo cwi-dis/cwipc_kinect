@@ -286,6 +286,9 @@ void K4ACamera::_processing_thread_main()
 		}
 		uint8_t* color_data = k4a_image_get_buffer(color);
 		int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
+		// Setup depth filtering, if needed
+		int16_t min_depth = (int16_t)(camSettings.threshold_near * 1000);
+		int16_t max_depth = (int16_t)(camSettings.threshold_far * 1000);
 		// now loop over images and create points.
 		for (int i = 0; i < color_image_width_pixels * color_image_height_pixels; i++)
 		{
@@ -294,6 +297,7 @@ void K4ACamera::_processing_thread_main()
 			point.y = point_cloud_image_data[3 * i + 1];
 			point.z = point_cloud_image_data[3 * i + 2];
 			if (point.z == 0) continue;
+			if (camSettings.do_threshold && (point.z < min_depth || point.z > max_depth)) continue;
 
 			point.r = color_data[4 * i + 0];
 			point.g = color_data[4 * i + 1];
