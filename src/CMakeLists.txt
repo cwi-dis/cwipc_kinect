@@ -34,6 +34,27 @@ target_sources(cwipc_kinect
 target_link_libraries(cwipc_kinect PUBLIC cwipc_util)
 target_link_libraries(cwipc_kinect PRIVATE ${PCL_LIBRARIES} ${KINECT_LIBRARIES})
 
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" AND CMAKE_BUILD_TYPE MATCHES "Release")
+   target_compile_options(cwipc_kinect PRIVATE /Zi)
+
+   # Tell linker to include symbol data
+    set_target_properties(cwipc_kinect PROPERTIES 
+        LINK_FLAGS "/INCREMENTAL:NO /DEBUG /OPT:REF /OPT:ICF"
+    )
+
+    # Set file name & location
+    set_target_properties(cwipc_kinect PROPERTIES 
+        COMPILE_PDB_NAME cwipc_kinect 
+        COMPILE_PDB_OUTPUT_DIR ${CMAKE_BINARY_DIR}
+    )
+	
+	# Install pdb file
+	install(DIRECTORY ${PROJECT_BINARY_DIR}/Release
+		DESTINATION ${CMAKE_INSTALL_BINDIR}
+		FILES_MATCHING PATTERN *.pdb
+	)
+endif()
+
 install(TARGETS cwipc_kinect
     EXPORT cwipc_kinect
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
