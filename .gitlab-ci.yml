@@ -9,7 +9,8 @@ build_linux:
     - ubuntu1804
   except: 
   - /latest/
-  only: notyetimplemented
+  only: 
+  - /notyetimplemented/
   variables:
     DEBIAN_FRONTEND: noninteractive
   before_script:
@@ -60,7 +61,8 @@ build_osx:
   - osx1014
   except: 
   - /latest/
-  only: notyetimplemented
+  only: 
+  - /notyetimplemented/
   before_script:
     - brew install pkg-config || true # brew upgrade pkg-config
     - brew install cmake || true # brew upgrade cmake
