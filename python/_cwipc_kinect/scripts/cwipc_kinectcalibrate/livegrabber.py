@@ -2,7 +2,7 @@ import sys
 import os
 import cwipc
 import cwipc.kinect
-
+from .cameraconfig import DEFAULT_FILENAME
 #
 # Windows search path is horrible. Work around it for testing with an environment variable
 #
@@ -24,13 +24,13 @@ class LiveGrabber:
         self.grabber = None
         
     def open(self):
-        if os.path.exists('cameraconfig_k4a.xml'):
-            self.cameraconfig = CameraConfig('cameraconfig_k4a.xml')
+        if os.path.exists(DEFAULT_FILENAME):
+            self.cameraconfig = CameraConfig(DEFAULT_FILENAME)
         else:
             self.cameraconfig = CameraConfig('', read=False)
             self.cameraconfig.fillDefault()
         try:
-            self.grabber = cwipc.kinect.cwipc_kinect()
+            self.grabber = cwipc.realsense2.cwipc_realsense2()
         except cwipc.CwipcError as exc:
             print(f'Error opening camera: {exc}', file=sys.stderr)
             return False
@@ -53,11 +53,11 @@ class LiveGrabber:
             for sn in hwSerials:
                 if not sn in fileSerials:
                     ok = False
-                    print(f'Camera {sn} is attached but not in cameraconfig_k4a.xml')
+                    print(f'Camera {sn} is attached but not in {DEFAULT_FILENAME}')
             for sn in fileSerials:
                 if not sn in hwSerials:
                     ok = False
-                    print(f'Camera {sn} is in cameraconfig_k4a.xml but not attached')
+                    print(f'Camera {sn} is in {DEFAULT_FILENAME} but not attached')
             if not ok:
                 print('Use --clean to calibrate this new hardware setup (or attach the right cameras)')
                 return False

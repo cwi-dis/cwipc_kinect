@@ -3,7 +3,7 @@ import os
 import cwipc
 
 from .pointcloud import Pointcloud
-from .cameraconfig import CameraConfig
+from .cameraconfig import CameraConfig, DEFAULT_FILENAME
 
 class FileGrabber:
     def __init__(self, plyfile):

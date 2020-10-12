@@ -6,7 +6,7 @@ import pprint
 import math
 
 from .pointcloud import Pointcloud
-from .cameraconfig import CameraConfig
+from .cameraconfig import CameraConfig, DEFAULT_FILENAME
 from .ui import UI
 DEBUG=False
 
