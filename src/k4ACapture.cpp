@@ -49,7 +49,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	// First check that no other K4ACapture is active within this process (trying to catch programmer errors)
 	numberOfCapturersActive++;
 	if (numberOfCapturersActive > 1) {
-		k4a_log_warning("multiFrame: Warning: attempting to create capturer while one is already active.");
+		cwipc_k4a_log_warning("multiFrame: Warning: attempting to create capturer while one is already active.");
 	}
 #ifdef notrs2
 
@@ -74,14 +74,14 @@ K4ACapture::K4ACapture(const char *configFilename)
 	k4a_device_t* camera_handles = new k4a_device_t[camera_count];
 	for (uint32_t i = 0; i < camera_count; i++) {
 		if (k4a_device_open(i, &camera_handles[i]) != K4A_RESULT_SUCCEEDED) {
-			k4a_log_warning("xxxjack k4a_device_open failed");
+			cwipc_k4a_log_warning("xxxjack k4a_device_open failed");
 			continue;
 		}
 		K4ACameraData cd;
 		char serial_buf[64];
 		size_t serial_buf_size = sizeof(serial_buf) / sizeof(serial_buf[0]);
 		if (k4a_device_get_serialnum(camera_handles[i], serial_buf, &serial_buf_size) != K4A_RESULT_SUCCEEDED) {
-			k4a_log_warning("xxxjack get_serialnum failed");
+			cwipc_k4a_log_warning("xxxjack get_serialnum failed");
 			continue;
 		}
 		cd.serial = std::string(serial_buf);
@@ -128,7 +128,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	if (configFilename == NULL) {
 		configFilename = "cameraconfig_k4a.xml";
 	}
-	if (!k4a_file2config(configFilename, &configuration)) {
+	if (!cwipc_k4a_file2config(configFilename, &configuration)) {
 
 		// the configuration file did not fully match the current situation so we have to update the admin
 		std::vector<std::string> serials;
@@ -143,7 +143,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 			if ((find(serials.begin(), serials.end(), cd.serial) != serials.end()))
 				realcams.push_back(cd);
 			else
-				k4a_log_warning("multiFrame: Warning: camera " + cd.serial + " is not connected");
+				cwipc_k4a_log_warning("multiFrame: Warning: camera " + cd.serial + " is not connected");
 #endif
 		}
 		// Reduce the active configuration to cameras that are connected
@@ -196,7 +196,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 				}
 			}
 			if (!foundSensorSupportingSync) {
-                k4a_log_warning(std::string("multiFrame: Warning: camera ") + dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER) + " does not support inter-camera-sync");
+                cwipc_k4a_log_warning(std::string("multiFrame: Warning: camera ") + dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER) + " does not support inter-camera-sync");
 			}
 		}
 	}
@@ -479,7 +479,7 @@ K4ACameraData& K4ACapture::get_camera_data(std::string serial) {
 	for (int i = 0; i < configuration.cameraData.size(); i++)
 		if (configuration.cameraData[i].serial == serial)
 			return configuration.cameraData[i];
-	k4a_log_warning("cwipc_kinect: multiFrame: unknown camera " + serial);
+	cwipc_k4a_log_warning("cwipc_kinect: multiFrame: unknown camera " + serial);
 	abort();
 }
 

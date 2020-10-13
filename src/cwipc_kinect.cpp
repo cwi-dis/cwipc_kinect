@@ -192,9 +192,9 @@ cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage,
 		return NULL;
 	}
 //xxxjack 	if (!MFCapture_versionCheck(errorMessage)) return NULL;
-    k4a_warning_store = errorMessage;
+    cwipc_k4a_warning_store = errorMessage;
 	cwipc_source_kinect_impl *rv = new cwipc_source_kinect_impl(configFilename);
-    k4a_warning_store = NULL;
+    cwipc_k4a_warning_store = NULL;
     // If the grabber found cameras everything is fine
     if (rv && rv->is_valid()) return rv;
     delete rv;

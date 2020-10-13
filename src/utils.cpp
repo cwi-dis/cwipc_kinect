@@ -19,82 +19,55 @@ typedef struct HsvColor
 } HsvColor;
 
 static std::string k4a_most_recent_warning;
-char **k4a_warning_store;
+char **cwipc_k4a_warning_store;
 
-void k4a_log_warning(std::string warning)
+void cwipc_k4a_log_warning(std::string warning)
 {
-    std::cerr << "cwipc_kinect: " << warning << std::endl;
-    if (k4a_warning_store) {
+    std::cerr << "cwipc_kinect: Warning: " << warning << std::endl;
+    if (cwipc_k4a_warning_store) {
         k4a_most_recent_warning = warning;
-        *k4a_warning_store = (char *)k4a_most_recent_warning.c_str();
+        *cwipc_k4a_warning_store = (char *)k4a_most_recent_warning.c_str();
     }
 }
 
 
 // read and restore the camera transformation setting as stored in the configuration document
-bool k4a_file2config(const char* filename, K4ACaptureConfig* config)
+bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 {
 	TiXmlDocument doc(filename);
 	bool loadOkay = doc.LoadFile();
 	if (!loadOkay)
 	{
-        k4a_log_warning(std::string("multiFrame: Warning: Failed to load configfile ") + filename + ", using default matrices");
+        cwipc_k4a_log_warning(std::string("Failed to load configfile ") + filename + ", using default matrices");
 		return false;
 	}
 
 	TiXmlHandle docHandle(&doc);
 	TiXmlElement* configElement = docHandle.FirstChild("file").FirstChild("CameraConfig").ToElement();
-#ifdef notrs2
+#ifdef notyet
 	// get the system related information
 	TiXmlElement* systemElement = configElement->FirstChildElement("system");
 	if (systemElement) {
-		systemElement->QueryIntAttribute("usb2width", &(config->usb2_width));
-		systemElement->QueryIntAttribute("usb2height", &(config->usb2_height));
-		systemElement->QueryIntAttribute("usb2fps", &(config->usb2_fps));
-		systemElement->QueryIntAttribute("usb3width", &(config->usb3_width));
-		systemElement->QueryIntAttribute("usb3height", &(config->usb3_height));
-		systemElement->QueryIntAttribute("usb3fps", &(config->usb3_fps));
+		systemElement->QueryIntAttribute("rgbwidth", &(config->rgb_width));
+		systemElement->QueryIntAttribute("rgbheight", &(config->rgb_height));
+		systemElement->QueryIntAttribute("depthwidth", &(config->depth_width));
+		systemElement->QueryIntAttribute("depthheight", &(config->depth_height));
+		systemElement->QueryIntAttribute("fps", &(config->fps));
+		systemElement->QueryBoolAttribute("colormaster", &(config->colormaster));
 	}
 #endif
 
     // get the processing related information
     TiXmlElement* postprocessingElement = configElement->FirstChildElement("postprocessing");
     if (postprocessingElement) {
-#ifdef notrs2
-		postprocessingElement->QueryBoolAttribute("depthfiltering", &(config->depth_filtering));
-		postprocessingElement->QueryBoolAttribute("backgroundremoval", &(config->background_removal));
 		postprocessingElement->QueryBoolAttribute("greenscreenremoval", &(config->greenscreen_removal));
-#endif
 		postprocessingElement->QueryDoubleAttribute("height_min", &(config->height_min));
 		postprocessingElement->QueryDoubleAttribute("height_max", &(config->height_max));
-#ifdef notrs2
-		postprocessingElement->QueryDoubleAttribute("cloudresolution", &(config->cloud_resolution));
-		postprocessingElement->QueryBoolAttribute("tiling", &(config->tiling));
-		postprocessingElement->QueryBoolAttribute("density", &(config->density));
-		postprocessingElement->QueryDoubleAttribute("tilingresolution", &(config->tiling_resolution));
-		const char* method = postprocessingElement->Attribute("tilingmethod");
-		if (method) config->tiling_method.assign(method);
-#endif
         TiXmlElement* parameterElement = postprocessingElement->FirstChildElement("depthfilterparameters");
         if (parameterElement) {
-#ifdef notrs2
-			parameterElement->QueryBoolAttribute("do_decimation", &(config->default_camera_settings.do_decimation));
-			parameterElement->QueryIntAttribute("decimation_value", &(config->default_camera_settings.decimation_value));
-#endif
 			parameterElement->QueryBoolAttribute("do_threshold", &(config->default_camera_settings.do_threshold));
 			parameterElement->QueryDoubleAttribute("threshold_near", &(config->default_camera_settings.threshold_near));
 			parameterElement->QueryDoubleAttribute("threshold_far", &(config->default_camera_settings.threshold_far));
-#ifdef notrs2
-			parameterElement->QueryBoolAttribute("do_spatial", &(config->default_camera_settings.do_spatial));
-			parameterElement->QueryIntAttribute("spatial_iterations", &(config->default_camera_settings.spatial_iterations));
-			parameterElement->QueryDoubleAttribute("spatial_alpha", &(config->default_camera_settings.spatial_alpha));
-			parameterElement->QueryIntAttribute("spatial_delta", &(config->default_camera_settings.spatial_delta));
-			parameterElement->QueryIntAttribute("spatial_filling", &(config->default_camera_settings.spatial_filling));
-			parameterElement->QueryBoolAttribute("do_temporal", &(config->default_camera_settings.do_temporal));
-			parameterElement->QueryDoubleAttribute("temporal_alpha", &(config->default_camera_settings.temporal_alpha));
-			parameterElement->QueryIntAttribute("temporal_delta", &(config->default_camera_settings.temporal_delta));
-			parameterElement->QueryIntAttribute("temporal_percistency", &(config->default_camera_settings.temporal_percistency));
-#endif
 		}
     }
     
@@ -128,15 +101,16 @@ bool k4a_file2config(const char* filename, K4ACaptureConfig* config)
 			cd->serial = cameraElement->Attribute("serial");
 			cd->trafo = trafo;
 			cd->intrinsicTrafo = intrinsicTrafo;
-			cd->background = { 0, 0, 0 };
 			cd->cameraposition = { 0, 0, 0 };
 			config->cameraData.push_back(*cd);
 			cd = &config->cameraData.back();
 		}
-		cameraElement->QueryDoubleAttribute("backgroundx", &(cd->background.x));
-		cameraElement->QueryDoubleAttribute("backgroundy", &(cd->background.y));
-		cameraElement->QueryDoubleAttribute("backgroundz", &(cd->background.z));
 
+        std::string type = cameraElement->Attribute("type");
+        if (type != "") {
+            cd->type = type;
+        }
+        
 		TiXmlElement *trafo = cameraElement->FirstChildElement("trafo");
 		if (trafo) {
 			TiXmlElement *val = trafo->FirstChildElement("values");
@@ -188,107 +162,9 @@ bool k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		loadOkay = false;
 
     if (!loadOkay) {
-        k4a_log_warning("multiFrame: available hardware camera configuration does not match configuration file");
+        cwipc_k4a_log_warning("Available hardware camera configuration does not match configuration file");
     }
 	return loadOkay;
-}
-
-// store the current camera transformation setting into a xml document
-void k4a_config2file(const char* filename, K4ACaptureConfig* config)
-{
-#ifdef notrs2
-	TiXmlDocument doc;
-	doc.LinkEndChild(new TiXmlDeclaration("1.0", "", ""));
-
-	TiXmlElement* root = new TiXmlElement("file");
-	doc.LinkEndChild(root);
-
-	TiXmlElement* cameraconfig = new TiXmlElement("CameraConfig");
-	root->LinkEndChild(cameraconfig);
-
-	TiXmlElement* system = new TiXmlElement("system");
-	system->SetAttribute("usb2width", config->usb2_width);
-	system->SetAttribute("usb2height", config->usb2_height);
-	system->SetAttribute("usb2fps", config->usb2_fps);
-	system->SetAttribute("usb3width", config->usb3_width);
-	system->SetAttribute("usb3height", config->usb3_height);
-	system->SetAttribute("usb3fps", config->usb3_fps);
-	cameraconfig->LinkEndChild(system);
-
-	cameraconfig->LinkEndChild(new TiXmlComment(" 'cloudresolution' and 'tileresolution' are specified in meters "));
-	TiXmlElement* postprocessing = new TiXmlElement("postprocessing");
-	postprocessing->SetAttribute("depthfiltering", config->depth_filtering);
-	postprocessing->SetAttribute("backgroundremoval", config->background_removal);
-	postprocessing->SetAttribute("greenscreenremoval", config->greenscreen_removal);
-	postprocessing->SetDoubleAttribute("height_min", config->height_min);
-	postprocessing->SetDoubleAttribute("height_max", config->height_max);
-	postprocessing->SetDoubleAttribute("cloudresolution", config->cloud_resolution);
-	postprocessing->SetAttribute("tiling", config->tiling);
-	postprocessing->SetAttribute("density", config->density);
-	postprocessing->SetDoubleAttribute("tilingresolution", config->tiling_resolution);
-	postprocessing->SetAttribute("tilingmethod", config->tiling_method.c_str());
-	cameraconfig->LinkEndChild(postprocessing);
-
-	postprocessing->LinkEndChild(new TiXmlComment(" For information on depth filtering parameters see librealsense/doc/post-processing-filters.md "));
-	postprocessing->LinkEndChild(new TiXmlComment("\tdecimation_value is an int between 2 and 8 "));
-	postprocessing->LinkEndChild(new TiXmlComment("\tspatial_iterations is an int between 1 and 5 "));
-	postprocessing->LinkEndChild(new TiXmlComment("\tspatial_alpha is is a float between 0.25 and 1.0 "));
-	postprocessing->LinkEndChild(new TiXmlComment("\tspatial_delta is an int between 1 and 50 "));
-	postprocessing->LinkEndChild(new TiXmlComment("\tspatial_filling is an int between 0 and 6 "));
-	postprocessing->LinkEndChild(new TiXmlComment("\ttemporal_alpha is is a float between 0 and 1 "));
-	postprocessing->LinkEndChild(new TiXmlComment("\ttemporal_delta is is an int between 1 and 100 "));
-	postprocessing->LinkEndChild(new TiXmlComment("\ttemporal_percistency is a float between 0 and 8 "));
-
-	TiXmlElement* parameters = new TiXmlElement("depthfilterparameters");
-	parameters->SetAttribute("do_decimation", config->default_camera_settings.do_decimation);
-	parameters->SetAttribute("decimation_value", config->default_camera_settings.decimation_value);
-	parameters->SetAttribute("do_threshold", config->default_camera_settings.do_threshold);
-	parameters->SetDoubleAttribute("threshold_near", config->default_camera_settings.threshold_near);
-	parameters->SetDoubleAttribute("threshold_far", config->default_camera_settings.threshold_far);
-	parameters->SetAttribute("do_spatial", config->default_camera_settings.do_spatial);
-	parameters->SetAttribute("spatial_iterations", config->default_camera_settings.spatial_iterations);
-	parameters->SetDoubleAttribute("spatial_alpha", config->default_camera_settings.spatial_alpha);
-	parameters->SetAttribute("spatial_delta", config->default_camera_settings.spatial_delta);
-	parameters->SetAttribute("spatial_filling", config->default_camera_settings.spatial_filling);
-	parameters->SetAttribute("do_temporal", config->default_camera_settings.do_temporal);
-	parameters->SetDoubleAttribute("temporal_alpha", config->default_camera_settings.temporal_alpha);
-	parameters->SetAttribute("temporal_delta", config->default_camera_settings.temporal_delta);
-	parameters->SetAttribute("temporal_percistency", config->default_camera_settings.temporal_percistency);
-	postprocessing->LinkEndChild(parameters);
-
-	cameraconfig->LinkEndChild(new TiXmlComment(" backgroundx, backgroundy and backgroudz if not 0 position the camera's background plane "));
-	for (K4ACameraData cd : config->cameraData) {
-		TiXmlElement* cam = new TiXmlElement("camera");
-		cam->SetAttribute("serial", cd.serial.c_str());
-		cam->SetDoubleAttribute("backgroundx", cd.background.x);
-		cam->SetDoubleAttribute("backgroundy", cd.background.y);
-		cam->SetDoubleAttribute("backgroundz", cd.background.z);
-		cameraconfig->LinkEndChild(cam);
-
-		TiXmlElement* trafo = new TiXmlElement("trafo");
-		cam->LinkEndChild(trafo);
-
-		TiXmlElement* val = new TiXmlElement("values");
-		val->SetDoubleAttribute("v00", (*cd.trafo)(0, 0));
-		val->SetDoubleAttribute("v01", (*cd.trafo)(0, 1));
-		val->SetDoubleAttribute("v02", (*cd.trafo)(0, 2));
-		val->SetDoubleAttribute("v03", (*cd.trafo)(0, 3));
-		val->SetDoubleAttribute("v10", (*cd.trafo)(1, 0));
-		val->SetDoubleAttribute("v11", (*cd.trafo)(1, 1));
-		val->SetDoubleAttribute("v12", (*cd.trafo)(1, 2));
-		val->SetDoubleAttribute("v13", (*cd.trafo)(1, 3));
-		val->SetDoubleAttribute("v20", (*cd.trafo)(2, 0));
-		val->SetDoubleAttribute("v21", (*cd.trafo)(2, 1));
-		val->SetDoubleAttribute("v22", (*cd.trafo)(2, 2));
-		val->SetDoubleAttribute("v23", (*cd.trafo)(2, 3));
-		val->SetDoubleAttribute("v30", (*cd.trafo)(3, 0));
-		val->SetDoubleAttribute("v31", (*cd.trafo)(3, 1));
-		val->SetDoubleAttribute("v32", (*cd.trafo)(3, 2));
-		val->SetDoubleAttribute("v33", (*cd.trafo)(3, 3));
-		trafo->LinkEndChild(val);
-	}
-	doc.SaveFile(filename);
-#endif
 }
 
 cwipc_pcl_point* hsvToRgb(HsvColor hsv, cwipc_pcl_point* pnt)
@@ -386,7 +262,7 @@ HsvColor rgbToHsv(cwipc_pcl_point* pnt)
 	return hsv;
 }
 
-bool k4a_noChromaRemoval(cwipc_pcl_point* p)
+bool cwipc_k4a_noChromaRemoval(cwipc_pcl_point* p)
 {
 	HsvColor hsv = rgbToHsv(p);
 

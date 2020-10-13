@@ -61,37 +61,11 @@ K4ACamera::~K4ACamera()
 void K4ACamera::_init_filters()
 {
 	if (!do_depth_filtering) return;
-#ifdef notrs2
-	if (camSettings.do_decimation) {
-		dec_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, camSettings.decimation_value);
-	}
-	if (camSettings.do_threshold) {
-		threshold_filter.set_option(RS2_OPTION_MIN_DISTANCE, camSettings.threshold_near);
-		threshold_filter.set_option(RS2_OPTION_MAX_DISTANCE, camSettings.threshold_far);
-	}
-
-	if (camSettings.do_spatial) {
-		spat_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, camSettings.spatial_iterations);
-		spat_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, camSettings.spatial_alpha);
-		spat_filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, camSettings.spatial_delta);
-		spat_filter.set_option(RS2_OPTION_HOLES_FILL, camSettings.spatial_filling);
-	}
-
-	if (camSettings.do_temporal) {
-		temp_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, camSettings.temporal_alpha);
-		temp_filter.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, camSettings.temporal_delta);
-		temp_filter.set_option(RS2_OPTION_HOLES_FILL, camSettings.temporal_percistency);
-	}
-#endif
 }
 
 bool K4ACamera::capture_frameset()
 {
-#ifdef notrs2
-	return captured_frame_queue.try_wait_for_frame(&current_frameset);
-#else
 	return captured_frame_queue.try_dequeue(current_frameset);
-#endif
 }
 
 // Configure and initialize caputuring of one camera
@@ -118,21 +92,9 @@ void K4ACamera::start()
 		std::cerr << "cwipc_kinect: multiFrame: failed to start camera " << serial << std::endl;
 		return;
 	}
-	std::cerr << "cwipc_kinect: multiFrame: starting camera " << serial << ": " << camera_width << "x" << camera_height << "@" << camera_fps << std::endl;
+	std::cerr << "cwipc_kinect: starting camera " << serial << ": " << camera_width << "x" << camera_height << "@" << camera_fps << std::endl;
 	
 	capture_started = true;
-#ifdef notrs2
-	rs2::config cfg;
-	std::cerr << "cwipc_kinect: multiFrame: starting camera " << serial << ": " << camera_width << "x" << camera_height << "@" << camera_fps << std::endl;
-	cfg.enable_device(serial);
-	cfg.enable_stream(RS2_STREAM_COLOR, camera_width, camera_height, RS2_FORMAT_RGB8, camera_fps);
-	cfg.enable_stream(RS2_STREAM_DEPTH, camera_width, camera_height, RS2_FORMAT_Z16, camera_fps);
-	// xxxjack need to set things like disabling color correction and auto-exposure
-	// xxxjack need to allow setting things like laser power
-	auto profile = pipe.start(cfg);		// Start streaming with the configuration just set
-	_computePointSize(profile);
-	pipe_started = true;
-#endif
 }
 
 #ifdef notrs2
@@ -177,10 +139,6 @@ void K4ACamera::stop()
 	stopped = true;
 	if (grabber_thread) grabber_thread->join();
 	if (processing_thread) processing_thread->join();
-#ifdef notrs2
-	if (pipe_started) pipe.stop();
-	pipe_started = false;
-#endif
 	if (capture_started) {
 		k4a_device_stop_cameras(device_handle);
 		k4a_transformation_destroy(transformation_handle);
@@ -212,13 +170,13 @@ void K4ACamera::_capture_thread_main()
 	while(!stopped) {
 		k4a_capture_t capture_handle;
 		if (k4a_capture_create(&capture_handle) != K4A_RESULT_SUCCEEDED) {
-			k4a_log_warning("k4a_capture_create failed");
+			cwipc_k4a_log_warning("k4a_capture_create failed");
 			break;
 		}
 		k4a_wait_result_t ok = k4a_device_get_capture(device_handle, &capture_handle, K4A_WAIT_INFINITE);
 		if (ok != K4A_RESULT_SUCCEEDED) {
 			std::cerr << "frame capture: error " << ok << std::endl;
-			k4a_log_warning("k4a_device_get_capture failed");
+			cwipc_k4a_log_warning("k4a_device_get_capture failed");
 			break;
 		}
 		assert(capture_handle != NULL);
@@ -308,7 +266,7 @@ void K4ACamera::_processing_thread_main()
 
 			transformPoint(point);
 			if (do_height_filtering && (point.y < height_min || point.y > height_max)) continue;
-			if (!do_greenscreen_removal || k4a_noChromaRemoval(&point)) // chromakey removal
+			if (!do_greenscreen_removal || cwipc_k4a_noChromaRemoval(&point)) // chromakey removal
 				camData.cloud->push_back(point);
 		}
 		// xxxjack free all allocated images
@@ -417,7 +375,7 @@ void K4ACamera::_processing_thread_main()
 					pt.g = texture_data[pi + 1];
 					pt.b = texture_data[pi + 2];
 					pt.a = camera_label;
-					if (!do_greenscreen_removal || k4a_noChromaRemoval(&pt)) // chromakey removal
+					if (!do_greenscreen_removal || cwipc_k4a_noChromaRemoval(&pt)) // chromakey removal
 						camData.cloud->push_back(pt);
 				}
 			}
@@ -447,7 +405,7 @@ void K4ACamera::_processing_thread_main()
                 // Unexpectedly, this does happen: 100% black points don't actually exist.
                 if (pt.r == 0 && pt.g == 0 && pt.b == 0) continue;
 				pt.a = camera_label;
-				if (!do_greenscreen_removal || k4a_noChromaRemoval(&pt)) // chromakey removal
+				if (!do_greenscreen_removal || cwipc_k4a_noChromaRemoval(&pt)) // chromakey removal
 					camData.cloud->push_back(pt);
 			}
 		}
