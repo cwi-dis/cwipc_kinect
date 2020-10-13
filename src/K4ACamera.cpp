@@ -89,7 +89,7 @@ void K4ACamera::start()
 	transformation_handle = k4a_transformation_create(&calibration);
 
 	if (k4a_device_start_cameras(device_handle, &device_config) != K4A_RESULT_SUCCEEDED) {
-		std::cerr << "cwipc_kinect: multiFrame: failed to start camera " << serial << std::endl;
+		std::cerr << "cwipc_kinect: failed to start camera " << serial << std::endl;
 		return;
 	}
 	std::cerr << "cwipc_kinect: starting camera " << serial << ": " << camera_width << "x" << camera_height << "@" << camera_fps << std::endl;

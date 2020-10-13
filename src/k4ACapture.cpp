@@ -49,7 +49,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	// First check that no other K4ACapture is active within this process (trying to catch programmer errors)
 	numberOfCapturersActive++;
 	if (numberOfCapturersActive > 1) {
-		cwipc_k4a_log_warning("multiFrame: Warning: attempting to create capturer while one is already active.");
+		cwipc_k4a_log_warning("Attempting to create capturer while one is already active.");
 	}
 #ifdef notrs2
 
@@ -91,7 +91,6 @@ K4ACapture::K4ACapture(const char *configFilename)
 		cd.trafo = default_trafo;
 		cd.intrinsicTrafo = default_trafo;
 		cd.cloud = new_cwipc_pcl_pointcloud();
-		cd.background = { 0, 0, 0 };
 		cd.cameraposition = { 0, 0, 0 };
 		configuration.cameraData.push_back(cd);
 	}
@@ -126,7 +125,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	// current hardware setup. To be fixed at some point.
 	//
 	if (configFilename == NULL) {
-		configFilename = "cameraconfig_k4a.xml";
+		configFilename = "cameraconfig.xml";
 	}
 	if (!cwipc_k4a_file2config(configFilename, &configuration)) {
 
@@ -143,7 +142,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 			if ((find(serials.begin(), serials.end(), cd.serial) != serials.end()))
 				realcams.push_back(cd);
 			else
-				cwipc_k4a_log_warning("multiFrame: Warning: camera " + cd.serial + " is not connected");
+				cwipc_k4a_log_warning("Camera " + cd.serial + " is not connected");
 #endif
 		}
 		// Reduce the active configuration to cameras that are connected
@@ -196,7 +195,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 				}
 			}
 			if (!foundSensorSupportingSync) {
-                cwipc_k4a_log_warning(std::string("multiFrame: Warning: camera ") + dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER) + " does not support inter-camera-sync");
+                cwipc_k4a_log_warning(std::string("Camera ") + dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER) + " does not support inter-camera-sync");
 			}
 		}
 	}
@@ -258,6 +257,9 @@ void K4ACapture::_create_cameras(k4a_device_t *camera_handles, std::vector<std::
 		std::string serial(serials[serial_index++]);
 
 		K4ACameraData& cd = get_camera_data(serial);
+		if (cd.type != "kinect") {
+			cwipc_k4a_log_warning("Camera " + serial + " is type " + cd.type + " in stead of kinect");
+		}
 		int camera_index = cameras.size();
 		auto cam = new K4ACamera(camera_handles[i], configuration, camera_index, cd);
 		cameras.push_back(cam);
@@ -283,12 +285,12 @@ K4ACapture::~K4ACapture() {
 		stopped = true;
   		control_thread->join();
 	}
-	std::cerr << "cwipc_kinect: multiFrame: stopped all cameras\n";
+	std::cerr << "cwipc_kinect: stopped all cameras\n";
 	// Delete all cameras (which will stop their threads as well)
 	for (auto cam : cameras)
 		delete cam;
 	cameras.clear();
-	std::cerr << "cwipc_kinect: multiFrame: deleted all cameras\n";
+	std::cerr << "cwipc_kinect: deleted all cameras\n";
 	// Print some minimal statistics of this run
 	float deltaT = (stopTime - starttime) / 1000.0;
 	std::cerr << "cwipc_kinect: ran for " << deltaT << " seconds, produced " << numberOfPCsProduced << " pointclouds at " << numberOfPCsProduced / deltaT << " fps." << std::endl;
@@ -397,11 +399,11 @@ void K4ACapture::_control_thread_main()
         merge_views();
         if (mergedPC->size() > 0) {
 #ifdef CWIPC_DEBUG
-            std::cerr << "cwipc_kinect: multiFrame: capturer produced a merged cloud of " << mergedPC->size() << " points" << std::endl;
+            std::cerr << "cwipc_kinect: capturer produced a merged cloud of " << mergedPC->size() << " points" << std::endl;
 #endif
         } else {
 #ifdef CWIPC_DEBUG
-            std::cerr << "cwipc_kinect: multiFrame: Warning: capturer got an empty pointcloud\n";
+            std::cerr << "cwipc_kinect: Warning: capturer got an empty pointcloud\n";
 #endif
 #if 0
             // HACK to make sure the encoder does not get an empty pointcloud
@@ -461,7 +463,7 @@ void K4ACapture::merge_views()
 
 	if (configuration.cloud_resolution > 0) {
 #ifdef CWIPC_DEBUG
-		std::cerr << "cwipc_kinect: multiFrame: Points before reduction: " << mergedPC->size() << std::endl;
+		std::cerr << "cwipc_kinect: Points before reduction: " << mergedPC->size() << std::endl;
 #endif
 		pcl::VoxelGrid<cwipc_pcl_point> grd;
 		grd.setInputCloud(mergedPC);
@@ -470,7 +472,7 @@ void K4ACapture::merge_views()
 		grd.filter(*mergedPC);
 
 #ifdef CWIPC_DEBUG
-		std::cerr << "cwipc_kinect: multiFrame: Points after reduction: " << mergedPC->size() << std::endl;
+		std::cerr << "cwipc_kinect: Points after reduction: " << mergedPC->size() << std::endl;
 #endif
 	}
 }
@@ -479,7 +481,7 @@ K4ACameraData& K4ACapture::get_camera_data(std::string serial) {
 	for (int i = 0; i < configuration.cameraData.size(); i++)
 		if (configuration.cameraData[i].serial == serial)
 			return configuration.cameraData[i];
-	cwipc_k4a_log_warning("cwipc_kinect: multiFrame: unknown camera " + serial);
+	cwipc_k4a_log_warning("Unknown camera " + serial);
 	abort();
 }
 
