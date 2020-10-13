@@ -248,6 +248,8 @@ void K4ACamera::_processing_thread_main()
 		int16_t min_depth = (int16_t)(camSettings.threshold_near * 1000);
 		int16_t max_depth = (int16_t)(camSettings.threshold_far * 1000);
 		// now loop over images and create points.
+		camData.cloud->clear();
+		camData.cloud->reserve(color_image_width_pixels * color_image_height_pixels);
 		for (int i = 0; i < color_image_width_pixels * color_image_height_pixels; i++)
 		{
 			cwipc_pcl_point point;
@@ -257,9 +259,9 @@ void K4ACamera::_processing_thread_main()
 			if (point.z == 0) continue;
 			if (camSettings.do_threshold && (point.z < min_depth || point.z > max_depth)) continue;
 
-			point.r = color_data[4 * i + 0];
+			point.r = color_data[4 * i + 2];
 			point.g = color_data[4 * i + 1];
-			point.b = color_data[4 * i + 2];
+			point.b = color_data[4 * i + 0];
 			uint8_t alpha = color_data[4 * i + 3];
 
 			if (point.r == 0 && point.g == 0 && point.b == 0 && alpha == 0) continue;
@@ -427,7 +429,7 @@ void K4ACamera::transformPoint(cwipc_pcl_point& pt)
 {
 	float x = pt.x / 1000.0;
 	float y = pt.y / 1000.0;
-	float z = -pt.z / 1000.0;
+	float z = pt.z / 1000.0;
 	pt.x = (*camData.trafo)(0,0)*x + (*camData.trafo)(0,1)*y + (*camData.trafo)(0,2)*z + (*camData.trafo)(0,3);
 	pt.y = (*camData.trafo)(1,0)*x + (*camData.trafo)(1,1)*y + (*camData.trafo)(1,2)*z + (*camData.trafo)(1,3);
 	pt.z = (*camData.trafo)(2,0)*x + (*camData.trafo)(2,1)*y + (*camData.trafo)(2,2)*z + (*camData.trafo)(2,3);
