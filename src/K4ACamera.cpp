@@ -6,8 +6,8 @@
 #include <cstdlib>
 
 // Define to get (a little) debug prints
-#undef CWIPC_DEBUG
-#undef CWIPC_DEBUG_THREAD
+#define CWIPC_DEBUG
+#define CWIPC_DEBUG_THREAD
 
 // This is the dll source, so define external symbols as dllexport on windows.
 
@@ -192,20 +192,17 @@ void K4ACamera::_capture_thread_main()
 			break;
 		}
 		assert(capture_handle != NULL);
+#ifdef CWIPC_DEBUG_THREAD
+		uint64_t tsRGB = k4a_image_get_device_timestamp_usec(k4a_capture_get_color_image(capture_handle));
+		uint64_t tsD = k4a_image_get_device_timestamp_usec(k4a_capture_get_depth_image(capture_handle));
+		std::cerr << "frame capture: cam=" << serial << ", rgbseq=" << tsRGB << ", dseq=" << tsD << std::endl;
+#endif
 		if (!captured_frame_queue.try_enqueue(capture_handle)) {
 			// Queue is full. discard.
 //			std::cerr << "frame capture: try_enqueue failed" << std::endl;
 			k4a_capture_release(capture_handle);
 		}
-#ifdef notrs2
-		// Wait to find if there is a next set of frames from the camera
-		rs2::frameset frames = pipe.wait_for_frames();
-#ifdef CWIPC_DEBUG_THREAD
-		std::cerr << "frame capture: cam=" << serial << ", seq=" << frames.get_frame_number() << std::endl;
-#endif
-		captured_frame_queue.enqueue(frames);
-#endif // notrs2
-		std::this_thread::yield();
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 	}
 #ifdef CWIPC_DEBUG_THREAD
 	std::cerr << "frame capture: cam=" << serial << " thread stopped" << std::endl;
