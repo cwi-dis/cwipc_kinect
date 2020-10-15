@@ -75,7 +75,16 @@ void K4ACamera::_init_filters()
 
 bool K4ACamera::capture_frameset()
 {
-	return captured_frame_queue.try_dequeue(current_frameset);
+	bool rv = captured_frame_queue.try_dequeue(current_frameset);
+#ifdef CWIPC_DEBUG_THREAD
+	if (rv) {
+		uint64_t tsRGB = k4a_image_get_device_timestamp_usec(k4a_capture_get_color_image(current_frameset));
+		uint64_t tsD = k4a_image_get_device_timestamp_usec(k4a_capture_get_depth_image(current_frameset));
+		std::cerr << "frame forward: cam=" << serial << ", rgbseq=" << tsRGB << ", dseq=" << tsD << std::endl;
+	}
+#endif
+
+	return rv;
 }
 
 // Configure and initialize caputuring of one camera
