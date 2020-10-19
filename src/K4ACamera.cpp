@@ -7,7 +7,7 @@
 
 // Define to get (a little) debug prints
 #define CWIPC_DEBUG
-#define CWIPC_DEBUG_THREAD
+#undef CWIPC_DEBUG_THREAD
 
 // This is the dll source, so define external symbols as dllexport on windows.
 
@@ -44,7 +44,7 @@ K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int 
 	camData(_camData),
 	camSettings(configuration.default_camera_settings),
 	captured_frame_queue(1),
-	processing_frame_queue(4),
+	processing_frame_queue(1),
 	camera_width(configuration.width),
 	camera_height(configuration.height),
 	camera_fps(configuration.fps),
@@ -76,7 +76,7 @@ void K4ACamera::_init_filters()
 bool K4ACamera::capture_frameset()
 {
 	bool rv = captured_frame_queue.try_dequeue(current_frameset);
-#ifdef CWIPC_DEBUG_THREAD
+#if 1 // def CWIPC_DEBUG_THREAD
 	if (rv) {
 		uint64_t tsRGB = k4a_image_get_device_timestamp_usec(k4a_capture_get_color_image(current_frameset));
 		uint64_t tsD = k4a_image_get_device_timestamp_usec(k4a_capture_get_depth_image(current_frameset));
@@ -208,7 +208,7 @@ void K4ACamera::_capture_thread_main()
 #endif
 		if (!captured_frame_queue.try_enqueue(capture_handle)) {
 			// Queue is full. discard.
-//			std::cerr << "frame capture: try_enqueue failed" << std::endl;
+			std::cerr << "frame capture: drop frame from camera "<< serial << std::endl;
 			k4a_capture_release(capture_handle);
 		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -225,8 +225,11 @@ void K4ACamera::_processing_thread_main()
 #endif
 	while(!stopped) {
 		k4a_capture_t processing_frameset;
-		bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(10000));
-		if (!ok) continue;
+		bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(5000));
+		if (!ok) {
+			std::cerr << "cwipc_kinect: no frameset for 5 seconds, camera " << serial << std::endl;
+			continue;
+		}
 		assert(processing_frameset);
 		std::lock_guard<std::mutex> lock(processing_mutex);
 		k4a_image_t depth = k4a_capture_get_depth_image(processing_frameset);
