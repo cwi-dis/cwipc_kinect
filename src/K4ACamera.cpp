@@ -6,7 +6,7 @@
 #include <cstdlib>
 
 // Define to get (a little) debug prints
-#define CWIPC_DEBUG
+#undef CWIPC_DEBUG
 #undef CWIPC_DEBUG_THREAD
 
 // This is the dll source, so define external symbols as dllexport on windows.
@@ -75,8 +75,8 @@ void K4ACamera::_init_filters()
 
 bool K4ACamera::capture_frameset()
 {
-	bool rv = captured_frame_queue.try_dequeue(current_frameset);
-#if 1 // def CWIPC_DEBUG_THREAD
+	bool rv = captured_frame_queue.wait_dequeue_timed(current_frameset, 5000000);
+#ifdef CWIPC_DEBUG_THREAD
 	if (rv) {
 		uint64_t tsRGB = k4a_image_get_device_timestamp_usec(k4a_capture_get_color_image(current_frameset));
 		uint64_t tsD = k4a_image_get_device_timestamp_usec(k4a_capture_get_depth_image(current_frameset));
