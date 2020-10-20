@@ -156,13 +156,13 @@ void K4ACamera::stop()
 {
 	assert(!stopped);
 	stopped = true;
-	if (grabber_thread) grabber_thread->join();
-	if (processing_thread) processing_thread->join();
 	if (capture_started) {
 		k4a_device_stop_cameras(device_handle);
 		k4a_transformation_destroy(transformation_handle);
 	}
 	capture_started = false;
+	if (grabber_thread) grabber_thread->join();
+	if (processing_thread) processing_thread->join();
 	processing_done = true;
 	processing_done_cv.notify_one();
 	k4a_device_close(device_handle);
