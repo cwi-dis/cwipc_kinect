@@ -230,7 +230,7 @@ void K4ACamera::_capture_thread_main()
 			uint64_t tsD = k4a_image_get_device_timestamp_usec(k4a_capture_get_depth_image(capture_handle));
 			std::cerr << "cwipc_kinect: K4ACamera: drop frame " << tsRGB << "/" << tsD <<" from camera "<< serial << std::endl;
 			k4a_capture_release(capture_handle);
-			std::this_thread::sleep_for(std::chrono::milliseconds(250));
+			std::this_thread::sleep_for(std::chrono::milliseconds(25));
 		}
 		else {
 			// Frame deposited in queue
