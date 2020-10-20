@@ -11,9 +11,11 @@
 #undef CWIPC_DEBUG
 #undef CWIPC_DEBUG_THREAD
 
+
+
 // This is the dll source, so define external symbols as dllexport on windows.
 
-#if defined(WIN32) || defined(_WIN32)
+#ifdef _WIN32
 #define _CWIPC_KINECT_EXPORT __declspec(dllexport)
 #define CWIPC_DLL_ENTRY __declspec(dllexport)
 #endif
@@ -25,6 +27,15 @@
 #include "cwipc_kinect/K4ACapture.hpp"
 #include "cwipc_kinect/K4ACamera.hpp"
 
+#ifdef _WIN32
+#include <Windows.h>
+static void setThreadName(std::thread* thr, const wchar_t* name) {
+	HANDLE threadHandle = static_cast<HANDLE>(thr->native_handle());
+	SetThreadDescription(threadHandle, name);
+}
+#else
+void setThreadName(std::thread* thr, const wchar_t* name) {}
+#endif
 // Static variable used to print a warning message when we re-create an K4ACapture
 // if there is another one open.
 static int numberOfCapturersActive = 0;
@@ -74,14 +85,14 @@ K4ACapture::K4ACapture(const char *configFilename)
 	k4a_device_t* camera_handles = new k4a_device_t[camera_count];
 	for (uint32_t i = 0; i < camera_count; i++) {
 		if (k4a_device_open(i, &camera_handles[i]) != K4A_RESULT_SUCCEEDED) {
-			cwipc_k4a_log_warning("xxxjack k4a_device_open failed");
+			cwipc_k4a_log_warning("k4a_device_open failed");
 			continue;
 		}
 		K4ACameraData cd;
 		char serial_buf[64];
 		size_t serial_buf_size = sizeof(serial_buf) / sizeof(serial_buf[0]);
 		if (k4a_device_get_serialnum(camera_handles[i], serial_buf, &serial_buf_size) != K4A_RESULT_SUCCEEDED) {
-			cwipc_k4a_log_warning("xxxjack get_serialnum failed");
+			cwipc_k4a_log_warning("get_serialnum failed");
 			continue;
 		}
 		cd.serial = std::string(serial_buf);
@@ -244,6 +255,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	//
 	stopped = false;
 	control_thread = new std::thread(&K4ACapture::_control_thread_main, this);
+	setThreadName(control_thread, L"cwipc_kinect::K4ACapture::control_thread");
 }
 
 void K4ACapture::_create_cameras(k4a_device_t *camera_handles, std::vector<std::string> serials, uint32_t camera_count) {
@@ -251,7 +263,7 @@ void K4ACapture::_create_cameras(k4a_device_t *camera_handles, std::vector<std::
 	for(uint32_t i=0; i<camera_count; i++) {
 		if (camera_handles[i] == NULL) continue;
 #ifdef CWIPC_DEBUG
-		std::cout << "K4ACapture: opening camera " << cameras[i] << std::endl;
+		std::cout << "K4ACapture: opening camera " << serials[i] << std::endl;
 #endif
 		// Found a realsense camera. Create a default data entry for it.
 		std::string serial(serials[serial_index++]);
@@ -272,6 +284,7 @@ K4ACapture::~K4ACapture() {
         return;
     }
 	uint64_t stopTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	stopped = true;
 	// Stop all cameras
 	for (auto cam : cameras)
 		cam->stop();
@@ -280,11 +293,7 @@ K4ACapture::~K4ACapture() {
     mergedPC_is_fresh_cv.notify_all();
     mergedPC_want_new = true;
     mergedPC_want_new_cv.notify_all();
-	if(!stopped) {
-		// Make the control thread stop. We set want_new to make it wake up (bit of a hack, really...)
-		stopped = true;
-  		control_thread->join();
-	}
+	control_thread->join();
 	std::cerr << "cwipc_kinect: stopped all cameras\n";
 	// Delete all cameras (which will stop their threads as well)
 	for (auto cam : cameras)
@@ -342,14 +351,16 @@ bool K4ACapture::pointcloud_available(bool wait)
 void K4ACapture::_control_thread_main()
 {
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "K4ACapture: processing thread started" << std::endl;
+	std::cerr << "cwipc_kinect: K4ACapture: processing thread started" << std::endl;
 #endif
 	while(!stopped) {
 		{
 			std::unique_lock<std::mutex> mylock(mergedPC_mutex);
 			mergedPC_want_new_cv.wait(mylock, [this]{ return mergedPC_want_new;});
 		}
-		if (stopped) break;
+		if (stopped) {
+			break;
+		}
         assert (cameras.size() > 0);
         // Step one: grab frames from all cameras. This should happen as close together in time as possible,
         // because that gives use he biggest chance we have the same frame (or at most off-by-one) for each
@@ -362,10 +373,10 @@ void K4ACapture::_control_thread_main()
 			}
         }
 		if (!all_captures_ok) {
-			//std::cerr << "K4ACapture: xxxjack not all captures succeeded. Retrying." << std::endl;
+			//std::cerr << "wipc_kinect: K4ACapture: xxxjack not all captures succeeded. Retrying." << std::endl;
+			std::this_thread::yield();
 			continue;
 		}
-		//std::cerr << "K4ACapture: xxxjack got captures" << std::endl;
         // And get the best timestamp
         uint64_t timestamp = 0;
         for(auto cam: cameras) {
@@ -421,7 +432,7 @@ void K4ACapture::_control_thread_main()
         mergedPC_is_fresh_cv.notify_all();
 	}
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "K4ACapture: processing thread stopped" << std::endl;
+	std::cerr << "wipc_kinect: K4ACapture: processing thread stopped" << std::endl;
 #endif
 }
 

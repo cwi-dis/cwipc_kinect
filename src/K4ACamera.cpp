@@ -26,12 +26,12 @@
 
 #ifdef _WIN32
 #include <Windows.h>
-void setThreadName(std::thread* thr, const wchar_t* name) {
+static void setThreadName(std::thread* thr, const wchar_t* name) {
 	HANDLE threadHandle = static_cast<HANDLE>(thr->native_handle());
 	SetThreadDescription(threadHandle, name);
 }
 #else
-void setThreadName(std::thread& thr, const wchar_t* name) {}
+void setThreadName(std::thread* thr, const wchar_t* name) {}
 #endif
 
 K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData)
@@ -43,7 +43,7 @@ K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int 
 	capture_started(false),
 	camData(_camData),
 	camSettings(configuration.default_camera_settings),
-	captured_frame_queue(1),
+	captured_frame_queue(2),
 	processing_frame_queue(1),
 	camera_width(configuration.width),
 	camera_height(configuration.height),
@@ -75,14 +75,20 @@ void K4ACamera::_init_filters()
 
 bool K4ACamera::capture_frameset()
 {
-	bool rv = captured_frame_queue.wait_dequeue_timed(current_frameset, 5000000);
-#ifdef CWIPC_DEBUG_THREAD
+	if (stopped) return false;
+	k4a_capture_t new_frameset = NULL;
+	bool rv = captured_frame_queue.wait_dequeue_timed(new_frameset, 5000000);
 	if (rv) {
+		if (current_frameset) {
+			k4a_capture_release(current_frameset);
+		}
+		current_frameset = new_frameset;
+#ifdef CWIPC_DEBUG_THREAD
 		uint64_t tsRGB = k4a_image_get_device_timestamp_usec(k4a_capture_get_color_image(current_frameset));
 		uint64_t tsD = k4a_image_get_device_timestamp_usec(k4a_capture_get_depth_image(current_frameset));
-		std::cerr << "frame forward: cam=" << serial << ", rgbseq=" << tsRGB << ", dseq=" << tsD << std::endl;
-	}
+		std::cerr << "wipc_kinect: K4ACamera: forward frame: cam=" << serial << ", rgbseq=" << tsRGB << ", dseq=" << tsD << std::endl;
 #endif
+	}
 
 	return rv;
 }
@@ -102,7 +108,7 @@ void K4ACamera::start()
 	if (K4A_RESULT_SUCCEEDED !=
 		k4a_device_get_calibration(device_handle, device_config.depth_mode, device_config.color_resolution, &calibration))
 	{
-		std::cerr << "cwipc_kinect: Failed to get calibration" << std::endl;
+		std::cerr << "cwipc_kinect: Failed to k4a_device_get_calibration" << std::endl;
 		return;
 	}
 	transformation_handle = k4a_transformation_create(&calibration);
@@ -187,42 +193,50 @@ void K4ACamera::_start_capture_thread()
 void K4ACamera::_capture_thread_main()
 {
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "frame capture: cam=" << serial << " thread started" << std::endl;
+	std::cerr << "cwipc_kinect: K4ACamera: cam=" << serial << " thread started" << std::endl;
 #endif
 	while(!stopped) {
 		k4a_capture_t capture_handle;
 		if (k4a_capture_create(&capture_handle) != K4A_RESULT_SUCCEEDED) {
+			std::cerr << "cwipc_kinect: camera " << serial << ": k4a_capture_create failed" << std::endl;
 			cwipc_k4a_log_warning("k4a_capture_create failed");
 			break;
 		}
-		k4a_wait_result_t ok = k4a_device_get_capture(device_handle, &capture_handle, K4A_WAIT_INFINITE);
+		k4a_wait_result_t ok = k4a_device_get_capture(device_handle, &capture_handle, 5000);
 		if (ok != K4A_RESULT_SUCCEEDED) {
-			std::cerr << "frame capture: error " << ok << std::endl;
+			std::cerr << "cwipc_kinect: camera " << serial << ": error " << ok << std::endl;
 			cwipc_k4a_log_warning("k4a_device_get_capture failed");
-			break;
+			k4a_capture_release(capture_handle);
+			continue;
 		}
 		assert(capture_handle != NULL);
 #ifdef CWIPC_DEBUG_THREAD
 		uint64_t tsRGB = k4a_image_get_device_timestamp_usec(k4a_capture_get_color_image(capture_handle));
 		uint64_t tsD = k4a_image_get_device_timestamp_usec(k4a_capture_get_depth_image(capture_handle));
-		std::cerr << "frame capture: cam=" << serial << ", rgbseq=" << tsRGB << ", dseq=" << tsD << std::endl;
+		std::cerr << "cwipc_kinect: K4ACamera: capture: cam=" << serial << ", rgbseq=" << tsRGB << ", dseq=" << tsD << std::endl;
 #endif
-		if (!captured_frame_queue.try_enqueue(capture_handle)) {
+		if (!captured_frame_queue.enqueue(capture_handle)) {
 			// Queue is full. discard.
-			std::cerr << "frame capture: drop frame from camera "<< serial << std::endl;
+			uint64_t tsRGB = k4a_image_get_device_timestamp_usec(k4a_capture_get_color_image(capture_handle));
+			uint64_t tsD = k4a_image_get_device_timestamp_usec(k4a_capture_get_depth_image(capture_handle));
+			std::cerr << "cwipc_kinect: K4ACamera: drop frame " << tsRGB << "/" << tsD <<" from camera "<< serial << std::endl;
 			k4a_capture_release(capture_handle);
+			std::this_thread::sleep_for(std::chrono::milliseconds(25));
 		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		else {
+			// Frame deposited in queue
+			std::this_thread::sleep_for(std::chrono::milliseconds(25));
+		}
 	}
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "frame capture: cam=" << serial << " thread stopped" << std::endl;
+	std::cerr << "cwipc_kinect: K4ACamera: cam=" << serial << " thread stopped" << std::endl;
 #endif
 }
 
 void K4ACamera::_processing_thread_main()
 {
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "frame processing: cam=" << serial << " thread started" << std::endl;
+	std::cerr << "cwipc_kinect: K4ACamera: processing: cam=" << serial << " thread started" << std::endl;
 #endif
 	while(!stopped) {
 		k4a_capture_t processing_frameset;
@@ -338,7 +352,7 @@ void K4ACamera::_processing_thread_main()
 		assert(depth);
 		assert(color);
 #ifdef CWIPC_DEBUG
-		std::cerr << "frame processing: cam=" << serial << ", depthseq=" << depth.get_frame_number() << ", colorseq=" << depth.get_frame_number() << std::endl;
+		std::cerr << "cwipc_kinect: K4ACamera: frame processing: cam=" << serial << ", depthseq=" << depth.get_frame_number() << ", colorseq=" << depth.get_frame_number() << std::endl;
 #endif
 
 		// Calculate new pointcloud, map to the color images and get vertices and color indices
@@ -449,7 +463,7 @@ void K4ACamera::_processing_thread_main()
 #endif // notrs2
 	}
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "frame processing: cam=" << serial << " thread stopped" << std::endl;
+	std::cerr << "cwipc_kinect: K4ACamera: processing: cam=" << serial << " thread stopped" << std::endl;
 #endif
 }
 
@@ -467,6 +481,7 @@ void K4ACamera::create_pc_from_frames()
 {
 	assert(current_frameset);
 	processing_frame_queue.enqueue(current_frameset);
+	current_frameset = NULL;
 }
 
 void K4ACamera::wait_for_pc()
