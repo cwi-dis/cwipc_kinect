@@ -247,12 +247,12 @@ void K4ACamera::_processing_thread_main()
 #ifdef CWIPC_DEBUG_THREAD
 	std::cerr << "cwipc_kinect: K4ACamera: processing: cam=" << serial << " thread started" << std::endl;
 #endif
+	k4a_image_t point_cloud_image = NULL;
+	k4a_image_t transformed_depth = NULL;
 	while(!stopped) {
 		k4a_capture_t processing_frameset = NULL;
 		k4a_image_t depth = NULL;
 		k4a_image_t color = NULL;
-		k4a_image_t point_cloud_image = NULL;
-		k4a_image_t transformed_depth = NULL;
 
 		bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(10000));
 		if (processing_frameset == NULL) {
@@ -277,15 +277,19 @@ void K4ACamera::_processing_thread_main()
 		std::cerr << "cwipc_kinect: processing: got images for camera " << serial << std::endl;
 
 		k4a_result_t sts;
-		sts = k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16, color_image_width_pixels, color_image_height_pixels, color_image_width_pixels * (int)sizeof(uint16_t), &transformed_depth);
-		if (sts != K4A_RESULT_SUCCEEDED) {
-			std::cerr << "cwipc_kinect: cannot create transformed depth image" << std::endl;
-			goto endloop;
+		if (transformed_depth == NULL) {
+			sts = k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16, color_image_width_pixels, color_image_height_pixels, color_image_width_pixels * (int)sizeof(uint16_t), &transformed_depth);
+			if (sts != K4A_RESULT_SUCCEEDED) {
+				std::cerr << "cwipc_kinect: cannot create transformed depth image" << std::endl;
+				goto endloop;
+			}
 		}
-		sts = k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, color_image_width_pixels, color_image_height_pixels, color_image_width_pixels * 3 * (int)sizeof(int16_t), &point_cloud_image);
-		if (sts != K4A_RESULT_SUCCEEDED) {
-			std::cerr << "cwipc_kinect: cannot create pointcloud image" << std::endl;
-			goto endloop;
+		if (point_cloud_image == NULL) {
+			sts = k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, color_image_width_pixels, color_image_height_pixels, color_image_width_pixels * 3 * (int)sizeof(int16_t), &point_cloud_image);
+			if (sts != K4A_RESULT_SUCCEEDED) {
+				std::cerr << "cwipc_kinect: cannot create pointcloud image" << std::endl;
+				goto endloop;
+			}
 		}
 		std::cerr << "cwipc_kinect: processing: created aux images for camera " << serial << std::endl;
 
@@ -347,13 +351,12 @@ void K4ACamera::_processing_thread_main()
 		processing_done_cv.notify_one(); 
 	endloop:
 		//  free all allocated images
-		if (point_cloud_image) k4a_image_release(point_cloud_image);
 		if (color) k4a_image_release(color);
 		if (depth) k4a_image_release(depth);
-		if (transformed_depth) k4a_image_release(transformed_depth);
 		if (processing_frameset) k4a_capture_release(processing_frameset);
-
 	}
+	if (transformed_depth) k4a_image_release(transformed_depth);
+	if (point_cloud_image) k4a_image_release(point_cloud_image);
 #ifdef CWIPC_DEBUG_THREAD
 	std::cerr << "cwipc_kinect: K4ACamera: processing: cam=" << serial << " thread stopped" << std::endl;
 #endif
