@@ -8,6 +8,11 @@
 // Define to get (a little) debug prints
 #undef CWIPC_DEBUG
 #undef CWIPC_DEBUG_THREAD
+#undef CWIPC_MEMORY_DEBUG
+
+#ifdef CWIPC_MEMORY_DEBUG
+#include <vld.h>
+#endif
 
 // This is the dll source, so define external symbols as dllexport on windows.
 
@@ -171,7 +176,9 @@ void K4ACamera::stop()
 	}
 	capture_started = false;
 	if (grabber_thread) grabber_thread->join();
+	delete grabber_thread;
 	if (processing_thread) processing_thread->join();
+	delete processing_thread;
 	processing_done = true;
 	processing_done_cv.notify_one();
 	k4a_device_close(device_handle);

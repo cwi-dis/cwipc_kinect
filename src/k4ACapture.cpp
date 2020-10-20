@@ -148,20 +148,23 @@ K4ACapture::K4ACapture(const char *configFilename)
 					if (!master_set) {
 						sensor.set_option(RS2_OPTION_INTER_CAM_SYNC_MODE, 1);
 						master_set = true;
-					} else {
+					}
+					else {
 						sensor.set_option(RS2_OPTION_INTER_CAM_SYNC_MODE, 2);
 					}
 				}
 			}
 			if (!foundSensorSupportingSync) {
-                cwipc_k4a_log_warning(std::string("Camera ") + dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER) + " does not support inter-camera-sync");
+				cwipc_k4a_log_warning(std::string("Camera ") + dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER) + " does not support inter-camera-sync");
 			}
 		}
 	}
 #endif // WITH_INTER_CAM_SYNC
-#endif // notrs2
+
 	// Now we have all the configuration information. Open the cameras.
 	_create_cameras(camera_handles, serials, camera_count);
+	// We can now free camera_handles
+	delete camera_handles;
 
 	// Create an empty pointcloud just in case anyone calls get_mostRecentPointcloud() before one is generated.
 	mergedPC = new_cwipc_pcl_pointcloud();
@@ -242,6 +245,7 @@ K4ACapture::~K4ACapture() {
     mergedPC_want_new = true;
     mergedPC_want_new_cv.notify_all();
 	control_thread->join();
+	delete control_thread;
 	std::cerr << "cwipc_kinect: stopped all cameras\n";
 	// Delete all cameras (which will stop their threads as well)
 	for (auto cam : cameras)
