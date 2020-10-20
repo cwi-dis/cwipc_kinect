@@ -83,9 +83,11 @@ K4ACapture::K4ACapture(const char *configFilename)
 	}
 	std::vector<std::string> serials;
 	k4a_device_t* camera_handles = new k4a_device_t[camera_count];
+	bool any_failure = false;
 	for (uint32_t i = 0; i < camera_count; i++) {
 		if (k4a_device_open(i, &camera_handles[i]) != K4A_RESULT_SUCCEEDED) {
 			cwipc_k4a_log_warning("k4a_device_open failed");
+			any_failure = true;
 			continue;
 		}
 		K4ACameraData cd;
@@ -93,6 +95,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 		size_t serial_buf_size = sizeof(serial_buf) / sizeof(serial_buf[0]);
 		if (k4a_device_get_serialnum(camera_handles[i], serial_buf, &serial_buf_size) != K4A_RESULT_SUCCEEDED) {
 			cwipc_k4a_log_warning("get_serialnum failed");
+			any_failure = true;
 			continue;
 		}
 		cd.serial = std::string(serial_buf);
@@ -105,7 +108,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 		cd.cameraposition = { 0, 0, 0 };
 		configuration.cameraData.push_back(cd);
 	}
-
+	if (any_failure) return;
 
 	//
 	// Read the configuration. We do this only now because for historical reasons the configuration
@@ -325,7 +328,7 @@ void K4ACapture::_control_thread_main()
 			}
         }
 		if (!all_captures_ok) {
-			//std::cerr << "wipc_kinect: K4ACapture: xxxjack not all captures succeeded. Retrying." << std::endl;
+			//std::cerr << "cwipc_kinect: K4ACapture: xxxjack not all captures succeeded. Retrying." << std::endl;
 			std::this_thread::yield();
 			continue;
 		}
