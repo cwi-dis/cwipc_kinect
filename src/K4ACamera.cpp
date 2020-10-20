@@ -156,6 +156,7 @@ void K4ACamera::stop()
 {
 	assert(!stopped);
 	stopped = true;
+	processing_frame_queue.try_enqueue(NULL);
 	if (capture_started) {
 		k4a_device_stop_cameras(device_handle);
 		k4a_transformation_destroy(transformation_handle);
@@ -225,9 +226,15 @@ void K4ACamera::_processing_thread_main()
 #endif
 	while(!stopped) {
 		k4a_capture_t processing_frameset;
-		bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(5000));
+		bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(10000));
+		if (processing_frameset == NULL) {
+#ifdef CWIPC_DEBUG_THREAD
+			std::cerr << "cwipc_kinect: processing thread: null frameset" << std::endl;
+#endif
+			continue;
+		}
 		if (!ok) {
-			std::cerr << "cwipc_kinect: no frameset for 5 seconds, camera " << serial << std::endl;
+			std::cerr << "cwipc_kinect: no frameset for 10 seconds, camera " << serial << std::endl;
 			continue;
 		}
 		assert(processing_frameset);
