@@ -401,6 +401,12 @@ void K4ACapture::_control_thread_main()
         // processing threads. This so the main thread doesn't go off and do
         // useless things if it is calling available(true).
         std::unique_lock<std::mutex> mylock(mergedPC_mutex);
+		if (mergedPC_is_fresh) {
+			// Previous PC wasn't consumed. Delete it.
+			mergedPC = new_cwipc_pcl_pointcloud();
+			mergedPC_is_fresh = false;
+			std::cerr << "cwipc_kinect: deleting old pointcloud" << std::endl;
+		}
         // Step 4: wait for frame processing to complete.
         for(auto cam : cameras) {
             cam->wait_for_pc();

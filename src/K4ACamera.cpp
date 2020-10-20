@@ -45,6 +45,7 @@ K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int 
 	camSettings(configuration.default_camera_settings),
 	captured_frame_queue(2),
 	processing_frame_queue(1),
+	current_frameset(NULL),
 	camera_width(configuration.width),
 	camera_height(configuration.height),
 	camera_fps(configuration.fps),
@@ -81,6 +82,7 @@ bool K4ACamera::capture_frameset()
 	if (rv) {
 		if (current_frameset) {
 			k4a_capture_release(current_frameset);
+			std::cerr << "xxxjack release frameset" << std::endl;
 		}
 		current_frameset = new_frameset;
 #ifdef CWIPC_DEBUG_THREAD
@@ -239,7 +241,12 @@ void K4ACamera::_processing_thread_main()
 	std::cerr << "cwipc_kinect: K4ACamera: processing: cam=" << serial << " thread started" << std::endl;
 #endif
 	while(!stopped) {
-		k4a_capture_t processing_frameset;
+		k4a_capture_t processing_frameset = NULL;
+		k4a_image_t depth = NULL;
+		k4a_image_t color = NULL;
+		k4a_image_t point_cloud_image = NULL;
+		k4a_image_t transformed_depth = NULL;
+
 		bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(10000));
 		if (processing_frameset == NULL) {
 #ifdef CWIPC_DEBUG_THREAD
@@ -253,36 +260,34 @@ void K4ACamera::_processing_thread_main()
 		}
 		assert(processing_frameset);
 		std::lock_guard<std::mutex> lock(processing_mutex);
-		k4a_image_t depth = k4a_capture_get_depth_image(processing_frameset);
-		k4a_image_t color = k4a_capture_get_color_image(processing_frameset);
+		depth = k4a_capture_get_depth_image(processing_frameset);
+		color = k4a_capture_get_color_image(processing_frameset);
 
 		// Note: the following code uses color as the main source of resolution. To be decided.
 		int color_image_width_pixels = k4a_image_get_width_pixels(color);
 		int color_image_height_pixels = k4a_image_get_height_pixels(color);
 
-		k4a_image_t transformed_depth = NULL;
 		k4a_result_t sts;
 		sts = k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16, color_image_width_pixels, color_image_height_pixels, color_image_width_pixels * (int)sizeof(uint16_t), &transformed_depth);
 		if (sts != K4A_RESULT_SUCCEEDED) {
 			std::cerr << "cwipc_kinect: cannot create transformed depth image" << std::endl;
-			break;
+			goto endloop;
 		}
-		k4a_image_t point_cloud_image = NULL;
 		sts = k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, color_image_width_pixels, color_image_height_pixels, color_image_width_pixels * 3 * (int)sizeof(int16_t), &point_cloud_image);
 		if (sts != K4A_RESULT_SUCCEEDED) {
 			std::cerr << "cwipc_kinect: cannot create pointcloud image" << std::endl;
-			break;
+			goto endloop;
 		}
 
 		sts = k4a_transformation_depth_image_to_color_camera(transformation_handle, depth, transformed_depth);
 		if (sts != K4A_RESULT_SUCCEEDED) {
 			std::cerr << "cwipc_kinect: cannot transform depth image" << std::endl;
-			break;
+			goto endloop;
 		}
 		sts = k4a_transformation_depth_image_to_point_cloud(transformation_handle, transformed_depth, K4A_CALIBRATION_TYPE_COLOR, point_cloud_image);
 		if (sts != K4A_RESULT_SUCCEEDED) {
 			std::cerr << "cwipc_kinect: cannot create point cloud" << std::endl;
-			break;
+			goto endloop;
 		}
 		uint8_t* color_data = k4a_image_get_buffer(color);
 		int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
@@ -313,12 +318,6 @@ void K4ACamera::_processing_thread_main()
 			if (!do_greenscreen_removal || cwipc_k4a_noChromaRemoval(&point)) // chromakey removal
 				camData.cloud->push_back(point);
 		}
-		// xxxjack free all allocated images
-		k4a_image_release(point_cloud_image);
-		k4a_image_release(color);
-		k4a_image_release(depth);
-		k4a_image_release(transformed_depth);
-		k4a_capture_release(processing_frameset);
 		if (camData.cloud->size() == 0) {
 			std::cerr << "cwipc_kinect: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
 			//continue;
@@ -326,141 +325,14 @@ void K4ACamera::_processing_thread_main()
 		// Notify wait_for_pc that we're done.
 		processing_done = true;
 		processing_done_cv.notify_one(); 
-#ifdef notrs2
-		// Wait for next frame to process. Allow aborting in case of stopped becoming false...
-		rs2::frameset processing_frameset;
-		bool ok = processing_frame_queue.try_wait_for_frame(&processing_frameset, 1000);
-		if (!ok) continue;
+	endloop:
+		//  free all allocated images
+		if (point_cloud_image) k4a_image_release(point_cloud_image);
+		if (color) k4a_image_release(color);
+		if (depth) k4a_image_release(depth);
+		if (transformed_depth) k4a_image_release(transformed_depth);
+		if (processing_frameset) k4a_capture_release(processing_frameset);
 
-		std::lock_guard<std::mutex> lock(processing_mutex);
-
-		if (do_depth_filtering) {
-			processing_frameset = processing_frameset.apply_filter(aligner);
-			if (camSettings.do_decimation) processing_frameset = processing_frameset.apply_filter(dec_filter);
-			if (camSettings.do_threshold) processing_frameset = processing_frameset.apply_filter(threshold_filter);
-			if (camSettings.do_spatial || camSettings.do_temporal) {
-				processing_frameset = processing_frameset.apply_filter(depth_to_disparity);
-				if (camSettings.do_spatial) processing_frameset = processing_frameset.apply_filter(spat_filter);
-				if (camSettings.do_temporal) processing_frameset = processing_frameset.apply_filter(temp_filter);
-				processing_frameset = processing_frameset.apply_filter(disparity_to_depth);
-			}
-
-		}
-
-		rs2::depth_frame depth = processing_frameset.get_depth_frame();
-		rs2::video_frame color = processing_frameset.get_color_frame();
-		assert(depth);
-		assert(color);
-#ifdef CWIPC_DEBUG
-		std::cerr << "cwipc_kinect: K4ACamera: frame processing: cam=" << serial << ", depthseq=" << depth.get_frame_number() << ", colorseq=" << depth.get_frame_number() << std::endl;
-#endif
-
-		// Calculate new pointcloud, map to the color images and get vertices and color indices
-        pointcloud.map_to(color);
-		auto points = pointcloud.calculate(depth);
-		auto vertices = points.get_vertices();
-		auto texture_coordinates = points.get_texture_coordinates();
-
-		// Get some constants used later to map colors and such from rs2 to pcl pointclouds.
-		const int texture_width = color.get_width();
-		const int texture_height = color.get_height();
-		const int texture_x_step = color.get_bytes_per_pixel();
-		const int texture_y_step = color.get_stride_in_bytes();
-		const unsigned char *texture_data = (unsigned char*)color.get_data();
-		const uint8_t camera_label = (uint8_t)1 << camera_index;
-
-		// Clear the previous pointcloud and pre-allocate space in the pointcloud (so we don't realloc)
-		camData.cloud->clear();
-		camData.cloud->reserve(points.size());
-#ifdef WITH_MANUAL_BACKGROUND_REMOVAL
-		// Note by Jack: this code is currently not correct, hasn't been updated
-		// for the texture coordinate mapping.
-		if (do_background_removal) {
-
-			// Set the background removal window
-			if (camData.background.z > 0.0) {
-				maxz = camData.background.z;
-				minz = 0.0;
-				if (camData.background.x != 0.0) {
-					minx = camData.background.x;
-				}
-				else {
-					for (int i = 0; i < points.size(); i++) {
-						double minz = 100;
-						if (vertices[i].z != 0 && minz > vertices[i].z) {
-							minz = vertices[i].z;
-							minx = vertices[i].x;
-						}
-					}
-				}
-			}
-			else {
-				minz = 100.0;
-				for (int i = 0; i < points.size(); i++) {
-					if (vertices[i].z != 0 && minz > vertices[i].z) {
-						minz = vertices[i].z;
-						minx = vertices[i].x;
-					}
-				}
-				maxz = 0.8f + minz;
-			}
-			// Make PointCloud
-			for (int i = 0; i < points.size(); i++) {
-				double x = minx - vertices[i].x; x *= x;
-				double z = vertices[i].z;
-				if (minz < z && z < maxz - x) { // Simple background removal, horizontally parabolic, vertically straight.
-					cwipc_pcl_point pt;
-					pt.x = vertices[i].x;
-					pt.y = -vertices[i].y;
-					pt.z = -z;
-					if (do_height_filtering && ( pt.y < height_min || pt.y > height_max)) continue;
-					int pi = i * 3;
-					pt.r = texture_data[pi];
-					pt.g = texture_data[pi + 1];
-					pt.b = texture_data[pi + 2];
-					pt.a = camera_label;
-					if (!do_greenscreen_removal || cwipc_k4a_noChromaRemoval(&pt)) // chromakey removal
-						camData.cloud->push_back(pt);
-				}
-			}
-		}
-		else
-#endif // WITH_MANUAL_BACKGROUND_REMOVAL
-		{
-			// Make PointCloud
-			for (int i = 0; i < points.size(); i++) {
-				// Skip points with z=0 (they don't exist)
-				if (vertices[i].z == 0) continue;
-
-				cwipc_pcl_point pt;
-				transformPoint(pt, vertices[i]);
-				if (do_height_filtering && (pt.y < height_min || pt.y > height_max)) continue;
-				float u = texture_coordinates[i].u;
-				float v = texture_coordinates[i].v;
-                int texture_x = int(0.5 + u*texture_width);
-                int texture_y = int(0.5 + v*texture_height);
-                // Unsure whether this ever happens: out-of-bounds u/v points are skipped
-                if (texture_x <= 0 || texture_x >= texture_width-1) continue;
-                if (texture_y <= 0 || texture_y >= texture_height-1) continue;
-				int idx = texture_x * texture_x_step + texture_y * texture_y_step;
-				pt.r = texture_data[idx];
-				pt.g = texture_data[idx + 1];
-				pt.b = texture_data[idx + 2];
-                // Unexpectedly, this does happen: 100% black points don't actually exist.
-                if (pt.r == 0 && pt.g == 0 && pt.b == 0) continue;
-				pt.a = camera_label;
-				if (!do_greenscreen_removal || cwipc_k4a_noChromaRemoval(&pt)) // chromakey removal
-					camData.cloud->push_back(pt);
-			}
-		}
-		if (camData.cloud->size() == 0) {
-			std::cerr << "cwipc_kinect: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
-            //continue;
-		}
-		// Notify wait_for_pc that we're done.
-		processing_done = true;
-		processing_done_cv.notify_one();
-#endif // notrs2
 	}
 #ifdef CWIPC_DEBUG_THREAD
 	std::cerr << "cwipc_kinect: K4ACamera: processing: cam=" << serial << " thread stopped" << std::endl;
