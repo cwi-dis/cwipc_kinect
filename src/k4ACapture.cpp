@@ -105,30 +105,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 		cd.cameraposition = { 0, 0, 0 };
 		configuration.cameraData.push_back(cd);
 	}
-#ifdef notrs2
-	//
-	// Enumerate over all connected cameras, create their default K4ACameraData structures
-	// and set any hardware options (for example for sync).
-	// We will create the actual K4ACamera objects later, after we have read the configuration file.
-	//
-	for (auto dev : devs) {
-		if (dev.get_info(RS2_CAMERA_INFO_NAME) == platform_camera_name) continue;
-		// Found a realsense camera. Create a default data entry for it.
-#ifdef CWIPC_DEBUG
-		std::cout << "K4ACapture: looking at camera " << dev.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
-#endif
-		K4ACameraData cd;
-		cd.serial = std::string(dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER));
-		boost::shared_ptr<Eigen::Affine3d> default_trafo(new Eigen::Affine3d());
-		default_trafo->setIdentity();
-		cd.trafo = default_trafo;
-		cd.intrinsicTrafo = default_trafo;
-		cd.cloud = new_cwipc_pcl_pointcloud();
-		cd.background = { 0, 0, 0 };
-		cd.cameraposition = { 0, 0, 0 };
-		configuration.cameraData.push_back(cd);
-	}
-#endif // notrs2
+
 
 	//
 	// Read the configuration. We do this only now because for historical reasons the configuration
@@ -159,38 +136,9 @@ K4ACapture::K4ACapture(const char *configFilename)
 		// Reduce the active configuration to cameras that are connected
 		configuration.cameraData = realcams;
 	}
-#ifdef notrs2
-    // Set various camera hardware parameters (white balance and such)
-    for (auto dev : devs) {
-        auto allSensors = dev.query_sensors();
-        for (auto sensor : allSensors) {
-            // Options for color sensor (but may work inadvertantly on dept sensors too?)
-            if (sensor.supports(RS2_OPTION_ENABLE_AUTO_EXPOSURE))
-                sensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, 0);
-            if (sensor.supports(RS2_OPTION_ENABLE_AUTO_WHITE_BALANCE))
-                sensor.set_option(RS2_OPTION_ENABLE_AUTO_WHITE_BALANCE, 0);
-            if (sensor.supports(RS2_OPTION_BACKLIGHT_COMPENSATION))
-                sensor.set_option(RS2_OPTION_BACKLIGHT_COMPENSATION, 0);
-            // Options for depth sensor
-            if (sensor.supports(RS2_OPTION_LASER_POWER))
-                sensor.set_option(RS2_OPTION_LASER_POWER, 360);
-            // xxxjack note: the document at <https://github.com/IntelRealSense/librealsense/wiki/D400-Series-Visual-Presets>
-            // suggests that this may depend on using 1280x720@30 with decimation=3. Need to check.
-            if (sensor.supports(RS2_OPTION_VISUAL_PRESET)) {
-                sensor.set_option(RS2_OPTION_VISUAL_PRESET,
-					configuration.density
-						? RS2_RS400_VISUAL_PRESET_HIGH_DENSITY
-						: RS2_RS400_VISUAL_PRESET_HIGH_ACCURACY
-				);
-			}
-        }
-    }
-	//
-	// Set sync mode, if needed
-	//
-#ifdef WITH_INTER_CAM_SYNC
+#ifdef _rs2_WITH_INTER_CAM_SYNC
 	bool master_set = false;
-	for(auto dev : devs) {
+	for (auto dev : devs) {
 		if (camera_count > 1) {
 			auto allSensors = dev.query_sensors();
 			bool foundSensorSupportingSync = false;
