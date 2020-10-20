@@ -6,8 +6,8 @@
 #include <cstdlib>
 
 // Define to get (a little) debug prints
-#define CWIPC_DEBUG
-#define CWIPC_DEBUG_THREAD
+#undef CWIPC_DEBUG
+#undef CWIPC_DEBUG_THREAD
 #undef CWIPC_MEMORY_DEBUG
 
 #ifdef CWIPC_MEMORY_DEBUG
