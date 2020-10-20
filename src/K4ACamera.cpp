@@ -309,6 +309,7 @@ void K4ACamera::_processing_thread_main()
 			point.r = color_data[4 * i + 2];
 			point.g = color_data[4 * i + 1];
 			point.b = color_data[4 * i + 0];
+			point.a = (uint8_t)1 << camera_index;
 			uint8_t alpha = color_data[4 * i + 3];
 
 			if (point.r == 0 && point.g == 0 && point.b == 0 && alpha == 0) continue;
