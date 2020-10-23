@@ -29,15 +29,6 @@
 #include "cwipc_kinect/stb_image_write.h"
 #endif
 
-#ifdef _WIN32
-#include <Windows.h>
-static void setThreadName(std::thread* thr, const wchar_t* name) {
-	HANDLE threadHandle = static_cast<HANDLE>(thr->native_handle());
-	SetThreadDescription(threadHandle, name);
-}
-#else
-void setThreadName(std::thread* thr, const wchar_t* name) {}
-#endif
 
 K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData)
 :	pointSize(0), minx(0), minz(0), maxz(0),
@@ -190,13 +181,13 @@ void K4ACamera::start_capturer()
 	stopped = false;
 	_start_capture_thread();
 	processing_thread = new std::thread(&K4ACamera::_processing_thread_main, this);
-	setThreadName(processing_thread, L"cwipc_kinect::K4ACamera::processing_thread");
+	_cwipc_setThreadName(processing_thread, L"cwipc_kinect::K4ACamera::processing_thread");
 }
 
 void K4ACamera::_start_capture_thread()
 {
 	grabber_thread = new std::thread(&K4ACamera::_capture_thread_main, this);
-	setThreadName(grabber_thread, L"cwipc_kinect::K4ACamera::capture_thread");
+	_cwipc_setThreadName(grabber_thread, L"cwipc_kinect::K4ACamera::capture_thread");
 }
 
 void K4ACamera::_capture_thread_main()

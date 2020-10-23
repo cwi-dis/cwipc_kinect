@@ -27,15 +27,7 @@
 #include "cwipc_kinect/K4ACapture.hpp"
 #include "cwipc_kinect/K4ACamera.hpp"
 
-#ifdef _WIN32
-#include <Windows.h>
-static void setThreadName(std::thread* thr, const wchar_t* name) {
-	HANDLE threadHandle = static_cast<HANDLE>(thr->native_handle());
-	SetThreadDescription(threadHandle, name);
-}
-#else
-void setThreadName(std::thread* thr, const wchar_t* name) {}
-#endif
+
 // Static variable used to print a warning message when we re-create an K4ACapture
 // if there is another one open.
 static int numberOfCapturersActive = 0;
@@ -209,7 +201,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	//
 	stopped = false;
 	control_thread = new std::thread(&K4ACapture::_control_thread_main, this);
-	setThreadName(control_thread, L"cwipc_kinect::K4ACapture::control_thread");
+	_cwipc_setThreadName(control_thread, L"cwipc_kinect::K4ACapture::control_thread");
 }
 
 void K4ACapture::_create_cameras(k4a_device_t *camera_handles, std::vector<std::string> serials, uint32_t camera_count) {

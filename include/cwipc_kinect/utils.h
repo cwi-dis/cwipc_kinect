@@ -29,4 +29,14 @@ _CWIPC_KINECT_EXPORT bool cwipc_k4a_file2config(const char* filename, K4ACapture
 
 _CWIPC_KINECT_EXPORT bool cwipc_k4a_noChromaRemoval(cwipc_pcl_point* p);
 
+#ifdef _WIN32
+#include <thread>
+#include <Windows.h>
+inline void _cwipc_setThreadName(std::thread* thr, const wchar_t* name) {
+	HANDLE threadHandle = static_cast<HANDLE>(thr->native_handle());
+	SetThreadDescription(threadHandle, name);
+}
+#else
+inline void _cwipc_setThreadName(std::thread* thr, const wchar_t* name) {}
+#endif
 #endif /* cwipw_realsense_utils_h */
