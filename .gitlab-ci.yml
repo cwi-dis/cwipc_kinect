@@ -9,8 +9,6 @@ build_linux:
     - ubuntu1804
   except: 
   - /latest/
-  only: 
-  - /notyetimplemented/
   variables:
     DEBIAN_FRONTEND: noninteractive
   before_script:
@@ -152,10 +150,10 @@ deploy_all:
   - cd ..
   script:
     - mkdir deliverables
-    - mv cwipc_kinect_win1064_$CI_BUILD_TAG.zip deliverables
-#noyetimplemented    - mv cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz cwipc_kinect_win1064_$CI_BUILD_TAG.zip deliverables
-    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --notag cwipc_kinect_win1064_$CI_BUILD_TAG.zip
-#notyetimplemented    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --notag cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz cwipc_kinect_win1064_$CI_BUILD_TAG.zip
+    - mv cwipc_kinect_win1064_$CI_BUILD_TAG.zip cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz  deliverables
+#noyetimplemented    - mv cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz deliverables
+    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --notag cwipc_kinect_win1064_$CI_BUILD_TAG.zip cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz
+#notyetimplemented    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --notag  cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz
   
 
 deploy_all_untagged:
@@ -179,10 +177,10 @@ deploy_all_untagged:
   - cd ..
   script:
     - mkdir deliverables
-    - mv cwipc_kinect_win1064_$CI_BUILD_TAG.zip deliverables
-#notyetimplemented    - mv cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz cwipc_kinect_win1064_$CI_BUILD_TAG.zip deliverables
+    - mv cwipc_kinect_win1064_$CI_BUILD_TAG.zip cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz deliverables
+#notyetimplemented    - mv cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz  deliverables
     - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --tag_name latest --release_name latest --deleterelease || true
     - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --tag_name latest --release_name latest --deletetag || true
-    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --tag_name latest --release_name latest --branch_to_tag "$CI_COMMIT_REF_NAME" cwipc_kinect_win1064_$CI_BUILD_TAG.zip
-#notyetimplemented    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --tag_name latest --release_name latest --branch_to_tag "$CI_COMMIT_REF_NAME" cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz cwipc_kinect_win1064_$CI_BUILD_TAG.zip
+    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --tag_name latest --release_name latest --branch_to_tag "$CI_COMMIT_REF_NAME" cwipc_kinect_win1064_$CI_BUILD_TAG.zip cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz
+#notyetimplemented    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --tag_name latest --release_name latest --branch_to_tag "$CI_COMMIT_REF_NAME" cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz 
   
