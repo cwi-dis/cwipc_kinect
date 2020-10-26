@@ -296,43 +296,45 @@ void K4ACamera::_processing_thread_main()
 			goto endloop;
 		}
 		std::cerr << "cwipc_kinect: processing: created pointcloud image for camera " << serial << std::endl;
-		uint8_t* color_data = k4a_image_get_buffer(color);
-		int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
-		// Setup depth filtering, if needed
-		int16_t min_depth = (int16_t)(camSettings.threshold_near * 1000);
-		int16_t max_depth = (int16_t)(camSettings.threshold_far * 1000);
-		// now loop over images and create points.
-		camData.cloud->clear();
-		camData.cloud->reserve(color_image_width_pixels * color_image_height_pixels);
-		for (int i = 0; i < color_image_width_pixels * color_image_height_pixels; i++)
 		{
-			int i_pc = i * 3;
-			int i_rgba = i * 4;
-			cwipc_pcl_point point;
-			int16_t x = point_cloud_image_data[i_pc + 0];
-			int16_t y = point_cloud_image_data[i_pc + 1];
-			int16_t z = point_cloud_image_data[i_pc + 2];
-			if (z == 0) continue;
-			if (camSettings.do_threshold && (z < min_depth || z > max_depth)) continue;
+			uint8_t* color_data = k4a_image_get_buffer(color);
+			int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
+			// Setup depth filtering, if needed
+			int16_t min_depth = (int16_t)(camSettings.threshold_near * 1000);
+			int16_t max_depth = (int16_t)(camSettings.threshold_far * 1000);
+			// now loop over images and create points.
+			camData.cloud->clear();
+			camData.cloud->reserve(color_image_width_pixels * color_image_height_pixels);
+			for (int i = 0; i < color_image_width_pixels * color_image_height_pixels; i++)
+			{
+				int i_pc = i * 3;
+				int i_rgba = i * 4;
+				cwipc_pcl_point point;
+				int16_t x = point_cloud_image_data[i_pc + 0];
+				int16_t y = point_cloud_image_data[i_pc + 1];
+				int16_t z = point_cloud_image_data[i_pc + 2];
+				if (z == 0) continue;
+				if (camSettings.do_threshold && (z < min_depth || z > max_depth)) continue;
 
-			point.r = color_data[i_rgba + 2];
-			point.g = color_data[i_rgba + 1];
-			point.b = color_data[i_rgba + 0];
-			point.a = (uint8_t)1 << camera_index;
-			uint8_t alpha = color_data[i_rgba + 3];
+				point.r = color_data[i_rgba + 2];
+				point.g = color_data[i_rgba + 1];
+				point.b = color_data[i_rgba + 0];
+				point.a = (uint8_t)1 << camera_index;
+				uint8_t alpha = color_data[i_rgba + 3];
 
-			if (point.r == 0 && point.g == 0 && point.b == 0 && alpha == 0) continue;
-			point.x = x;
-			point.y = y;
-			point.z = z;
-			transformPoint(point);
-			if (do_height_filtering && (point.y < height_min || point.y > height_max)) continue;
-			if (!do_greenscreen_removal || cwipc_k4a_noChromaRemoval(&point)) // chromakey removal
-				camData.cloud->push_back(point);
-		}
+				if (point.r == 0 && point.g == 0 && point.b == 0 && alpha == 0) continue;
+				point.x = x;
+				point.y = y;
+				point.z = z;
+				transformPoint(point);
+				if (do_height_filtering && (point.y < height_min || point.y > height_max)) continue;
+				if (!do_greenscreen_removal || cwipc_k4a_noChromaRemoval(&point)) // chromakey removal
+					camData.cloud->push_back(point);
+			}
 #ifdef CWIPC_DEBUG_THREAD
-		std::cerr << "cwipc_kinect: camera " << serial << " produced " << camData.cloud->size() << " point" << std::endl;
+			std::cerr << "cwipc_kinect: camera " << serial << " produced " << camData.cloud->size() << " point" << std::endl;
 #endif
+		}
 		if (camData.cloud->size() == 0) {
 			std::cerr << "cwipc_kinect: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
 			//continue;
