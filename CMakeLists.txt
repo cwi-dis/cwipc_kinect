@@ -53,27 +53,11 @@ add_definitions(${PCL_DEFINITIONS})
 
 
 #
-# Find realsense (either with pkgconfig or with cmake)
+# Find Azure Kinect SDK (either with pkgconfig or with cmake)
 #
-#find_package(REALSENSE2 REQUIRED)
-#include_directories(${REALSENSE2_INCLUDE_DIRS})
-#link_directories(${REALSENSE2_LIBRARY_DIRS})
-#
-# Find Kinect for Azure SDK
-# xxxjack manual hardcoded pathname for now.
-if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-	set(KINECT_LIBRARY_DIRS "C:/Program Files/Azure Kinect SDK v1.4.1/sdk/windows-desktop/amd64/release/lib")
-	set(KINECT_INCLUDE_DIRS "C:/Program Files/Azure Kinect SDK v1.4.1/sdk/include")
-	set(KINECT_LIBRARIES k4a.lib)
-	include_directories(${KINECT_INCLUDE_DIRS})
-	link_directories(${KINECT_LIBRARY_DIRS})
-elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-	MESSAGE(FATAL_ERROR "Kinect grabber not yet supported on Linux")
-elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-	MESSAGE(FATAL_ERROR "Kinect grabber not supported on OSX, SDK not available")
-else()
-	MESSAGE(FATAL_ERROR "Kinect grabber not supported on this unknown system ${CMAKE_SYSTEM_NAME}")
-endif()
+find_package(KINECT REQUIRED)
+include_directories(${KINECT_INCLUDE_DIRS})
+link_directories(${KINECT_LIBRARY_DIRS})
 
 # we need the thirdparty tinyXML for the test programs.
 include(third-party/tinyXML/CMakeLists.txt)
