@@ -99,7 +99,7 @@ void K4ACamera::start()
 	device_config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
 	device_config.color_resolution = K4A_COLOR_RESOLUTION_720P; // xxxjack
 	device_config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
-	device_config.camera_fps = K4A_FRAMES_PER_SECOND_30; // xxxjack
+	device_config.camera_fps = K4A_FRAMES_PER_SECOND_5; // xxxjack
 	device_config.synchronized_images_only = true; // ensures that depth and color images are both available in the capture
 
 	k4a_calibration_t calibration;
