@@ -8,7 +8,6 @@
 
 int main(int argc, char** argv)
 {
-    //char *message = NULL;
     if (argc < 3) {
         std::cerr << "Usage: " << argv[0] << " count directory [configfile]" << std::endl;
 		std::cerr << "Creates COUNT pointclouds from a kinect4a camera and stores the PLY files in the given DIRECTORY" << std::endl;

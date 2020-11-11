@@ -132,7 +132,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 		configuration.cameraData = realcams;
 	}
 
-	// Set various camera hardware parameters (color + sync)
+	// Set various camera hardware parameters (color)  //TODO: //should be set from the configfile
 	for (int i = 0; i < camera_count; i++) {
 		//options for color sensor
 		k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_MANUAL, 40000); // Exposure_time (in microseconds)
@@ -145,11 +145,6 @@ K4ACapture::K4ACapture(const char *configFilename)
 		k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_GAIN, K4A_COLOR_CONTROL_MODE_MANUAL, 100); // Gain (0-255). Default=0
 		k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, K4A_COLOR_CONTROL_MODE_MANUAL, 0); // Backlight_compensation 0=disabled | 1=enabled. Default=0
 		k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, K4A_COLOR_CONTROL_MODE_MANUAL, 2); // Powerline_Frequency (1=50Hz, 2=60Hz). Default=2
-
-		//options for sync
-		if (camera_count > 1) {
-			//TODO
-		}
 	}
 
 #ifdef _rs2_WITH_INTER_CAM_SYNC

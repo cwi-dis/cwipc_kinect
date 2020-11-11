@@ -110,6 +110,20 @@ void K4ACamera::start()
 	device_config.camera_fps = K4A_FRAMES_PER_SECOND_30; // xxxjack
 	device_config.synchronized_images_only = true; // ensures that depth and color images are both available in the capture
 
+	//SYNC:
+	bool useSync = true; //should be set from the configfile
+	if (useSync) {
+		bool isMaster = false;
+		if (serial == "000330102712") { //TODO: //should be set from the configfile 
+			device_config.wired_sync_mode = K4A_WIRED_SYNC_MODE_MASTER;
+			isMaster = true;
+		}
+		else {
+			device_config.wired_sync_mode = K4A_WIRED_SYNC_MODE_SUBORDINATE;
+			device_config.subordinate_delay_off_master_usec = 160 * camera_index;	//160 allows max 9 cameras
+		}
+	}
+
 	k4a_calibration_t calibration;
 	if (K4A_RESULT_SUCCEEDED != k4a_device_get_calibration(device_handle, device_config.depth_mode, device_config.color_resolution, &calibration))
 	{
@@ -122,7 +136,7 @@ void K4ACamera::start()
 		std::cerr << "cwipc_kinect: failed to start camera " << serial << std::endl;
 		return;
 	}
-	std::cerr << "cwipc_kinect: starting camera " << serial << ": " << camera_width << "x" << camera_height << "@" << camera_fps << std::endl;
+	std::cerr << "cwipc_kinect: starting camera " << serial << ": " << camera_width << "x" << camera_height << "@" << camera_fps << " as " << (isMaster? "Master" : "Subordinate") << std::endl;
 	
 	capture_started = true;
 }
