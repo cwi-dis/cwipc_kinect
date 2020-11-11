@@ -112,8 +112,8 @@ void K4ACamera::start()
 
 	//SYNC:
 	bool useSync = true; //should be set from the configfile
+	bool isMaster = false;
 	if (useSync) {
-		bool isMaster = false;
 		if (serial == "000330102712") { //TODO: //should be set from the configfile 
 			device_config.wired_sync_mode = K4A_WIRED_SYNC_MODE_MASTER;
 			isMaster = true;
