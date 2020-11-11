@@ -131,6 +131,27 @@ K4ACapture::K4ACapture(const char *configFilename)
 		// Reduce the active configuration to cameras that are connected
 		configuration.cameraData = realcams;
 	}
+
+	// Set various camera hardware parameters (color + sync)
+	for (int i = 0; i < camera_count; i++) {
+		//options for color sensor
+		k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_MANUAL, 40000); // Exposure_time (in microseconds)
+		k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_MANUAL, 3160); // White_balance (2500-12500)
+		k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, K4A_COLOR_CONTROL_MODE_MANUAL, 0); // Backlight_compensation 0=disabled | 1=enabled. Default=0
+		k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_BRIGHTNESS, K4A_COLOR_CONTROL_MODE_MANUAL, 128); // Brightness. (0 to 255). Default=128.
+		k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_CONTRAST, K4A_COLOR_CONTROL_MODE_MANUAL, 5); // Contrast (0-10). Default=5
+		k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_SATURATION, K4A_COLOR_CONTROL_MODE_MANUAL, 32); // saturation (0-63). Default=32
+		k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_SHARPNESS, K4A_COLOR_CONTROL_MODE_MANUAL, 2); // Sharpness (0-4). Default=2
+		k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_GAIN, K4A_COLOR_CONTROL_MODE_MANUAL, 100); // Gain (0-255). Default=0
+		k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, K4A_COLOR_CONTROL_MODE_MANUAL, 0); // Backlight_compensation 0=disabled | 1=enabled. Default=0
+		k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, K4A_COLOR_CONTROL_MODE_MANUAL, 2); // Powerline_Frequency (1=50Hz, 2=60Hz). Default=2
+
+		//options for sync
+		if (camera_count > 1) {
+			//TODO
+		}
+	}
+
 #ifdef _rs2_WITH_INTER_CAM_SYNC
 	bool master_set = false;
 	for (auto dev : devs) {
