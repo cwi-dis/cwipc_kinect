@@ -111,8 +111,7 @@ void K4ACamera::start()
 	device_config.synchronized_images_only = true; // ensures that depth and color images are both available in the capture
 
 	k4a_calibration_t calibration;
-	if (K4A_RESULT_SUCCEEDED !=
-		k4a_device_get_calibration(device_handle, device_config.depth_mode, device_config.color_resolution, &calibration))
+	if (K4A_RESULT_SUCCEEDED != k4a_device_get_calibration(device_handle, device_config.depth_mode, device_config.color_resolution, &calibration))
 	{
 		std::cerr << "cwipc_kinect: Failed to k4a_device_get_calibration" << std::endl;
 		return;
