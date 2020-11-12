@@ -418,12 +418,22 @@ uint64_t K4ACamera::get_capture_timestamp()
 void
 K4ACamera::dump_color_frame(const std::string& filename)
 {
-#ifdef notrs2
 #ifdef WITH_DUMP_VIDEO_FRAMES
-		rs2::video_frame color = current_frameset.get_color_frame();
-		stbi_write_png(filename.c_str(), color.get_width(), color.get_height(),
-			color.get_bytes_per_pixel(), color.get_data(), color.get_stride_in_bytes());
-#endif
+	k4a_image_t color = k4a_capture_get_color_image(current_frameset);
+	if(color != NULL){
+		int color_image_width_pixels = k4a_image_get_width_pixels(color);
+		int color_image_height_pixels = k4a_image_get_height_pixels(color);
+		int bytes_per_pixel = 4;
+		uint8_t* color_data = k4a_image_get_buffer(color);
+		int color_stride_bytes = k4a_image_get_stride_bytes(color);
+
+		stbi_write_png(filename.c_str(), color_image_width_pixels, color_image_height_pixels,
+			bytes_per_pixel, color_data, color_stride_bytes);
+		std::cout << "cwipc_kinect: dumped image. serial: " << camData.serial << std::endl;
+	}
+	else {
+		std::cerr << "cwipc_kinect: error: dumping image. serial: " << camData.serial << std::endl;
+	}
 #endif
 }
 
