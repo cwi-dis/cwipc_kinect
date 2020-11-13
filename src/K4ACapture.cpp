@@ -204,8 +204,10 @@ K4ACapture::K4ACapture(const char *configFilename)
 	//
 	// start the cameras
 	//
-	for (auto cam: cameras)
-		cam->start();
+	for (auto cam : cameras) {
+		if (!cam->start()) return;
+	}
+		
 	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	//
 	// start the per-camera capture threads

@@ -36,6 +36,7 @@ K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int 
 	camera_index(_camera_index),
 	serial(_camData.serial),
 	stopped(true),
+	camera_started(false),
 	capture_started(false),
 	camData(_camData),
 	camSettings(configuration.default_camera_settings),
@@ -81,9 +82,9 @@ bool K4ACamera::capture_frameset()
 			std::cerr << "xxxjack release frameset" << std::endl;
 		}
 		current_frameset = new_frameset;
-#ifdef CWIPC_DEBUG_THREAD
+//#ifdef CWIPC_DEBUG_THREAD
 		if (current_frameset == NULL) {
-			std::cerr << "cwipc_kinect: K4ACamera: forward NULL frame"  << std::endl;
+			std::cerr << "cwipc_kinect: K4ACamera: " << camera_index <<" forward NULL frame"  << std::endl;
 		} else {
 			k4a_image_t color = k4a_capture_get_color_image(current_frameset);
 			uint64_t tsRGB = k4a_image_get_device_timestamp_usec(color);
@@ -93,28 +94,29 @@ bool K4ACamera::capture_frameset()
 			k4a_image_release(depth);
 			std::cerr << "cwipc_kinect: K4ACamera: forward frame: cam=" << serial << ", rgbseq=" << tsRGB << ", dseq=" << tsD << std::endl;
 		}
-#endif
+//#endif
 	}
 
 	return rv;
 }
 
 // Configure and initialize caputuring of one camera
-void K4ACamera::start()
+bool K4ACamera::start()
 {
 	assert(stopped);
 	k4a_device_configuration_t device_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
 	device_config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
 	device_config.color_resolution = K4A_COLOR_RESOLUTION_720P; // xxxjack
 	device_config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
-	device_config.camera_fps = K4A_FRAMES_PER_SECOND_30; // xxxjack
+	device_config.camera_fps = K4A_FRAMES_PER_SECOND_15; // xxxjack
 	device_config.synchronized_images_only = true; // ensures that depth and color images are both available in the capture
 
 	//SYNC:
-	bool useSync = true; //should be set from the configfile
+	bool useSync = true
+		; //should be set from the configfile
 	bool isMaster = false;
 	if (useSync) {
-		if (serial == "000330102712") { //TODO: //should be set from the configfile 
+		if (serial == "000241702712") { //TODO: //should be set from the configfile  IMPORTANT: master has to be the last camera to start to achieve sync.
 			device_config.wired_sync_mode = K4A_WIRED_SYNC_MODE_MASTER;
 			isMaster = true;
 		}
@@ -128,17 +130,19 @@ void K4ACamera::start()
 	if (K4A_RESULT_SUCCEEDED != k4a_device_get_calibration(device_handle, device_config.depth_mode, device_config.color_resolution, &calibration))
 	{
 		std::cerr << "cwipc_kinect: Failed to k4a_device_get_calibration" << std::endl;
-		return;
+		return false;
 	}
 	transformation_handle = k4a_transformation_create(&calibration);
 
-	if (k4a_device_start_cameras(device_handle, &device_config) != K4A_RESULT_SUCCEEDED) {
+	k4a_result_t res = k4a_device_start_cameras(device_handle, &device_config);
+	if (res != K4A_RESULT_SUCCEEDED) {
 		std::cerr << "cwipc_kinect: failed to start camera " << serial << std::endl;
-		return;
+		return false;
 	}
-	std::cerr << "cwipc_kinect: starting camera " << serial << ": " << camera_width << "x" << camera_height << "@" << camera_fps << " as " << (isMaster? "Master" : "Subordinate") << std::endl;
+	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". Res=(" << camera_width << "x" << camera_height << ") @" << camera_fps << "fps as " << (useSync? (isMaster? "Master" : "Subordinate") : "Standalone") << std::endl;
 	
-	capture_started = true;
+	camera_started = true;
+	return true;
 }
 
 #ifdef notrs2
@@ -185,6 +189,7 @@ void K4ACamera::stop()
 	if (capture_started) {
 		k4a_device_stop_cameras(device_handle);
 		k4a_transformation_destroy(transformation_handle);
+		camera_started = false;
 	}
 	capture_started = false;
 	if (grabber_thread) grabber_thread->join();
@@ -198,8 +203,10 @@ void K4ACamera::stop()
 
 void K4ACamera::start_capturer()
 {
+	if (!camera_started) return;
 	assert(stopped);
 	stopped = false;
+	capture_started = true;
 	_start_capture_thread();
 	processing_thread = new std::thread(&K4ACamera::_processing_thread_main, this);
 	_cwipc_setThreadName(processing_thread, L"cwipc_kinect::K4ACamera::processing_thread");
@@ -439,10 +446,13 @@ K4ACamera::dump_color_frame(const std::string& filename)
 		int bytes_per_pixel = 4;
 		uint8_t* color_data = k4a_image_get_buffer(color);
 		int color_stride_bytes = k4a_image_get_stride_bytes(color);
+		long timestamp = k4a_image_get_device_timestamp_usec(color);
 
 		stbi_write_png(filename.c_str(), color_image_width_pixels, color_image_height_pixels,
 			bytes_per_pixel, color_data, color_stride_bytes);
-		std::cout << "cwipc_kinect: dumped image. serial: " << camData.serial << std::endl;
+
+		std::cout << "cwipc_kinect: dumped image. Camera: " << camera_index << " t=" << timestamp << std::endl;
+		k4a_image_release(color);
 	}
 	else {
 		std::cerr << "cwipc_kinect: error: dumping image. serial: " << camData.serial << std::endl;

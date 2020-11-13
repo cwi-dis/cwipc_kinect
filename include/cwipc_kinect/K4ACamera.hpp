@@ -19,7 +19,7 @@ public:
 	K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData);
 	virtual ~K4ACamera();
 
-	void start();
+	bool start();
 	virtual void start_capturer();
 	void stop();
 	bool capture_frameset();
@@ -40,6 +40,7 @@ public:
 
 protected:
 	bool stopped;
+	bool camera_started;
 	bool capture_started;
 	std::thread *processing_thread;
 	void _computePointSize(/*rs2::pipeline_profile profile*/);
