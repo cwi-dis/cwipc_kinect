@@ -23,6 +23,16 @@ struct K4ACameraSettings {
 	bool do_threshold = true;
 	double threshold_near = 0.15;         // float, near point for distance threshold
 	double threshold_far = 6.0;           // float, far point for distance threshold
+	bool do_manual_control = false;       // If true any of the following parameters (if >= 0) overrides default
+	int32_t color_exposure_time = -1;     // default for manual: 40000;
+	int32_t color_whitebalance = 3 - 1;   // default for manual: 160;
+	int32_t color_backlight_compensation = -1;     // default for manual: 0;
+	int32_t color_brightness = -1;        // default for manual: 128;
+	int32_t color_contrast = -1;          // default for manual: 5;
+	int32_t color_saturation = -1;        // default for manual: 32;
+	int32_t color_sharpness = -1;         // default for manual: 2;
+	int32_t color_gain = -1;              // default for manual: 100;
+	int32_t color_powerline_frequency = -1;     // default for manual: 2;
 };
 
 struct K4ACameraData {
