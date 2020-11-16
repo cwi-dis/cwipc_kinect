@@ -23,7 +23,6 @@ struct K4ACameraSettings {
 	bool do_threshold = true;
 	double threshold_near = 0.15;         // float, near point for distance threshold
 	double threshold_far = 6.0;           // float, far point for distance threshold
-	bool do_manual_control = false;       // If true any of the following parameters (if >= 0) overrides default
 	int32_t color_exposure_time = -1;     // default for manual: 40000;
 	int32_t color_whitebalance = 3 - 1;   // default for manual: 160;
 	int32_t color_backlight_compensation = -1;     // default for manual: 0;

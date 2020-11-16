@@ -55,7 +55,6 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		systemElement->QueryIntAttribute("fps", &(config->fps));
 		systemElement->QueryBoolAttribute("colormaster", &(config->colormaster));
 #endif
-		systemElement->QueryBoolAttribute("do_manual_control", &(config->default_camera_settings.do_manual_control));
 		systemElement->QueryIntAttribute("color_exposure_time", &(config->default_camera_settings.color_exposure_time));
 		systemElement->QueryIntAttribute("color_whitebalance", &(config->default_camera_settings.color_whitebalance));
 		systemElement->QueryIntAttribute("color_backlight_compensation", &(config->default_camera_settings.color_backlight_compensation));
