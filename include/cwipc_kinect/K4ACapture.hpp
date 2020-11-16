@@ -39,7 +39,6 @@ public:
 	int numberOfPCsProduced;
     bool no_cameras;                        // True of no cameras attached
 protected:
-//	k4a_was_rs2_context ctx;				// librealsense2 context (coordinates all cameras)
 	virtual void _create_cameras(k4a_device_t* cameras, std::vector<std::string> serials, uint32_t camera_count);
 	std::vector<K4ACamera*> cameras;                // Storage of camera specifics
 	void _control_thread_main();              // Internal: main thread that controls per-camera grabbing and processing and combines pointclouds.

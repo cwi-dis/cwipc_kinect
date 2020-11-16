@@ -54,20 +54,8 @@ K4ACapture::K4ACapture(const char *configFilename)
 	if (numberOfCapturersActive > 1) {
 		cwipc_k4a_log_warning("Attempting to create capturer while one is already active.");
 	}
-#ifdef notrs2
 
-	// Determine how many realsense cameras (not platform cameras like webcams) are connected
-	const std::string platform_camera_name = "Platform Camera";
-	rs2::device_list devs = ctx.query_devices();
-	int camera_count = 0;
-	for(auto dev: devs) {
-		if (dev.get_info(RS2_CAMERA_INFO_NAME) != platform_camera_name) {
-			camera_count++;
-		}
-	}
-#else
 	int camera_count = k4a_device_get_installed_count();
-#endif
 	if (camera_count == 0) {
 		// no camera connected, so we'll return nothing
 		no_cameras = true;
@@ -157,31 +145,6 @@ K4ACapture::K4ACapture(const char *configFilename)
 		if (configuration.default_camera_settings.color_powerline_frequency >= 0)
 			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_powerline_frequency); // Powerline_Frequency (1=50Hz, 2=60Hz). Default=2
 	}
-
-#ifdef _rs2_WITH_INTER_CAM_SYNC
-	bool master_set = false;
-	for (auto dev : devs) {
-		if (camera_count > 1) {
-			auto allSensors = dev.query_sensors();
-			bool foundSensorSupportingSync = false;
-			for (auto sensor : allSensors) {
-				if (sensor.supports(RS2_OPTION_INTER_CAM_SYNC_MODE)) {
-					foundSensorSupportingSync = true;
-					if (!master_set) {
-						sensor.set_option(RS2_OPTION_INTER_CAM_SYNC_MODE, 1);
-						master_set = true;
-					}
-					else {
-						sensor.set_option(RS2_OPTION_INTER_CAM_SYNC_MODE, 2);
-					}
-				}
-			}
-			if (!foundSensorSupportingSync) {
-				cwipc_k4a_log_warning(std::string("Camera ") + dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER) + " does not support inter-camera-sync");
-			}
-		}
-	}
-#endif // WITH_INTER_CAM_SYNC
 
 	// Now we have all the configuration information. Open the cameras.
 	_create_cameras(camera_handles, serials, camera_count);
