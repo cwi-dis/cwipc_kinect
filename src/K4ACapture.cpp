@@ -213,16 +213,25 @@ K4ACapture::K4ACapture(const char *configFilename)
 	}
 
 	//
-	// start the cameras
+	// start the cameras. First start all non-sync-master cameras, then start the sync-master camera.
 	//
 	for (auto cam : cameras) {
+		if (cam->is_sync_master()) continue;
 		if (!cam->start()) {
 			cwipc_k4a_log_warning("Not all cameras could be started");
 			no_cameras = true;
 			return;
 		}
 	}
-		
+	for (auto cam : cameras) {
+		if (!cam->is_sync_master()) continue;
+		if (!cam->start()) {
+			cwipc_k4a_log_warning("Not all cameras could be started");
+			no_cameras = true;
+			return;
+		}
+	}
+
 	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	//
 	// start the per-camera capture threads
