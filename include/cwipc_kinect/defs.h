@@ -46,7 +46,7 @@ struct K4ACameraData {
 struct K4ACaptureConfig {
 
 	int width = 1280;
-	int height = 720;
+	int depth_width = 576;
 	int fps = 30;
 	bool greenscreen_removal = false;	  // If true include greenscreen removal
 	bool depth_filtering = false;         // If true perform post filtering on depth frame

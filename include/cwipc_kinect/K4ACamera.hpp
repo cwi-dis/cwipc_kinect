@@ -55,8 +55,8 @@ private:
 	moodycamel::BlockingReaderWriterQueue<k4a_capture_t> captured_frame_queue;
 	moodycamel::BlockingReaderWriterQueue<k4a_capture_t> processing_frame_queue;
 	k4a_capture_t current_frameset;
-	int camera_width;
-	int camera_height;
+	int color_width;
+	int depth_width;
 	int camera_fps;
 	bool do_depth_filtering;
 	bool do_background_removal;

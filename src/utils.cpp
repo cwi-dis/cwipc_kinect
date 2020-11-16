@@ -47,12 +47,10 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 	// get the system related information
 	TiXmlElement* systemElement = configElement->FirstChildElement("system");
 	if (systemElement) {
-#ifdef notyet
-		systemElement->QueryIntAttribute("rgbwidth", &(config->rgb_width));
-		systemElement->QueryIntAttribute("rgbheight", &(config->rgb_height));
+		systemElement->QueryIntAttribute("rgbwidth", &(config->width));
 		systemElement->QueryIntAttribute("depthwidth", &(config->depth_width));
-		systemElement->QueryIntAttribute("depthheight", &(config->depth_height));
 		systemElement->QueryIntAttribute("fps", &(config->fps));
+#ifdef notyet
 		systemElement->QueryBoolAttribute("colormaster", &(config->colormaster));
 #endif
 		systemElement->QueryIntAttribute("color_exposure_time", &(config->default_camera_settings.color_exposure_time));
