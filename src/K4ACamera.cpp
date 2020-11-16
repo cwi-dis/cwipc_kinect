@@ -46,6 +46,8 @@ K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int 
 	color_height(configuration.color_height),
 	depth_height(configuration.depth_height),
 	camera_fps(configuration.fps),
+	camera_sync_ismaster(serial == configuration.sync_master_serial),
+	camera_sync_inuse(configuration.sync_master_serial != ""),
 	do_greenscreen_removal(configuration.greenscreen_removal),
 	do_height_filtering(configuration.height_min != configuration.height_max),
 	height_min(configuration.height_min),
@@ -164,18 +166,14 @@ bool K4ACamera::start()
 	device_config.synchronized_images_only = true; // ensures that depth and color images are both available in the capture
 
 	//SYNC:
-	bool useSync = false;
-		; //should be set from the configfile
-	bool isMaster = false;
-	if (useSync) {
-		if (serial == "000241702712") { //TODO: //should be set from the configfile  IMPORTANT: master has to be the last camera to start to achieve sync.
-			device_config.wired_sync_mode = K4A_WIRED_SYNC_MODE_MASTER;
-			isMaster = true;
-		}
-		else {
-			device_config.wired_sync_mode = K4A_WIRED_SYNC_MODE_SUBORDINATE;
-			device_config.subordinate_delay_off_master_usec = 160 * camera_index;	//160 allows max 9 cameras
-		}
+	if (camera_sync_ismaster) {
+		device_config.wired_sync_mode = K4A_WIRED_SYNC_MODE_MASTER;
+	}
+	else if (camera_sync_inuse) {
+		device_config.wired_sync_mode = K4A_WIRED_SYNC_MODE_SUBORDINATE;
+		device_config.subordinate_delay_off_master_usec = 160 * camera_index;	//160 allows max 9 cameras
+	} else {
+		// standalone mode, nothing to set.ca
 	}
 
 	k4a_calibration_t calibration;
@@ -191,7 +189,7 @@ bool K4ACamera::start()
 		std::cerr << "cwipc_kinect: failed to start camera " << serial << std::endl;
 		return false;
 	}
-	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". Res=(" << color_height << ") @" << camera_fps << "fps as " << (useSync? (isMaster? "Master" : "Subordinate") : "Standalone") << std::endl;
+	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". Res=(" << color_height << ") @" << camera_fps << "fps as " << (camera_sync_inuse ? (camera_sync_ismaster? "Master" : "Subordinate") : "Standalone") << std::endl;
 	
 	camera_started = true;
 	return true;

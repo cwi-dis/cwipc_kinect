@@ -27,6 +27,7 @@ public:
 	void wait_for_pc();
 	void dump_color_frame(const std::string& filename);
 	uint64_t get_capture_timestamp();
+	bool is_sync_master() { return camera_sync_ismaster;  }
 public:
 	float pointSize;
 public:
@@ -58,6 +59,8 @@ private:
 	int color_height;
 	int depth_height;
 	int camera_fps;
+	bool camera_sync_ismaster;
+	bool camera_sync_inuse;
 	bool do_depth_filtering;
 	bool do_background_removal;
 	bool do_greenscreen_removal;
