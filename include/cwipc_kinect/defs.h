@@ -45,7 +45,7 @@ struct K4ACameraData {
 
 struct K4ACaptureConfig {
 
-	int height = 720;                     // width of color frame (720, 1080 and various other values allowed, see kinect docs)
+	int color_height = 720;                     // width of color frame (720, 1080 and various other values allowed, see kinect docs)
 	int depth_height = 576;                // width of depth frame (288, 576, 512 and 1024 allowed)
 	int fps = 30;                         // capture fps (5, 15 and 30 allowed)
 	bool greenscreen_removal = false;	  // If true include greenscreen removal

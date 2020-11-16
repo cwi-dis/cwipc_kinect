@@ -43,7 +43,7 @@ K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int 
 	captured_frame_queue(1),
 	processing_frame_queue(1),
 	current_frameset(NULL),
-	color_height(configuration.height),
+	color_height(configuration.color_height),
 	depth_height(configuration.depth_height),
 	camera_fps(configuration.fps),
 	do_greenscreen_removal(configuration.greenscreen_removal),
@@ -126,7 +126,7 @@ bool K4ACamera::start()
 		device_config.color_resolution = K4A_COLOR_RESOLUTION_3072P;
 		break;
 	default:
-		std::cerr << "cwipc_kinect: invalid camera_width: " << color_height << std::endl;
+		std::cerr << "cwipc_kinect: invalid color_height: " << color_height << std::endl;
 		return false;
 	}
 	switch (depth_height) {
@@ -143,7 +143,7 @@ bool K4ACamera::start()
 		device_config.depth_mode = K4A_DEPTH_MODE_WFOV_UNBINNED;
 		break;
 	default:
-		std::cerr << "cwipc_kinect: invalid depth_width: " << depth_height << std::endl;
+		std::cerr << "cwipc_kinect: invalid depth_height: " << depth_height << std::endl;
 		return false;
 	}
 	switch (camera_fps) {
