@@ -52,7 +52,6 @@ struct K4ACaptureConfig {
 	bool depth_filtering = false;         // If true perform post filtering on depth frame
 	double height_min = 0.0;			  // If height_min != height_max perform height filtering
 	double height_max = 0.0;			  // If height_min != height_max perform height filtering
-	double cloud_resolution = 0.0;        // Resolution of voxelized pointclouds
 
 	std::string sync_master_serial = "";  // If empty run without sync. If non-empty this camera is the sync master
 	// special features

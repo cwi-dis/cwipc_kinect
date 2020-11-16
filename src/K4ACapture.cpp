@@ -460,21 +460,6 @@ void K4ACapture::merge_views()
 		cwipc_pcl_pointcloud cam_cld = cd.cloud;
 		*mergedPC += *cam_cld;
 	}
-
-	if (configuration.cloud_resolution > 0) {
-#ifdef CWIPC_DEBUG
-		std::cerr << "cwipc_kinect: Points before reduction: " << mergedPC->size() << std::endl;
-#endif
-		pcl::VoxelGrid<cwipc_pcl_point> grd;
-		grd.setInputCloud(mergedPC);
-		grd.setLeafSize(configuration.cloud_resolution, configuration.cloud_resolution, configuration.cloud_resolution);
-		grd.setSaveLeafLayout(true);
-		grd.filter(*mergedPC);
-
-#ifdef CWIPC_DEBUG
-		std::cerr << "cwipc_kinect: Points after reduction: " << mergedPC->size() << std::endl;
-#endif
-	}
 }
 
 K4ACameraData& K4ACapture::get_camera_data(std::string serial) {
