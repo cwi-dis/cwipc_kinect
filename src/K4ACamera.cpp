@@ -43,8 +43,8 @@ K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int 
 	captured_frame_queue(1),
 	processing_frame_queue(1),
 	current_frameset(NULL),
-	color_width(configuration.width),
-	depth_width(configuration.depth_width),
+	color_height(configuration.height),
+	depth_height(configuration.depth_height),
 	camera_fps(configuration.fps),
 	do_greenscreen_removal(configuration.greenscreen_removal),
 	do_height_filtering(configuration.height_min != configuration.height_max),
@@ -106,7 +106,7 @@ bool K4ACamera::start()
 	assert(stopped);
 	k4a_device_configuration_t device_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
 	device_config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
-	switch (color_width) {
+	switch (color_height) {
 	case 720:
 		device_config.color_resolution = K4A_COLOR_RESOLUTION_720P;
 		break;
@@ -126,10 +126,10 @@ bool K4ACamera::start()
 		device_config.color_resolution = K4A_COLOR_RESOLUTION_3072P;
 		break;
 	default:
-		std::cerr << "cwipc_kinect: invalid camera_width: " << color_width << std::endl;
+		std::cerr << "cwipc_kinect: invalid camera_width: " << color_height << std::endl;
 		return false;
 	}
-	switch (depth_width) {
+	switch (depth_height) {
 	case 288:
 		device_config.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
 		break;
@@ -143,7 +143,7 @@ bool K4ACamera::start()
 		device_config.depth_mode = K4A_DEPTH_MODE_WFOV_UNBINNED;
 		break;
 	default:
-		std::cerr << "cwipc_kinect: invalid depth_width: " << depth_width << std::endl;
+		std::cerr << "cwipc_kinect: invalid depth_width: " << depth_height << std::endl;
 		return false;
 	}
 	switch (camera_fps) {
@@ -191,7 +191,7 @@ bool K4ACamera::start()
 		std::cerr << "cwipc_kinect: failed to start camera " << serial << std::endl;
 		return false;
 	}
-	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". Res=(" << color_width << ") @" << camera_fps << "fps as " << (useSync? (isMaster? "Master" : "Subordinate") : "Standalone") << std::endl;
+	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". Res=(" << color_height << ") @" << camera_fps << "fps as " << (useSync? (isMaster? "Master" : "Subordinate") : "Standalone") << std::endl;
 	
 	camera_started = true;
 	return true;
