@@ -100,7 +100,10 @@ K4ACapture::K4ACapture(const char *configFilename)
 		cd.cameraposition = { 0, 0, 0 };
 		configuration.cameraData.push_back(cd);
 	}
-	if (any_failure) return;
+	if (any_failure) {
+		no_cameras = true;
+		return;
+	}
 
 	//
 	// Read the configuration. We do this only now because for historical reasons the configuration
@@ -213,7 +216,11 @@ K4ACapture::K4ACapture(const char *configFilename)
 	// start the cameras
 	//
 	for (auto cam : cameras) {
-		if (!cam->start()) return;
+		if (!cam->start()) {
+			cwipc_k4a_log_warning("Not all cameras could be started");
+			no_cameras = true;
+			return;
+		}
 	}
 		
 	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
