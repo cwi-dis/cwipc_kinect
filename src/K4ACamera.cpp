@@ -84,7 +84,7 @@ bool K4ACamera::capture_frameset()
 			std::cerr << "xxxjack release frameset" << std::endl;
 		}
 		current_frameset = new_frameset;
-//#ifdef CWIPC_DEBUG_THREAD
+#ifdef CWIPC_DEBUG_THREAD
 		if (current_frameset == NULL) {
 			std::cerr << "cwipc_kinect: K4ACamera: " << camera_index <<" forward NULL frame"  << std::endl;
 		} else {
@@ -96,7 +96,7 @@ bool K4ACamera::capture_frameset()
 			k4a_image_release(depth);
 			std::cerr << "cwipc_kinect: K4ACamera: forward frame: cam=" << serial << ", rgbseq=" << tsRGB << ", dseq=" << tsD << std::endl;
 		}
-//#endif
+#endif
 	}
 
 	return rv;
