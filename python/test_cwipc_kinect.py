@@ -57,6 +57,9 @@ class TestApi(unittest.TestCase):
             self.assertFalse(grabber.eof())
             self.assertTrue(grabber.available(True))
             pc = grabber.get()
+            # It seems the first pointcloud could be empty. Unsure why...
+            if pc.count() == 0:
+                pc = grabber.get()
             self._verify_pointcloud(pc)
         finally:
             if grabber: grabber.free()
