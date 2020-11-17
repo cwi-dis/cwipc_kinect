@@ -265,10 +265,16 @@ K4ACapture::K4ACapture(const char *configFilename)
 
 	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	//
-	// start the per-camera capture threads
+	// start the per-camera capture threads. Master camera has to be started latest
 	//
-	for (auto cam: cameras)
+	for (auto cam : cameras) {
+		if (cam->is_sync_master()) continue;
 		cam->start_capturer();
+	}
+	for (auto cam : cameras) {
+		if (!cam->is_sync_master()) continue;
+		cam->start_capturer();
+	}
 	//
 	// start our run thread (which will drive the capturers and merge the pointclouds)
 	//
