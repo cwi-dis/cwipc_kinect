@@ -171,9 +171,9 @@ bool K4ACamera::start()
 	}
 	else if (camera_sync_inuse) {
 		device_config.wired_sync_mode = K4A_WIRED_SYNC_MODE_SUBORDINATE;
-		device_config.subordinate_delay_off_master_usec = 160 * camera_index;	//160 allows max 9 cameras
+		device_config.subordinate_delay_off_master_usec = 160 * (camera_index+1);	//160 allows max 9 cameras
 	} else {
-		// standalone mode, nothing to set.ca
+		// standalone mode, nothing to set
 	}
 
 	k4a_calibration_t calibration;
