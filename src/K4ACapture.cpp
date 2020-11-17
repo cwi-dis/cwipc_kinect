@@ -128,7 +128,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 		//options for color sensor
 		if (configuration.default_camera_settings.color_exposure_time >= 0) {	//MANUAL
 			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_exposure_time); // Exposure_time (in microseconds)
-			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "ERROR-> Exposure should be microsecond and in range (500-35000)" << std::endl;
+			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "ERROR-> Exposure should be microsecond and in range (500-133330)" << std::endl;
 		}
 		else {	//AUTO
 			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
