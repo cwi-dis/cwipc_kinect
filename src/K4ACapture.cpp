@@ -123,28 +123,77 @@ K4ACapture::K4ACapture(const char *configFilename)
 		configuration.cameraData = realcams;
 	}
 
-	// Set various camera hardware parameters (color)  //TODO: //should be set from the configfile
+	// Set various camera hardware parameters (color)
 	for (int i = 0; i < camera_count; i++) {
 		//options for color sensor
-		if(configuration.default_camera_settings.color_exposure_time >= 0)
+		if(configuration.default_camera_settings.color_exposure_time >= 0)	//MANUAL
 			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_exposure_time); // Exposure_time (in microseconds)
-		if (configuration.default_camera_settings.color_whitebalance >= 0)
+		else {	//AUTO
+			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
+		}
+		if (configuration.default_camera_settings.color_whitebalance >= 0)	//MANUAL
 			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_whitebalance); // White_balance (2500-12500)
-		if (configuration.default_camera_settings.color_backlight_compensation >= 0)
+		else {	//AUTO
+			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
+		}
+		//if (configuration.default_camera_settings.color_backlight_compensation >= 0)
 			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_backlight_compensation); // Backlight_compensation 0=disabled | 1=enabled. Default=0
-		if (configuration.default_camera_settings.color_brightness >= 0)
+		//if (configuration.default_camera_settings.color_brightness >= 0)
 			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_BRIGHTNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_brightness); // Brightness. (0 to 255). Default=128.
-		if (configuration.default_camera_settings.color_contrast >= 0)
+		//if (configuration.default_camera_settings.color_contrast >= 0)
 			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_CONTRAST, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_contrast); // Contrast (0-10). Default=5
-		if (configuration.default_camera_settings.color_saturation >= 0)
+		//if (configuration.default_camera_settings.color_saturation >= 0)
 			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_SATURATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_saturation); // saturation (0-63). Default=32
-		if (configuration.default_camera_settings.color_sharpness >= 0)
+		//if (configuration.default_camera_settings.color_sharpness >= 0)
 			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_SHARPNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_sharpness); // Sharpness (0-4). Default=2
-		if (configuration.default_camera_settings.color_gain >= 0)
+		//if (configuration.default_camera_settings.color_gain >= 0)	//if autoexposure mode=AUTO gain does not affect
 			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_GAIN, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_gain); // Gain (0-255). Default=0
-		if (configuration.default_camera_settings.color_powerline_frequency >= 0)
+		//if (configuration.default_camera_settings.color_powerline_frequency >= 0)
 			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_powerline_frequency); // Powerline_Frequency (1=50Hz, 2=60Hz). Default=2
 	}
+
+	//PRINTING CURRENT COLOR CONFIG
+	std::cout << "\n### Current color configuration: ########" << std::endl;
+	int32_t value;
+	k4a_color_control_mode_t mode;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, &mode, &value);
+	bool isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tExposure time:\t" << (isManual==true ? "Manual,\t" : "Auto") << (isManual==true ? std::to_string(value) +"\t#" : "\t\t#") << std::endl;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_WHITEBALANCE, &mode, &value);
+	isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tWhite balance:\t" << (isManual == true ? "Manual,\t" : "Auto") << (isManual == true ? std::to_string(value) + "\t#" : "\t\t#") << std::endl;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, &mode, &value);
+	isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tBL comp.:\t" << (isManual == true ? "Manual,\t" : "Auto") << (isManual == true ? std::to_string(value) + "\t#" : "\t\t#") << std::endl;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_BRIGHTNESS, &mode, &value);
+	isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tBrightness:\t" << (isManual == true ? "Manual,\t" : "Auto") << (isManual == true ? std::to_string(value) + "\t#" : "\t\t#") << std::endl;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_CONTRAST, &mode, &value);
+	isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tContrast:\t" << (isManual == true ? "Manual,\t" : "Auto") << (isManual == true ? std::to_string(value) + "\t#" : "\t\t#") << std::endl;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_SATURATION, &mode, &value);
+	isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tSaturation:\t" << (isManual == true ? "Manual,\t" : "Auto") << (isManual == true ? std::to_string(value) + "\t#" : "\t\t#") << std::endl;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_SHARPNESS, &mode, &value);
+	isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tSharpness:\t" << (isManual == true ? "Manual,\t" : "Auto") << (isManual == true ? std::to_string(value) + "\t#" : "\t\t#") << std::endl;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_GAIN, &mode, &value);
+	isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tGain:\t\t" << (isManual == true ? "Manual,\t" : "Auto") << (isManual == true ? std::to_string(value) + "\t#" : "\t\t#") << std::endl;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, &mode, &value);
+	isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tPow freq.:\t" << (isManual == true ? "Manual,\t" : "Auto") << (isManual == true ? std::to_string(value) + "\t#" : "\t\t#") << std::endl;
+	std::cout << "#########################################\n" << std::endl;
+	//END PRINTING CURRENT COLOR CONFIG
 
 	// Now we have all the configuration information. Open the cameras.
 	_create_cameras(camera_handles, serials, camera_count);

@@ -53,6 +53,7 @@ int main(int argc, char** argv)
         }
 		if (strcmp(argv[2], "-") != 0) {
 			snprintf(filename, sizeof(filename), "%s/pointcloud-%lld.ply", argv[2], pc->timestamp());
+            std::cout << "-> Writing " << filename << std::endl;
 			ok = cwipc_write(filename, pc, &error);
 		}
 		pc->free();

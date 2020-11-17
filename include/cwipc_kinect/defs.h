@@ -25,13 +25,13 @@ struct K4ACameraSettings {
 	double threshold_far = 6.0;           // float, far point for distance threshold
 	int32_t color_exposure_time = -1;     // default for manual: 40000;
 	int32_t color_whitebalance = -1;   // default for manual: 3160; range(2500-12500)
-	int32_t color_backlight_compensation = -1;     // default for manual: 0;
-	int32_t color_brightness = -1;        // default for manual: 128;
-	int32_t color_contrast = -1;          // default for manual: 5;
-	int32_t color_saturation = -1;        // default for manual: 32;
-	int32_t color_sharpness = -1;         // default for manual: 2;
-	int32_t color_gain = -1;              // default for manual: 100;
-	int32_t color_powerline_frequency = -1;     // default for manual: 2;
+	int32_t color_backlight_compensation = 0;     // default for manual: 0;
+	int32_t color_brightness = 128;        // default for manual: 128;
+	int32_t color_contrast = 5;          // default for manual: 5;
+	int32_t color_saturation = 32;        // default for manual: 32;
+	int32_t color_sharpness = 2;         // default for manual: 2;
+	int32_t color_gain = 0;              // default for manual: 100;
+	int32_t color_powerline_frequency = 2;     // default for manual: 2;
 };
 
 struct K4ACameraData {
