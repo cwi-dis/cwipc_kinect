@@ -7,6 +7,7 @@
 #include <condition_variable>
 
 #include <k4a/k4a.h>
+#include <k4abt.h>
 
 #include "defs.h"
 #include "readerwriterqueue.h"
@@ -72,6 +73,9 @@ private:
 	std::mutex processing_mutex;
 	std::condition_variable processing_done_cv;
 	bool processing_done;
+
+
+	k4abt_tracker_t tracker;
 
 	void _init_filters();
 
