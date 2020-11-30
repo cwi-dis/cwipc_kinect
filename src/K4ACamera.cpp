@@ -88,7 +88,6 @@ bool K4ACamera::capture_frameset()
 	if (rv) {
 		if (current_frameset) {
 			k4a_capture_release(current_frameset);
-			std::cerr << "xxxjack release frameset" << std::endl;
 		}
 		current_frameset = new_frameset;
 #ifdef CWIPC_DEBUG_THREAD
