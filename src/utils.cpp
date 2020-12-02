@@ -47,7 +47,7 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
     int version = -1;
     configElement->QueryIntAttribute("version", &version);
     if (version != 2) {
-        cwipc_rs2_log_warning(std::string("CameraConfig ") + filename + " is not version 2");
+        cwipc_k4a_log_warning(std::string("CameraConfig ") + filename + " is not version 2");
     }
 	// get the system related information
 	TiXmlElement* systemElement = configElement->FirstChildElement("system");
