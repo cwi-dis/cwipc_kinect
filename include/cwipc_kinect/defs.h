@@ -23,6 +23,15 @@ struct K4ACameraSettings {
 	bool do_threshold = true;
 	double threshold_near = 0.15;         // float, near point for distance threshold
 	double threshold_far = 6.0;           // float, far point for distance threshold
+	int32_t color_exposure_time = -1;     // default for manual: 40000;
+	int32_t color_whitebalance = -1;   // default for manual: 3160; range(2500-12500)
+	int32_t color_backlight_compensation = 0;     // default for manual: 0;
+	int32_t color_brightness = 128;        // default for manual: 128;
+	int32_t color_contrast = 5;          // default for manual: 5;
+	int32_t color_saturation = 32;        // default for manual: 32;
+	int32_t color_sharpness = 2;         // default for manual: 2;
+	int32_t color_gain = 0;              // default for manual: 100;
+	int32_t color_powerline_frequency = 2;     // default for manual: 2;
 };
 
 struct K4ACameraData {
@@ -36,15 +45,15 @@ struct K4ACameraData {
 
 struct K4ACaptureConfig {
 
-	int width = 1280;
-	int height = 720;
-	int fps = 30;
+	int color_height = 720;                     // width of color frame (720, 1080 and various other values allowed, see kinect docs)
+	int depth_height = 576;                // width of depth frame (288, 576, 512 and 1024 allowed)
+	int fps = 30;                         // capture fps (5, 15 and 30 allowed)
 	bool greenscreen_removal = false;	  // If true include greenscreen removal
 	bool depth_filtering = false;         // If true perform post filtering on depth frame
 	double height_min = 0.0;			  // If height_min != height_max perform height filtering
 	double height_max = 0.0;			  // If height_min != height_max perform height filtering
-	double cloud_resolution = 0.0;        // Resolution of voxelized pointclouds
 
+	std::string sync_master_serial = "";  // If empty run without sync. If non-empty this camera is the sync master
 	// special features
 	std::string cwi_special_feature = ""; // Specifier for temporary development specific feature
 

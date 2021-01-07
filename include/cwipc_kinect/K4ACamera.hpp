@@ -19,7 +19,7 @@ public:
 	K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData);
 	virtual ~K4ACamera();
 
-	void start();
+	bool start();
 	virtual void start_capturer();
 	void stop();
 	bool capture_frameset();
@@ -27,6 +27,7 @@ public:
 	void wait_for_pc();
 	void dump_color_frame(const std::string& filename);
 	uint64_t get_capture_timestamp();
+	bool is_sync_master() { return camera_sync_ismaster;  }
 public:
 	float pointSize;
 public:
@@ -40,6 +41,7 @@ public:
 
 protected:
 	bool stopped;
+	bool camera_started;
 	bool capture_started;
 	std::thread *processing_thread;
 	void _computePointSize(/*rs2::pipeline_profile profile*/);
@@ -54,9 +56,11 @@ private:
 	moodycamel::BlockingReaderWriterQueue<k4a_capture_t> captured_frame_queue;
 	moodycamel::BlockingReaderWriterQueue<k4a_capture_t> processing_frame_queue;
 	k4a_capture_t current_frameset;
-	int camera_width;
-	int camera_height;
+	int color_height;
+	int depth_height;
 	int camera_fps;
+	bool camera_sync_ismaster;
+	bool camera_sync_inuse;
 	bool do_depth_filtering;
 	bool do_background_removal;
 	bool do_greenscreen_removal;

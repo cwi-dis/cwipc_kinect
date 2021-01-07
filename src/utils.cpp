@@ -44,18 +44,34 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 
 	TiXmlHandle docHandle(&doc);
 	TiXmlElement* configElement = docHandle.FirstChild("file").FirstChild("CameraConfig").ToElement();
-#ifdef notyet
+    int version = -1;
+    configElement->QueryIntAttribute("version", &version);
+    if (version != 2) {
+        cwipc_k4a_log_warning(std::string("CameraConfig ") + filename + " is not version 2");
+    }
 	// get the system related information
 	TiXmlElement* systemElement = configElement->FirstChildElement("system");
 	if (systemElement) {
-		systemElement->QueryIntAttribute("rgbwidth", &(config->rgb_width));
-		systemElement->QueryIntAttribute("rgbheight", &(config->rgb_height));
-		systemElement->QueryIntAttribute("depthwidth", &(config->depth_width));
-		systemElement->QueryIntAttribute("depthheight", &(config->depth_height));
+		systemElement->QueryIntAttribute("color_height", &(config->color_height));
+		systemElement->QueryIntAttribute("depth_height", &(config->depth_height));
 		systemElement->QueryIntAttribute("fps", &(config->fps));
+		const char* serial_str = systemElement->Attribute("sync_master_serial");
+		if (serial_str && *serial_str) {
+			config->sync_master_serial = serial_str;
+		}
+#ifdef notyet
 		systemElement->QueryBoolAttribute("colormaster", &(config->colormaster));
-	}
 #endif
+		systemElement->QueryIntAttribute("color_exposure_time", &(config->default_camera_settings.color_exposure_time));
+		systemElement->QueryIntAttribute("color_whitebalance", &(config->default_camera_settings.color_whitebalance));
+		systemElement->QueryIntAttribute("color_backlight_compensation", &(config->default_camera_settings.color_backlight_compensation));
+		systemElement->QueryIntAttribute("color_brightness", &(config->default_camera_settings.color_brightness));
+		systemElement->QueryIntAttribute("color_contrast", &(config->default_camera_settings.color_contrast));
+		systemElement->QueryIntAttribute("color_saturation", &(config->default_camera_settings.color_saturation));
+		systemElement->QueryIntAttribute("color_sharpness", &(config->default_camera_settings.color_sharpness));
+		systemElement->QueryIntAttribute("color_gain", &(config->default_camera_settings.color_gain));
+		systemElement->QueryIntAttribute("color_powerline_frequency", &(config->default_camera_settings.color_powerline_frequency));
+}
 
     // get the processing related information
     TiXmlElement* postprocessingElement = configElement->FirstChildElement("postprocessing");

@@ -54,20 +54,8 @@ K4ACapture::K4ACapture(const char *configFilename)
 	if (numberOfCapturersActive > 1) {
 		cwipc_k4a_log_warning("Attempting to create capturer while one is already active.");
 	}
-#ifdef notrs2
 
-	// Determine how many realsense cameras (not platform cameras like webcams) are connected
-	const std::string platform_camera_name = "Platform Camera";
-	rs2::device_list devs = ctx.query_devices();
-	int camera_count = 0;
-	for(auto dev: devs) {
-		if (dev.get_info(RS2_CAMERA_INFO_NAME) != platform_camera_name) {
-			camera_count++;
-		}
-	}
-#else
 	int camera_count = k4a_device_get_installed_count();
-#endif
 	if (camera_count == 0) {
 		// no camera connected, so we'll return nothing
 		no_cameras = true;
@@ -100,7 +88,10 @@ K4ACapture::K4ACapture(const char *configFilename)
 		cd.cameraposition = { 0, 0, 0 };
 		configuration.cameraData.push_back(cd);
 	}
-	if (any_failure) return;
+	if (any_failure) {
+		no_cameras = true;
+		return;
+	}
 
 	//
 	// Read the configuration. We do this only now because for historical reasons the configuration
@@ -131,31 +122,101 @@ K4ACapture::K4ACapture(const char *configFilename)
 		// Reduce the active configuration to cameras that are connected
 		configuration.cameraData = realcams;
 	}
-#ifdef _rs2_WITH_INTER_CAM_SYNC
-	bool master_set = false;
-	for (auto dev : devs) {
-		if (camera_count > 1) {
-			auto allSensors = dev.query_sensors();
-			bool foundSensorSupportingSync = false;
-			for (auto sensor : allSensors) {
-				if (sensor.supports(RS2_OPTION_INTER_CAM_SYNC_MODE)) {
-					foundSensorSupportingSync = true;
-					if (!master_set) {
-						sensor.set_option(RS2_OPTION_INTER_CAM_SYNC_MODE, 1);
-						master_set = true;
-					}
-					else {
-						sensor.set_option(RS2_OPTION_INTER_CAM_SYNC_MODE, 2);
-					}
-				}
-			}
-			if (!foundSensorSupportingSync) {
-				cwipc_k4a_log_warning(std::string("Camera ") + dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER) + " does not support inter-camera-sync");
-			}
+
+	// Set various camera hardware parameters (color)
+	for (int i = 0; i < camera_count; i++) {
+		//options for color sensor
+		if (configuration.default_camera_settings.color_exposure_time >= 0) {	//MANUAL
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_exposure_time); // Exposure_time (in microseconds)
+			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_exposure_time should be microsecond and in range (500-133330)" << std::endl;
+		}
+		else {	//AUTO
+			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
+		}
+		if (configuration.default_camera_settings.color_whitebalance >= 0) {	//MANUAL
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_whitebalance); // White_balance (2500-12500)
+			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_whitebalance should be in range (2500-12500)" << std::endl;
+		}
+		else {	//AUTO
+			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
+		}
+
+		if (configuration.default_camera_settings.color_backlight_compensation >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_backlight_compensation); // Backlight_compensation 0=disabled | 1=enabled. Default=0
+			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_backlight_compensation should be 0=Enabled, 1= Disabled" << std::endl;
+		}
+		if (configuration.default_camera_settings.color_brightness >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_BRIGHTNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_brightness); // Brightness. (0 to 255). Default=128.
+			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_brightness should be in range (0-255)" << std::endl;
+		}
+		if (configuration.default_camera_settings.color_contrast >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_CONTRAST, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_contrast); // Contrast (0-10). Default=5
+			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_contrast should be in range (0-10)" << std::endl;
+		}
+		if (configuration.default_camera_settings.color_saturation >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_SATURATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_saturation); // saturation (0-63). Default=32
+			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_saturation should be in range (0-63)" << std::endl;
+		}
+		if (configuration.default_camera_settings.color_sharpness >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_SHARPNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_sharpness); // Sharpness (0-4). Default=2
+			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_sharpness should be in range (0-4)" << std::endl;
+		}
+		if (configuration.default_camera_settings.color_gain >= 0){	//if autoexposure mode=AUTO gain does not affect
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_GAIN, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_gain); // Gain (0-255). Default=0
+			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_gain should be in range (0-255)" << std::endl;
+		}
+		if (configuration.default_camera_settings.color_powerline_frequency >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_powerline_frequency); // Powerline_Frequency (1=50Hz, 2=60Hz). Default=2
+			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_powerline_frequency should be 1=50Hz or 2=60Hz" << std::endl;
 		}
 	}
-#endif // WITH_INTER_CAM_SYNC
+#ifdef CWIPC_DEBUG
+	// Hmm. Jack thinks this shouldn't be printed normally (too confusing to normal
+	// users). But it would be nice to have something like an environment variable
+	// CWIPC_LOGGING=trace to enable it.
+	//PRINTING CURRENT COLOR CONFIG
+	std::cout << "\n### Current color configuration: ########" << std::endl;
+	int32_t value;
+	k4a_color_control_mode_t mode;
 
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, &mode, &value);
+	bool isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tExposure time:\t" << (isManual==true ? "Manual,\t" : "Auto") << (isManual==true ? std::to_string(value) +"\t#" : "\t\t#") << std::endl;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_WHITEBALANCE, &mode, &value);
+	isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tWhite balance:\t" << (isManual == true ? "Manual,\t" : "Auto") << (isManual == true ? std::to_string(value) + "\t#" : "\t\t#") << std::endl;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, &mode, &value);
+	isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tBL comp.:\t" << (isManual == true ? "Manual,\t" : "Auto") << (isManual == true ? std::to_string(value) + "\t#" : "\t\t#") << std::endl;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_BRIGHTNESS, &mode, &value);
+	isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tBrightness:\t" << (isManual == true ? "Manual,\t" : "Auto") << (isManual == true ? std::to_string(value) + "\t#" : "\t\t#") << std::endl;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_CONTRAST, &mode, &value);
+	isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tContrast:\t" << (isManual == true ? "Manual,\t" : "Auto") << (isManual == true ? std::to_string(value) + "\t#" : "\t\t#") << std::endl;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_SATURATION, &mode, &value);
+	isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tSaturation:\t" << (isManual == true ? "Manual,\t" : "Auto") << (isManual == true ? std::to_string(value) + "\t#" : "\t\t#") << std::endl;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_SHARPNESS, &mode, &value);
+	isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tSharpness:\t" << (isManual == true ? "Manual,\t" : "Auto") << (isManual == true ? std::to_string(value) + "\t#" : "\t\t#") << std::endl;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_GAIN, &mode, &value);
+	isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tGain:\t\t" << (isManual == true ? "Manual,\t" : "Auto") << (isManual == true ? std::to_string(value) + "\t#" : "\t\t#") << std::endl;
+
+	k4a_device_get_color_control(camera_handles[0], K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, &mode, &value);
+	isManual = (mode == K4A_COLOR_CONTROL_MODE_MANUAL);
+	std::cout << "#\tPow freq.:\t" << (isManual == true ? "Manual,\t" : "Auto") << (isManual == true ? std::to_string(value) + "\t#" : "\t\t#") << std::endl;
+	std::cout << "#########################################\n" << std::endl;
+	//END PRINTING CURRENT COLOR CONFIG
+#endif
 	// Now we have all the configuration information. Open the cameras.
 	_create_cameras(camera_handles, serials, camera_count);
 	// We can now free camera_handles
@@ -186,16 +247,37 @@ K4ACapture::K4ACapture(const char *configFilename)
 	}
 
 	//
-	// start the cameras
+	// start the cameras. First start all non-sync-master cameras, then start the sync-master camera.
 	//
-	for (auto cam: cameras)
-		cam->start();
+	for (auto cam : cameras) {
+		if (cam->is_sync_master()) continue;
+		if (!cam->start()) {
+			cwipc_k4a_log_warning("Not all cameras could be started");
+			no_cameras = true;
+			return;
+		}
+	}
+	for (auto cam : cameras) {
+		if (!cam->is_sync_master()) continue;
+		if (!cam->start()) {
+			cwipc_k4a_log_warning("Not all cameras could be started");
+			no_cameras = true;
+			return;
+		}
+	}
+
 	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	//
-	// start the per-camera capture threads
+	// start the per-camera capture threads. Master camera has to be started latest
 	//
-	for (auto cam: cameras)
+	for (auto cam : cameras) {
+		if (cam->is_sync_master()) continue;
 		cam->start_capturer();
+	}
+	for (auto cam : cameras) {
+		if (!cam->is_sync_master()) continue;
+		cam->start_capturer();
+	}
 	//
 	// start our run thread (which will drive the capturers and merge the pointclouds)
 	//
@@ -417,21 +499,6 @@ void K4ACapture::merge_views()
 	for (K4ACameraData cd : configuration.cameraData) {
 		cwipc_pcl_pointcloud cam_cld = cd.cloud;
 		*mergedPC += *cam_cld;
-	}
-
-	if (configuration.cloud_resolution > 0) {
-#ifdef CWIPC_DEBUG
-		std::cerr << "cwipc_kinect: Points before reduction: " << mergedPC->size() << std::endl;
-#endif
-		pcl::VoxelGrid<cwipc_pcl_point> grd;
-		grd.setInputCloud(mergedPC);
-		grd.setLeafSize(configuration.cloud_resolution, configuration.cloud_resolution, configuration.cloud_resolution);
-		grd.setSaveLeafLayout(true);
-		grd.filter(*mergedPC);
-
-#ifdef CWIPC_DEBUG
-		std::cerr << "cwipc_kinect: Points after reduction: " << mergedPC->size() << std::endl;
-#endif
 	}
 }
 
