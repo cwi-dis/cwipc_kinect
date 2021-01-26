@@ -84,6 +84,8 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 			parameterElement->QueryBoolAttribute("do_threshold", &(config->default_camera_settings.do_threshold));
 			parameterElement->QueryDoubleAttribute("threshold_near", &(config->default_camera_settings.threshold_near));
 			parameterElement->QueryDoubleAttribute("threshold_far", &(config->default_camera_settings.threshold_far));
+			parameterElement->QueryIntAttribute("depth_x_erosion", &(config->default_camera_settings.depth_x_erosion));
+			parameterElement->QueryIntAttribute("depth_y_erosion", &(config->default_camera_settings.depth_y_erosion));
 		}
     }
     

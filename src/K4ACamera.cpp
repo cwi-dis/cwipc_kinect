@@ -396,9 +396,10 @@ void K4ACamera::_processing_thread_main()
 		{
 			uint8_t* color_data = k4a_image_get_buffer(color);
 			int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
+			if (camSettings.do_threshold || camSettings.depth_x_erosion || camSettings.depth_y_erosion) {
+				_filter_depth_data(point_cloud_image_data, color_image_width_pixels, color_image_height_pixels);
+			}
 			// Setup depth filtering, if needed
-			int16_t min_depth = (int16_t)(camSettings.threshold_near * 1000);
-			int16_t max_depth = (int16_t)(camSettings.threshold_far * 1000);
 			// now loop over images and create points.
 			camData.cloud->clear();
 			camData.cloud->reserve(color_image_width_pixels * color_image_height_pixels);
@@ -411,8 +412,7 @@ void K4ACamera::_processing_thread_main()
 				int16_t y = point_cloud_image_data[i_pc + 1];
 				int16_t z = point_cloud_image_data[i_pc + 2];
 				if (z == 0) continue;
-				if (camSettings.do_threshold && (z < min_depth || z > max_depth)) continue;
-
+				
 				point.r = color_data[i_rgba + 2];
 				point.g = color_data[i_rgba + 1];
 				point.b = color_data[i_rgba + 0];
@@ -450,6 +450,21 @@ void K4ACamera::_processing_thread_main()
 #ifdef CWIPC_DEBUG_THREAD
 	std::cerr << "cwipc_kinect: K4ACamera: processing: cam=" << serial << " thread stopped" << std::endl;
 #endif
+}
+
+void K4ACamera::_filter_depth_data(int16_t* depth_values, int width, int height) {
+	int16_t min_depth = (int16_t)(camSettings.threshold_near * 1000);
+	int16_t max_depth = (int16_t)(camSettings.threshold_far * 1000);
+	for (int i = 0; i < width * height; i++)
+	{
+		int i_pc = i * 3;
+		int16_t y = depth_values[i_pc + 1];
+		int16_t z = depth_values[i_pc + 2];
+		if (z == 0) continue;
+		if (camSettings.do_threshold && (z < min_depth || z > max_depth)) {
+			depth_values[i_pc + 2] = 0;
+		}
+	}
 }
 
 void K4ACamera::transformPoint(cwipc_pcl_point& pt)
