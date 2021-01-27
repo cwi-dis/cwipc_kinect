@@ -474,7 +474,7 @@ void K4ACamera::_filter_depth_data(int16_t* depth_values, int width, int height)
 				// Zero depth at (x, y). Clear out pixels 
 				for (int ix = x - x_delta; ix <= x + x_delta; ix++) {
 					if (ix < 0 || ix >= width ) continue;
-					int i_pc = (ix + yy * width) * 3;
+					int i_pc = (ix + y * width) * 3;
 					depth_values[i_pc + 2] = 0;
 				}
 				for (int iy = y - y_delta; iy <= y + y_delta; iy++) {
