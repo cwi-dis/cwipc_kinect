@@ -113,8 +113,8 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 				loadOkay = false;
 
 			cd = new K4ACameraData();
-			boost::shared_ptr<Eigen::Affine3d> trafo(new Eigen::Affine3d());
-			boost::shared_ptr<Eigen::Affine3d> intrinsicTrafo(new Eigen::Affine3d());
+			pcl::shared_ptr<Eigen::Affine3d> trafo(new Eigen::Affine3d());
+			pcl::shared_ptr<Eigen::Affine3d> intrinsicTrafo(new Eigen::Affine3d());
 			intrinsicTrafo->setIdentity();
 			cd->serial = cameraElement->Attribute("serial");
 			cd->trafo = trafo;
