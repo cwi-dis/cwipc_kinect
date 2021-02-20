@@ -23,6 +23,8 @@ struct K4ACameraSettings {
 	bool do_threshold = true;
 	double threshold_near = 0.15;         // float, near point for distance threshold
 	double threshold_far = 6.0;           // float, far point for distance threshold
+	int depth_x_erosion = 0;			  // How many valid depth pixels to remove in camera x direction
+	int depth_y_erosion = 0;			  // How many valid depth pixels to remove in camera y direction
 	int32_t color_exposure_time = -1;     // default for manual: 40000;
 	int32_t color_whitebalance = -1;   // default for manual: 3160; range(2500-12500)
 	int32_t color_backlight_compensation = 0;     // default for manual: 0;
@@ -49,7 +51,6 @@ struct K4ACaptureConfig {
 	int depth_height = 576;                // width of depth frame (288, 576, 512 and 1024 allowed)
 	int fps = 30;                         // capture fps (5, 15 and 30 allowed)
 	bool greenscreen_removal = false;	  // If true include greenscreen removal
-	bool depth_filtering = false;         // If true perform post filtering on depth frame
 	double height_min = 0.0;			  // If height_min != height_max perform height filtering
 	double height_max = 0.0;			  // If height_min != height_max perform height filtering
 
