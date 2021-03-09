@@ -13,6 +13,8 @@ add_library(cwipc_kinect
 	cwipc_kinect.cpp 
 	K4ACapture.cpp 
 	K4ACamera.cpp 
+	K4AOffline.cpp 
+	K4AOfflineCamera.cpp 
 	utils.cpp 
 	cwipc_pcl_additions.cpp 
 	${TINY_SRC}
@@ -24,6 +26,8 @@ target_sources(cwipc_kinect
 	"../include/cwipc_kinect/utils.h"
 	"../include/cwipc_kinect/K4ACapture.hpp"
 	"../include/cwipc_kinect/K4ACamera.hpp"
+	"../include/cwipc_kinect/K4AOffline"
+	"../include/cwipc_kinect/K4AOfflineCamera.hpp"
 	"../include/cwipc_kinect/window_util.hpp"
 	"../include/cwipc_kinect/stb_image_write.h"
 	"../include/cwipc_kinect/readerwriterqueue.h"
