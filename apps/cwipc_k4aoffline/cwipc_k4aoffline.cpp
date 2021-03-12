@@ -124,11 +124,14 @@ int prepare_cond_next_valid_frame(recording_t* file, uint64_t master_timestamp, 
     return -1;
 }
 
-int main(int argc, char** argv)
+int main(int argc, char* argv[])
 {
+    /*
+    * //for external debugging
     char c;
-    std::cin >> c;
-    printf("printed,", c);
+    std::cin >> c;*/
+
+
     bool ok;
 
 	if (argc < 3)
@@ -203,6 +206,7 @@ int main(int argc, char** argv)
         printf("Loading succeeded\n");
         int out_frames = 0;
         int skipped_frames = 0;
+        bool first = true;
         while (!eof) {
             //get next valid frame for all cameras
             ok = prepare_next_valid_frame(&files[master_id]);
@@ -226,7 +230,7 @@ int main(int argc, char** argv)
                         return -1;
                     }
                 }else if (res == 2){ //we need to update master
-                    std::cerr << "updating master | status: " << files[i].filename << "\tcapture " << files[i].capture_id <<"\tt=" << files[i].current_capture_timestamp << "\t| master_t=" << files[master_id].current_capture_timestamp << std::endl;
+                    std::cerr << "Updating master | stats: " << files[i].filename << "\tcapture " << files[i].capture_id <<"\tt=" << files[i].current_capture_timestamp << "\t| master_t=" << files[master_id].current_capture_timestamp << std::endl;
                     update_master = true;
                     break;
                 }
@@ -236,6 +240,11 @@ int main(int argc, char** argv)
             if (update_master) {
                 skipped_frames++;
                 continue;
+            }
+            if (first) { //to start counting output/skipped frames from the first synced frame.
+                out_frames = 0;
+                skipped_frames = 0;
+                first = false;
             }
             out_frames++;
             // At this point all the current frames correspond to the same timestamp
