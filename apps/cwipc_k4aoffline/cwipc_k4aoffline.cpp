@@ -70,14 +70,17 @@ bool prepare_next_valid_frame(recording_t* file) {
         }
         file->capture_id++;
 
-        k4a_image_t depth = k4a_capture_get_depth_image(file->capture);
-        if (depth == NULL) {
-            std::cerr << "Depth is missing in capture " << file->capture_id << " from " << file->filename << std::endl;
-            continue;
-        }
         k4a_image_t color = k4a_capture_get_color_image(file->capture);
         if (color == NULL) {
             std::cerr << "Color is missing in capture " << file->capture_id << " from " << file->filename << std::endl;
+            k4a_image_release(color);
+            continue;
+        }
+
+        k4a_image_t depth = k4a_capture_get_depth_image(file->capture);
+        if (depth == NULL) {
+            std::cerr << "Depth is missing in capture " << file->capture_id << " from " << file->filename << std::endl;
+            k4a_image_release(depth);
             continue;
         }
         file->current_capture_timestamp = k4a_image_get_device_timestamp_usec(color);
@@ -159,8 +162,13 @@ int main(int argc, char* argv[])
     for (size_t i = 0; i < file_count; i++)
     {
         files[i].filename = argv[i + 1];
+        
+        /*char rr;
+        size_t vs*/;
+        //k4a_buffer_result_t = k4a_playback_get_tag(files[i].handle, "K4A_COLOR_FIRMWARE_VERSION", &rr, &vs);
 
         result = k4a_playback_open(files[i].filename, &files[i].handle);
+
         if (result != K4A_RESULT_SUCCEEDED)
         {
             printf("Failed to open file: %s\n", files[i].filename);
@@ -247,15 +255,23 @@ int main(int argc, char* argv[])
                 first = false;
             }
             out_frames++;
-            // At this point all the current frames correspond to the same timestamp
-            //std::cout << "succeeded" << std::endl; 
-            /*for (size_t i = 0; i < file_count; i++)
+            /*std::cout << "succeeded" << std::endl; 
+            for (size_t i = 0; i < file_count; i++)
             {
                 std::cout << "\t" << files[i].filename << "\tt=" << files[i].current_capture_timestamp << std::endl;
             }*/
 
 
+            // At this point all the current captures correspond to the same timestamp
+            // Now we can generate the pointclouds
 
+
+
+
+
+            ////REMEMBER to release captures
+            //k4a_capture_release(files[0].capture);
+            //files[0].capture = NULL;
         }
         std::cout << "Succeded frames = " << out_frames << "\t| Skipped frames = " << skipped_frames << std::endl; 
     }

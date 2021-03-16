@@ -39,6 +39,7 @@ struct K4ACameraSettings {
 struct K4ACameraData {
 	std::string serial;		// Serial number of this camera
 	std::string type = "kinect";       // Camera type (must be realsense)
+	std::string filename;		// Filename for offline captures
 	pcl::shared_ptr<Eigen::Affine3d> trafo;	//!< Transformation matrix from camera coorindates to world coordinates
 	pcl::shared_ptr<Eigen::Affine3d> intrinsicTrafo;	//!< offline only: matrix to convert color to depth coordinates
 	cwipc_vector cameraposition;	//!< Position of this camera in real world coordinates
@@ -57,7 +58,7 @@ struct K4ACaptureConfig {
 	std::string sync_master_serial = "";  // If empty run without sync. If non-empty this camera is the sync master
 	// special features
 	std::string cwi_special_feature = ""; // Specifier for temporary development specific feature
-
+	std::string filename = "";
 	K4ACameraSettings default_camera_settings;
 	// realsense specific post processing filtering
 

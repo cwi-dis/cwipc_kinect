@@ -117,6 +117,7 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 			pcl::shared_ptr<Eigen::Affine3d> intrinsicTrafo(new Eigen::Affine3d());
 			intrinsicTrafo->setIdentity();
 			cd->serial = cameraElement->Attribute("serial");
+
 			cd->trafo = trafo;
 			cd->intrinsicTrafo = intrinsicTrafo;
 			cd->cameraposition = { 0, 0, 0 };
@@ -128,6 +129,11 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
         if (type != "") {
             cd->type = type;
         }
+
+		std::string filename = cameraElement->Attribute("filename");
+		if (filename != "") {
+			cd->filename = filename;
+		}
         
 		TiXmlElement *trafo = cameraElement->FirstChildElement("trafo");
 		if (trafo) {
