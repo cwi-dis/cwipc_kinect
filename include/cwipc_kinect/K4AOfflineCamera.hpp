@@ -6,36 +6,86 @@
 #include <mutex>
 #include <condition_variable>
 
-#include <k4a/k4a.h>
+#include <cwipc_kinect/K4ACamera.hpp>
 #include <k4arecord/playback.h>
 
 #include "defs.h"
-#include "cwipc_kinect/K4ACamera.hpp"
+#include "readerwriterqueue.h"
+
+typedef struct
+{
+	char* filename;
+	k4a_playback_t handle;
+	k4a_record_configuration_t record_config;
+	k4a_capture_t capture;
+	uint64_t current_capture_timestamp;
+	int capture_id = 0;
+} recording_t;
 
 class K4AOfflineCamera : public K4ACamera {
 private:
 	K4AOfflineCamera(const K4AOfflineCamera&);	// Disable copy constructor
 	K4AOfflineCamera& operator=(const K4AOfflineCamera&);	// Disable assignment
 public:
-	K4AOfflineCamera(k4a_playback_t _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData);
-	~K4AOfflineCamera();
+	K4AOfflineCamera(recording_t _recording, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData);
+	virtual ~K4AOfflineCamera();
 
-	void _start_capture_thread();
-	void _capture_thread_main();
-	bool feed_image_data(int frameNum, void *colorBuffer, size_t colorSize, void *depthBuffer, size_t depthSize);
+	bool start();
+	virtual void start_capturer();
+	void stop();
+	bool capture_frameset();
+	void create_pc_from_frames();
+	void wait_for_pc();
+	void dump_color_frame(const std::string& filename);
+	uint64_t get_capture_timestamp();
+	bool is_sync_master() { return camera_sync_ismaster; }
+public:
+	float pointSize;
+public:
+	// These are public because pcl_align wants to access them
+	double minx;
+	double minz;
+	double maxz;
+	k4a_playback_t device_handle;
+	int camera_index;
+	std::string serial;
+
+protected:
+	bool stopped;
+	bool camera_started;
+	bool capture_started;
+	std::thread* processing_thread;
+	void _filter_depth_data(int16_t* depth_values, int width, int height); // Internal: depth data processing
+	void _computePointSize(/*rs2::pipeline_profile profile*/);
+	void _processing_thread_main();
+	virtual void _start_capture_thread();
+	virtual void _capture_thread_main();
+	void transformPoint(cwipc_pcl_point& pt);
 private:
-	int depth_width, depth_height, depth_bpp, depth_fps;
-	rs2_format depth_format;
-	int color_width, color_height, color_bpp, color_fps;
-	rs2_format color_format;
-	rs2_extrinsics depth_to_color_extrinsics;
-	rs2::frameset current_frameset;
-	rs2::software_device dev;
-	rs2::software_sensor depth_sensor;
-	rs2::software_sensor color_sensor;
-	rs2::stream_profile color_stream;
-	rs2::stream_profile depth_stream;
-	rs2::syncer sync;
-	int feedFrameNum;
+	K4ACameraData& camData;
+	K4ACameraSettings& camSettings;
+	k4a_transformation_t transformation_handle;
+	moodycamel::BlockingReaderWriterQueue<k4a_capture_t> captured_frame_queue;
+	moodycamel::BlockingReaderWriterQueue<k4a_capture_t> processing_frame_queue;
+	k4a_capture_t current_frameset;
+	int color_height;
+	int depth_height;
+	int camera_fps;
+	bool camera_sync_ismaster;
+	bool camera_sync_inuse;
+	bool do_depth_filtering;
+	bool do_background_removal;
+	bool do_greenscreen_removal;
+	bool do_height_filtering;
+	double height_min;
+	double height_max;
+
+	std::thread* grabber_thread;
+	std::mutex processing_mutex;
+	std::condition_variable processing_done_cv;
+	bool processing_done;
+
+	void _init_filters();
+
 };
-#endif // cwipc_realsense_RS2OfflineCamera_hpp
+#endif // cwipc_realsense_K4AOfflineCamera_hpp

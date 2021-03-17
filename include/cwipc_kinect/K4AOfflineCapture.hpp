@@ -42,7 +42,7 @@ public:
 	bool no_cameras;                        // True of no cameras attached
 	int master_id;
 protected:
-	virtual void _create_cameras(k4a_device_t* cameras, std::vector<std::string> serials, uint32_t camera_count);
+	virtual void _create_cameras(recording_t* playback_handles, std::vector<std::string> serials, uint32_t camera_count);
 	std::vector<K4AOfflineCamera*> cameras;   // Storage of camera specifics
 	void _control_thread_main();              // Internal: main thread that controls per-camera grabbing and processing and combines pointclouds.
 	bool stopped;

@@ -26,17 +26,6 @@
 #include "cwipc_kinect/utils.h"
 #include "cwipc_kinect/K4AOfflineCapture.hpp"
 
-
-typedef struct
-{
-	char* filename;
-	k4a_playback_t handle;
-	k4a_record_configuration_t record_config;
-	k4a_capture_t capture;
-	uint64_t current_capture_timestamp;
-	int capture_id = 0;
-} recording_t;
-
 // Static variable used to print a warning message when we re-create an K4AOfflineCapture
 // if there is another one open.
 static int numberOfCapturersActive = 0;
@@ -182,10 +171,10 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 		configuration.cameraData[i].cameraposition.z = pnt.z;
 	}
 
-	//
+	//NO NEED TO START CAMERAS as we are in playback mode
 	// start the cameras. First start all non-sync-master cameras, then start the sync-master camera.
 	//
-	for (auto cam : cameras) {
+	/*for (auto cam : cameras) {
 		if (cam->is_sync_master()) continue;
 		if (!cam->start()) {
 			cwipc_k4a_log_warning("Not all cameras could be started");
@@ -200,7 +189,7 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 			no_cameras = true;
 			return;
 		}
-	}
+	}*/
 
 	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	//
@@ -222,10 +211,10 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 	_cwipc_setThreadName(control_thread, L"cwipc_kinect::K4AOfflineCapture::control_thread");
 }
 
-void K4AOfflineCapture::_create_cameras(k4a_device_t* camera_handles, std::vector<std::string> serials, uint32_t camera_count) {
+void K4AOfflineCapture::_create_cameras(recording_t* playback_handles, std::vector<std::string> serials, uint32_t camera_count) {
 	int serial_index = 0;
 	for (uint32_t i = 0; i < camera_count; i++) {
-		if (camera_handles[i] == NULL) continue;
+		if (playback_handles[i] == NULL) continue;
 #ifdef CWIPC_DEBUG
 		std::cout << "K4AOfflineCapture: opening camera " << serials[i] << std::endl;
 #endif
@@ -237,7 +226,7 @@ void K4AOfflineCapture::_create_cameras(k4a_device_t* camera_handles, std::vecto
 			cwipc_k4a_log_warning("Camera " + serial + " is type " + cd.type + " in stead of kinect");
 		}
 		int camera_index = cameras.size();
-		auto cam = new K4AOfflineCamera(camera_handles[i], configuration, camera_index, cd);
+		auto cam = new K4AOfflineCamera(playback_handles[i], configuration, camera_index, configuration.cameraData[camera_index]);
 		cameras.push_back(cam);
 	}
 }

@@ -32,12 +32,7 @@ int main(int argc, char** argv)
     if (error) {
         std::cerr << argv[0] << ": warning while creating kinect grabber: " << error << std::endl;
     }
-	cwipc_tileinfo tif;
-	generator->get_tileinfo(0, &tif);
-	generator->get_tileinfo(1, &tif);
-	generator->get_tileinfo(2, &tif);
-	generator->get_tileinfo(3, &tif);
-	generator->get_tileinfo(4, &tif);
+
 	int ok = 0;
 	while (count-- > 0 && ok == 0) {
 		cwipc *pc = generator->get();
