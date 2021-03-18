@@ -8,7 +8,7 @@
 #include <k4a/k4a.h>
 
 #include "defs.h"
-#include "cwipc_kinect/K4ACapture.hpp"
+//#include "cwipc_kinect/K4ACapture.hpp"
 #include "cwipc_kinect/K4AOfflineCamera.hpp"
 //#include <k4arecord/playback.h>
 
@@ -20,7 +20,7 @@
 #endif
 #endif
 
-class CWIPC_DLL_ENTRY K4AOfflineCapture : public K4ACapture {
+class CWIPC_DLL_ENTRY K4AOfflineCapture {
 protected:
 	K4AOfflineCapture(int dummy);
 public:
@@ -29,9 +29,8 @@ public:
 	virtual ~K4AOfflineCapture();
 	cwipc_pcl_pointcloud get_pointcloud(uint64_t* timestamp); // API function that returns the merged pointcloud and timestamp
 	bool pointcloud_available(bool wait);					  // Returns true if a pointcloud is available
-	cwipc_pcl_pointcloud get_mostRecentPointCloud();                     // return the merged cloud most recently captured/merged (don't grab a new one)
+	cwipc_pcl_pointcloud get_mostRecentPointCloud();          // return the merged cloud most recently captured/merged (don't grab a new one)
 	K4ACameraData& get_camera_data(std::string serial);
-	K4AOfflineCamera* get_camera(std::string serial);
 	K4AOfflineCamera* get_camera(std::string serial);
 	float get_pointSize();
 
@@ -42,7 +41,7 @@ public:
 	bool no_cameras;                        // True of no cameras attached
 	int master_id;
 protected:
-	virtual void _create_cameras(recording_t* playback_handles, std::vector<std::string> serials, uint32_t camera_count);
+	virtual void _create_cameras(recording_t* recordings, uint32_t camera_count);
 	std::vector<K4AOfflineCamera*> cameras;   // Storage of camera specifics
 	void _control_thread_main();              // Internal: main thread that controls per-camera grabbing and processing and combines pointclouds.
 	bool stopped;

@@ -141,12 +141,12 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 		}
 		// Reduce the active configuration to cameras that are connected
 		configuration.cameraData = realcams;
-	}
 	// Now we have all the configuration information. Open the cameras.
-	_create_cameras(camera_handles, serials, camera_count);
+	_create_cameras(files, file_count);
 	// We can now free camera_handles
-	delete camera_handles;
+	delete files;
 
+	}
 	// Create an empty pointcloud just in case anyone calls get_mostRecentPointcloud() before one is generated.
 	mergedPC = new_cwipc_pcl_pointcloud();
 
@@ -211,22 +211,19 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 	_cwipc_setThreadName(control_thread, L"cwipc_kinect::K4AOfflineCapture::control_thread");
 }
 
-void K4AOfflineCapture::_create_cameras(recording_t* playback_handles, std::vector<std::string> serials, uint32_t camera_count) {
-	int serial_index = 0;
+void K4AOfflineCapture::_create_cameras(recording_t* recordings, uint32_t camera_count) {
 	for (uint32_t i = 0; i < camera_count; i++) {
-		if (playback_handles[i] == NULL) continue;
+		if (recordings[i].handle == NULL) continue;
 #ifdef CWIPC_DEBUG
 		std::cout << "K4AOfflineCapture: opening camera " << serials[i] << std::endl;
 #endif
-		// Found a realsense camera. Create a default data entry for it.
-		std::string serial(serials[serial_index++]);
-
-		K4ACameraData& cd = get_camera_data(serial);
+		// Found a kinect camera. Create a default data entry for it.
+		K4ACameraData& cd = configuration.cameraData[i];
 		if (cd.type != "kinect") {
-			cwipc_k4a_log_warning("Camera " + serial + " is type " + cd.type + " in stead of kinect");
+			cwipc_k4a_log_warning("Camera " + cd.serial + " is type " + cd.type + " in stead of kinect");
 		}
 		int camera_index = cameras.size();
-		auto cam = new K4AOfflineCamera(playback_handles[i], configuration, camera_index, configuration.cameraData[camera_index]);
+		auto cam = new K4AOfflineCamera(recordings[i], configuration, camera_index);
 		cameras.push_back(cam);
 	}
 }

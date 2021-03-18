@@ -25,20 +25,21 @@
 #include "cwipc_kinect/K4AOfflineCamera.hpp"
 
 #ifdef WITH_DUMP_VIDEO_FRAMES
-#define STB_IMAGE_WRITE_IMPLEMENTATION
+//#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "cwipc_kinect/stb_image_write.h"
 #endif
 
 
-K4AOfflineCamera::K4AOfflineCamera(recording_t _recording, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData)
+K4AOfflineCamera::K4AOfflineCamera(recording_t _recording, K4ACaptureConfig& configuration, int _camera_index)
 	: pointSize(0), minx(0), minz(0), maxz(0),
-	device_handle(_recording.handle),
+	recording(_recording),
+	playback_handle(recording.handle),
 	camera_index(_camera_index),
-	serial(_camData.serial),
 	stopped(true),
 	camera_started(false),
 	capture_started(false),
-	camData(_camData),
+	camData(configuration.cameraData[camera_index]),
+	serial(camData.serial),
 	camSettings(configuration.default_camera_settings),
 	captured_frame_queue(1),
 	processing_frame_queue(1),
@@ -106,92 +107,14 @@ bool K4AOfflineCamera::capture_frameset()
 bool K4AOfflineCamera::start()
 {
 	assert(stopped);
-	k4a_device_configuration_t device_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-	device_config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
-	switch (color_height) {
-	case 720:
-		device_config.color_resolution = K4A_COLOR_RESOLUTION_720P;
-		break;
-	case 1080:
-		device_config.color_resolution = K4A_COLOR_RESOLUTION_1080P;
-		break;
-	case 1440:
-		device_config.color_resolution = K4A_COLOR_RESOLUTION_1440P;
-		break;
-	case 1536:
-		device_config.color_resolution = K4A_COLOR_RESOLUTION_1536P;
-		break;
-	case 2160:
-		device_config.color_resolution = K4A_COLOR_RESOLUTION_2160P;
-		break;
-	case 3072:
-		device_config.color_resolution = K4A_COLOR_RESOLUTION_3072P;
-		break;
-	default:
-		std::cerr << "cwipc_kinect: invalid color_height: " << color_height << std::endl;
-		return false;
-	}
-	switch (depth_height) {
-	case 288:
-		device_config.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
-		break;
-	case 576:
-		device_config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
-		break;
-	case 512:
-		device_config.depth_mode = K4A_DEPTH_MODE_WFOV_2X2BINNED;
-		break;
-	case 1024:
-		device_config.depth_mode = K4A_DEPTH_MODE_WFOV_UNBINNED;
-		break;
-	default:
-		std::cerr << "cwipc_kinect: invalid depth_height: " << depth_height << std::endl;
-		return false;
-	}
-	switch (camera_fps) {
-	case 5:
-		device_config.camera_fps = K4A_FRAMES_PER_SECOND_5;
-		break;
-	case 15:
-		device_config.camera_fps = K4A_FRAMES_PER_SECOND_15;
-		break;
-	case 30:
-		device_config.camera_fps = K4A_FRAMES_PER_SECOND_30;
-		break;
-	default:
-		std::cerr << "cwipc_kinect: invalid camera_fps: " << camera_fps << std::endl;
-		return false;
-	}
-
-	device_config.synchronized_images_only = true; // ensures that depth and color images are both available in the capture
-
-	//SYNC:
-	if (camera_sync_ismaster) {
-		device_config.wired_sync_mode = K4A_WIRED_SYNC_MODE_MASTER;
-	}
-	else if (camera_sync_inuse) {
-		device_config.wired_sync_mode = K4A_WIRED_SYNC_MODE_SUBORDINATE;
-		device_config.subordinate_delay_off_master_usec = 160 * (camera_index + 1);	//160 allows max 9 cameras
-	}
-	else {
-		// standalone mode, nothing to set
-	}
 
 	k4a_calibration_t calibration;
-	if (K4A_RESULT_SUCCEEDED != k4a_device_get_calibration(device_handle, device_config.depth_mode, device_config.color_resolution, &calibration))
+	if (K4A_RESULT_SUCCEEDED != k4a_playback_get_calibration(playback_handle, &calibration))
 	{
 		std::cerr << "cwipc_kinect: Failed to k4a_device_get_calibration" << std::endl;
 		return false;
 	}
 	transformation_handle = k4a_transformation_create(&calibration);
-
-	k4a_result_t res = k4a_device_start_cameras(device_handle, &device_config);
-	if (res != K4A_RESULT_SUCCEEDED) {
-		std::cerr << "cwipc_kinect: failed to start camera " << serial << std::endl;
-		return false;
-	}
-	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial=" << serial << ". color_height=" << color_height << ", depth_height=" << depth_height << " @" << camera_fps << "fps as " << (camera_sync_inuse ? (camera_sync_ismaster ? "Master" : "Subordinate") : "Standalone") << std::endl;
-
 	camera_started = true;
 	return true;
 }
@@ -239,7 +162,6 @@ void K4AOfflineCamera::stop()
 	stopped = true;
 	processing_frame_queue.try_enqueue(NULL);
 	if (capture_started) {
-		k4a_device_stop_cameras(device_handle);
 		k4a_transformation_destroy(transformation_handle);
 		camera_started = false;
 	}
@@ -250,7 +172,7 @@ void K4AOfflineCamera::stop()
 	delete processing_thread;
 	processing_done = true;
 	processing_done_cv.notify_one();
-	k4a_device_close(device_handle);
+	k4a_playback_close(playback_handle);
 }
 
 void K4AOfflineCamera::start_capturer()
@@ -275,20 +197,30 @@ void K4AOfflineCamera::_capture_thread_main()
 #ifdef CWIPC_DEBUG_THREAD
 	std::cerr << "cwipc_kinect: K4AOfflineCamera: cam=" << serial << " thread started" << std::endl;
 #endif
+	k4a_result_t result = K4A_RESULT_SUCCEEDED;
 	while (!stopped) {
-		k4a_capture_t capture_handle;
-		if (k4a_capture_create(&capture_handle) != K4A_RESULT_SUCCEEDED) {
-			std::cerr << "cwipc_kinect: camera " << serial << ": k4a_capture_create failed" << std::endl;
-			cwipc_k4a_log_warning("k4a_capture_create failed");
+		k4a_stream_result_t stream_result = k4a_playback_get_next_capture(playback_handle, &recording.capture);
+		if (stream_result == K4A_STREAM_RESULT_EOF)
+		{
+			if (recording.current_capture_timestamp == 0) {
+				printf("ERROR: Recording file is empty: %s\n", recording.filename);
+				result = K4A_RESULT_FAILED;
+			}
+			else {
+				printf("Recording file '%s' reached EOF\n", recording.filename);
+				eof = true;
+			}
 			break;
 		}
-		k4a_wait_result_t ok = k4a_device_get_capture(device_handle, &capture_handle, 5000);
-		if (ok != K4A_RESULT_SUCCEEDED) {
-			std::cerr << "cwipc_kinect: camera " << serial << ": error " << ok << std::endl;
+		else if (stream_result == K4A_STREAM_RESULT_FAILED)
+		{
+			std::cerr << "cwipc_kinect: camera " << serial << ": error " << stream_result << std::endl;
 			cwipc_k4a_log_warning("k4a_device_get_capture failed");
-			k4a_capture_release(capture_handle);
+			k4a_capture_release(recording.capture);
 			continue;
 		}
+		recording.capture_id++;
+
 		assert(capture_handle != NULL);
 #ifdef CWIPC_DEBUG_THREAD
 		k4a_image_t color = k4a_capture_get_color_image(capture_handle);
@@ -299,7 +231,7 @@ void K4AOfflineCamera::_capture_thread_main()
 		k4a_image_release(depth);
 		std::cerr << "cwipc_kinect: K4AOfflineCamera: capture: cam=" << serial << ", rgbseq=" << tsRGB << ", dseq=" << tsD << std::endl;
 #endif
-		if (!captured_frame_queue.try_enqueue(capture_handle)) {
+		if (!captured_frame_queue.try_enqueue(recording.capture)) {
 			// Queue is full. discard.
 #ifdef CWIPC_DEBUG_THREAD
 			k4a_image_t color = k4a_capture_get_color_image(capture_handle);
@@ -310,7 +242,7 @@ void K4AOfflineCamera::_capture_thread_main()
 			k4a_image_release(depth);
 			std::cerr << "cwipc_kinect: K4AOfflineCamera: drop frame " << tsRGB << "/" << tsD << " from camera " << serial << std::endl;
 #endif
-			k4a_capture_release(capture_handle);
+			k4a_capture_release(recording.capture);
 			std::this_thread::sleep_for(std::chrono::milliseconds(25));
 		}
 		else {

@@ -6,7 +6,8 @@
 #include <mutex>
 #include <condition_variable>
 
-#include <cwipc_kinect/K4ACamera.hpp>
+//#include <cwipc_kinect/K4ACamera.hpp>
+#include <k4a/k4a.h>
 #include <k4arecord/playback.h>
 
 #include "defs.h"
@@ -22,12 +23,12 @@ typedef struct
 	int capture_id = 0;
 } recording_t;
 
-class K4AOfflineCamera : public K4ACamera {
+class K4AOfflineCamera {
 private:
 	K4AOfflineCamera(const K4AOfflineCamera&);	// Disable copy constructor
 	K4AOfflineCamera& operator=(const K4AOfflineCamera&);	// Disable assignment
 public:
-	K4AOfflineCamera(recording_t _recording, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData);
+	K4AOfflineCamera(recording_t _recording, K4ACaptureConfig& configuration, int _camera_index);
 	virtual ~K4AOfflineCamera();
 
 	bool start();
@@ -46,7 +47,8 @@ public:
 	double minx;
 	double minz;
 	double maxz;
-	k4a_playback_t device_handle;
+	recording_t recording;
+	k4a_playback_t playback_handle;
 	int camera_index;
 	std::string serial;
 
@@ -54,6 +56,7 @@ protected:
 	bool stopped;
 	bool camera_started;
 	bool capture_started;
+	bool eof = false;
 	std::thread* processing_thread;
 	void _filter_depth_data(int16_t* depth_values, int width, int height); // Internal: depth data processing
 	void _computePointSize(/*rs2::pipeline_profile profile*/);
