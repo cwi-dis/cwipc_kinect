@@ -39,7 +39,8 @@ public:
 	uint64_t starttime;
 	int numberOfPCsProduced;
 	bool no_cameras;                        // True of no cameras attached
-	int master_id;
+	bool sync_inuse = false;
+	int master_id = -1;
 protected:
 	virtual void _create_cameras(recording_t* recordings, uint32_t camera_count);
 	std::vector<K4AOfflineCamera*> cameras;   // Storage of camera specifics

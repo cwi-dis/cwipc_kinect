@@ -134,17 +134,12 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 			}
 		}
 
-
-		// collect all camera's in the config that are connected
-		for (K4ACameraData cd : configuration.cameraData) {
-
-		}
-		// Reduce the active configuration to cameras that are connected
-		configuration.cameraData = realcams;
-	// Now we have all the configuration information. Open the cameras.
-	_create_cameras(files, file_count);
-	// We can now free camera_handles
-	delete files;
+		if (master_id != -1 && configuration.sync_master_serial != "")
+			sync_inuse = true;
+		// Now we have all the configuration information. Create the offlineCamera objects.
+		_create_cameras(files, file_count);
+		// We can now free camera_handles
+		//delete files;
 
 	}
 	// Create an empty pointcloud just in case anyone calls get_mostRecentPointcloud() before one is generated.
@@ -193,14 +188,14 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 
 	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	//
-	// start the per-camera capture threads. Master camera has to be started latest
+	// start the per-camera capture threads. Master camera has to be started first
 	//
 	for (auto cam : cameras) {
-		if (cam->is_sync_master()) continue;
+		if (!cam->is_sync_master()) continue;
 		cam->start_capturer();
 	}
 	for (auto cam : cameras) {
-		if (!cam->is_sync_master()) continue;
+		if (cam->is_sync_master()) continue;
 		cam->start_capturer();
 	}
 	//
@@ -222,8 +217,7 @@ void K4AOfflineCapture::_create_cameras(recording_t* recordings, uint32_t camera
 		if (cd.type != "kinect") {
 			cwipc_k4a_log_warning("Camera " + cd.serial + " is type " + cd.type + " in stead of kinect");
 		}
-		int camera_index = cameras.size();
-		auto cam = new K4AOfflineCamera(recordings[i], configuration, camera_index);
+		auto cam = new K4AOfflineCamera(recordings[i], configuration, i);
 		cameras.push_back(cam);
 	}
 }
@@ -309,6 +303,13 @@ void K4AOfflineCapture::_control_thread_main()
 			std::unique_lock<std::mutex> mylock(mergedPC_mutex);
 			mergedPC_want_new_cv.wait(mylock, [this] { return mergedPC_want_new; });
 		}
+		//check EOF:
+		for (auto cam : cameras) {
+			if (cam->eof) {
+				stopped = true;
+				break;
+			}
+		}
 		if (stopped) {
 			break;
 		}
@@ -317,11 +318,30 @@ void K4AOfflineCapture::_control_thread_main()
 		// because that gives use he biggest chance we have the same frame (or at most off-by-one) for each
 		// camera.
 		bool all_captures_ok = true;
-		for (auto cam : cameras) {
-			if (!cam->capture_frameset()) {
+		//first capture master frame (it is the referrence to sync)
+
+		for (auto cam : cameras) { //MASTER
+			if (!cam->is_sync_master()) continue;
+			if (!cam->capture_frameset(NULL)) {
 				all_captures_ok = false;
-				continue;
+				break;
 			}
+		}
+		for (auto cam : cameras) { //SUBORDINATE or STANDALONE
+			if (cam->is_sync_master()) continue;
+			if (sync_inuse) { //there is sync
+				if (!cam->capture_frameset(cameras[master_id]->current_capture_timestamp)) {
+					all_captures_ok = false;
+					break;
+				}
+			}
+			else {
+				if (!cameras[master_id]->capture_frameset(NULL)) {
+					all_captures_ok = false;
+					break;
+				}
+			}
+
 		}
 		if (!all_captures_ok) {
 			//std::cerr << "cwipc_kinect: K4AOfflineCapture: xxxjack not all captures succeeded. Retrying." << std::endl;
@@ -330,9 +350,14 @@ void K4AOfflineCapture::_control_thread_main()
 		}
 		// And get the best timestamp
 		uint64_t timestamp = 0;
-		for (auto cam : cameras) {
-			uint64_t camts = cam->get_capture_timestamp();
-			if (camts > timestamp) timestamp = camts;
+		if (sync_inuse) { //sync on
+			timestamp = cameras[master_id]->current_capture_timestamp;
+		}
+		else {
+			for (auto cam : cameras) {
+				uint64_t camts = cam->current_capture_timestamp;
+				if (camts > timestamp) timestamp = camts;
+			}
 		}
 #ifdef WITH_DUMP_VIDEO_FRAMES
 		// Step 2, if needed: dump image frames.

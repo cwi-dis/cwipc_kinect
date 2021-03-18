@@ -18,9 +18,6 @@ typedef struct
 	char* filename;
 	k4a_playback_t handle;
 	k4a_record_configuration_t record_config;
-	k4a_capture_t capture;
-	uint64_t current_capture_timestamp;
-	int capture_id = 0;
 } recording_t;
 
 class K4AOfflineCamera {
@@ -31,10 +28,10 @@ public:
 	K4AOfflineCamera(recording_t _recording, K4ACaptureConfig& configuration, int _camera_index);
 	virtual ~K4AOfflineCamera();
 
-	bool start();
+	//bool start(); playbacks do not need a start function
 	virtual void start_capturer();
 	void stop();
-	bool capture_frameset();
+	bool capture_frameset(uint64_t master_timestamp);
 	void create_pc_from_frames();
 	void wait_for_pc();
 	void dump_color_frame(const std::string& filename);
@@ -47,16 +44,20 @@ public:
 	double minx;
 	double minz;
 	double maxz;
-	recording_t recording;
 	k4a_playback_t playback_handle;
+	k4a_record_configuration_t record_config;
+	k4a_capture_t current_capture;
+	uint64_t current_capture_timestamp;
+	int capture_id = 0;
 	int camera_index;
 	std::string serial;
+	std::string filename;
+	bool eof = false;
 
 protected:
 	bool stopped;
 	bool camera_started;
 	bool capture_started;
-	bool eof = false;
 	std::thread* processing_thread;
 	void _filter_depth_data(int16_t* depth_values, int width, int height); // Internal: depth data processing
 	void _computePointSize(/*rs2::pipeline_profile profile*/);
@@ -64,13 +65,14 @@ protected:
 	virtual void _start_capture_thread();
 	virtual void _capture_thread_main();
 	void transformPoint(cwipc_pcl_point& pt);
+	bool prepare_next_valid_frame();
+	bool prepare_cond_next_valid_frame(uint64_t master_timestamp);
 private:
 	K4ACameraData& camData;
 	K4ACameraSettings& camSettings;
 	k4a_transformation_t transformation_handle;
 	moodycamel::BlockingReaderWriterQueue<k4a_capture_t> captured_frame_queue;
 	moodycamel::BlockingReaderWriterQueue<k4a_capture_t> processing_frame_queue;
-	k4a_capture_t current_frameset;
 	int color_height;
 	int depth_height;
 	int camera_fps;
@@ -82,6 +84,7 @@ private:
 	bool do_height_filtering;
 	double height_min;
 	double height_max;
+	uint64_t max_delay;
 
 	std::thread* grabber_thread;
 	std::mutex processing_mutex;
