@@ -258,7 +258,9 @@ void K4AOfflineCamera::stop()
 	delete processing_thread;
 	processing_done = true;
 	processing_done_cv.notify_one();
+	current_capture = NULL;
 	k4a_playback_close(playback_handle);
+	playback_handle = NULL;
 }
 
 void K4AOfflineCamera::start_capturer()
