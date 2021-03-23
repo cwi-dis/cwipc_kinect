@@ -130,8 +130,8 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
             cd->type = type;
         }
 
-		std::string filename = cameraElement->Attribute("filename");
-		if (filename != "") {
+		auto filename = cameraElement->Attribute("filename");
+		if (filename != NULL && filename != "") {
 			cd->filename = filename;
 		}
         

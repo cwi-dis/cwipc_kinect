@@ -8,6 +8,7 @@
 #include "cwipc_kinect/api.h"
 #include "cwipc_kinect/utils.h"
 #include "cwipc_kinect/K4ACapture.hpp"
+#include "cwipc_kinect/K4AOfflineCapture.hpp"
 
 
 // Global variables (constants, really)
@@ -59,6 +60,7 @@ cwipc_vector* cross_vectors(cwipc_vector a, cwipc_vector b, cwipc_vector *result
 }
 
 class cwipc_source_kinect_impl : public cwipc_tiledsource {
+	friend class cwipc_source_k4aoffline_impl;
 protected:
     K4ACapture *m_grabber;
     cwipc_source_kinect_impl(K4ACapture *obj)
@@ -89,7 +91,7 @@ public:
 
     bool eof() 
 	{
-    	return false;
+    	return m_grabber->eof;
     }
 
     bool available(bool wait)
@@ -179,6 +181,38 @@ public:
     }
 };
 
+
+class cwipc_source_k4aoffline_impl : public cwipc_offline
+{
+protected:
+	K4AOfflineCapture *m_offline;
+	cwipc_source_kinect_impl *m_source;
+public:
+	cwipc_source_k4aoffline_impl(const char* configFilename = NULL)
+		: m_offline(new K4AOfflineCapture(configFilename)),
+		m_source(new cwipc_source_kinect_impl(m_offline))
+	{
+	}
+
+	~cwipc_source_k4aoffline_impl()
+	{
+		m_offline = NULL;
+		delete m_source;
+	}
+
+	void free()
+	{
+		m_offline = NULL;
+		delete m_source;
+		m_source = NULL;
+	}
+
+	cwipc_tiledsource* get_source()
+	{
+		return m_source;
+	}
+};
+
 //
 // C-compatible entry points
 //
@@ -202,5 +236,26 @@ cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage,
         *errorMessage = (char *)"cwipc_kinect: no kinect cameras found";
     }
     return NULL;
+}
+
+cwipc_offline* cwipc_k4aoffline(const char* configFilename, char** errorMessage, uint64_t apiVersion)
+{
+	if (apiVersion < CWIPC_API_VERSION_OLD || apiVersion > CWIPC_API_VERSION) {
+		if (errorMessage) {
+			*errorMessage = (char*)"cwipc_kinect: incorrect apiVersion";
+		}
+		return NULL;
+	}
+	return new cwipc_source_k4aoffline_impl(configFilename);
+}
+
+void cwipc_offline_free(cwipc_offline* obj)
+{
+	obj->free();
+}
+
+cwipc_tiledsource* cwipc_offline_get_source(cwipc_offline* obj)
+{
+	return obj->get_source();
 }
 

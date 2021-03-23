@@ -30,22 +30,8 @@
 // if there is another one open.
 static int numberOfCapturersActive = 0;
 
-K4AOfflineCapture::K4AOfflineCapture(int dummy)
-	: numberOfPCsProduced(0),
-	no_cameras(true),
-	mergedPC_is_fresh(false),
-	mergedPC_want_new(false)
-{
-	numberOfCapturersActive++;
-	mergedPC = new_cwipc_pcl_pointcloud();
-	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-}
-
 K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
-	: numberOfPCsProduced(0),
-	no_cameras(false),
-	mergedPC_is_fresh(false),
-	mergedPC_want_new(false)
+	: K4ACapture(1)
 {
 	// First check that no other K4AOfflineCapture is active within this process (trying to catch programmer errors)
 	numberOfCapturersActive++;
@@ -165,26 +151,6 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 		configuration.cameraData[i].cameraposition.y = pnt.y;
 		configuration.cameraData[i].cameraposition.z = pnt.z;
 	}
-
-	//NO NEED TO START CAMERAS as we are in playback mode
-	// start the cameras. First start all non-sync-master cameras, then start the sync-master camera.
-	//
-	/*for (auto cam : cameras) {
-		if (cam->is_sync_master()) continue;
-		if (!cam->start()) {
-			cwipc_k4a_log_warning("Not all cameras could be started");
-			no_cameras = true;
-			return;
-		}
-	}
-	for (auto cam : cameras) {
-		if (!cam->is_sync_master()) continue;
-		if (!cam->start()) {
-			cwipc_k4a_log_warning("Not all cameras could be started");
-			no_cameras = true;
-			return;
-		}
-	}*/
 
 	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	//
@@ -307,6 +273,7 @@ void K4AOfflineCapture::_control_thread_main()
 		//check EOF:
 		for (auto cam : cameras) {
 			if (cam->eof) {
+				eof = true;
 				stopped = true;
 				break;
 			}

@@ -58,7 +58,6 @@ struct K4ACaptureConfig {
 	std::string sync_master_serial = "";  // If empty run without sync. If non-empty this camera is the sync master
 	// special features
 	std::string cwi_special_feature = ""; // Specifier for temporary development specific feature
-	std::string filename = "";
 	K4ACameraSettings default_camera_settings;
 	// realsense specific post processing filtering
 

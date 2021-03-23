@@ -37,7 +37,8 @@ public:
     K4ACaptureConfig configuration;
 	uint64_t starttime;
 	int numberOfPCsProduced;
-    bool no_cameras;                        // True of no cameras attached
+    bool no_cameras;
+	bool eof = false;                 // True of no cameras attached
 protected:
 	virtual void _create_cameras(k4a_device_t* cameras, std::vector<std::string> serials, uint32_t camera_count);
 	std::vector<K4ACamera*> cameras;                // Storage of camera specifics

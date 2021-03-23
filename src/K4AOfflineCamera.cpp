@@ -70,7 +70,7 @@ K4AOfflineCamera::K4AOfflineCamera(recording_t _recording, K4ACaptureConfig& con
 		camera_started = true;
 	}
 
-	max_delay = configuration.cameraData.size() * 160; //we set a 160us delay between cameras to avoid laser interference
+	max_delay = 10 * 160; //we set a 160us delay between cameras to avoid laser interference. It is enough for 10x cameras
 
 	_init_filters();
 }

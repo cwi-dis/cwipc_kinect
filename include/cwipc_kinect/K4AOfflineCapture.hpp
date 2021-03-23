@@ -8,7 +8,7 @@
 #include <k4a/k4a.h>
 
 #include "defs.h"
-//#include "cwipc_kinect/K4ACapture.hpp"
+#include "cwipc_kinect/K4ACapture.hpp"
 #include "cwipc_kinect/K4AOfflineCamera.hpp"
 //#include <k4arecord/playback.h>
 
@@ -20,9 +20,7 @@
 #endif
 #endif
 
-class CWIPC_DLL_ENTRY K4AOfflineCapture {
-protected:
-	K4AOfflineCapture(int dummy);
+class CWIPC_DLL_ENTRY K4AOfflineCapture : public K4ACapture {
 public:
 	// methods
 	K4AOfflineCapture(const char* configFilename = NULL);
@@ -41,6 +39,7 @@ public:
 	bool no_cameras;                        // True of no cameras attached
 	bool sync_inuse = false;
 	int master_id = -1;
+	bool eof = false;
 protected:
 	virtual void _create_cameras(recording_t* recordings, uint32_t camera_count);
 	std::vector<K4AOfflineCamera*> cameras;   // Storage of camera specifics
