@@ -22,24 +22,15 @@ int main(int argc, char** argv)
     //int count = atoi(argv[1]);
     char filename[500];
     char* error = NULL;
-    cwipc_offline* converter;
     cwipc_tiledsource* generator;
     char* inputdir = NULL;
-    char* configFile = NULL;
     inputdir = argv[1];
-    configFile = argv[1];
-    strcat(configFile,"\\cameraconfig.xml");
-    //puts(configFile);
+    std::string configFile(inputdir);
+    configFile += "/cameraconfig.xml";
 
-    converter = cwipc_k4aoffline(configFile, &error, CWIPC_API_VERSION);
-    if (error) {
-        std::cerr << argv[0] << ": creating kinect offline converter failed: " << error << std::endl;
-        return 1;
-    }
-
-    generator = converter->get_source();
+    generator = cwipc_k4aoffline(configFile.c_str(), &error, CWIPC_API_VERSION);
     if (generator == NULL) {
-        std::cerr << argv[0] << ": creating kinect grabber failed: " << error << std::endl;
+        std::cerr << argv[0] << ": creating offlinekinect grabber failed: " << error << std::endl;
         if (getenv("CWIPC_KINECT_TESTING") != NULL) return 0; // No failure while running tests, so we can at least test linking, etc.
         return 1;
     }
@@ -61,9 +52,9 @@ int main(int argc, char** argv)
             break;
         }
         //Good, write the pointcloud
-        snprintf(filename, sizeof(filename), "%s/pointcloud-%lld.ply", argv[2], pc->timestamp());
+        snprintf(filename, sizeof(filename), "D:/dump/pointcloud-%lld.cwipcdump", pc->timestamp());
         std::cout << "-> Writing " << filename << std::endl;
-        ok = cwipc_write(filename, pc, &error);
+        ok = cwipc_write_debugdump(filename, pc, &error);
         pc->free();
     }
     generator->free();

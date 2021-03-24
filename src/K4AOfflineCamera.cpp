@@ -24,6 +24,8 @@
 #include "cwipc_kinect/utils.h"
 #include "cwipc_kinect/K4AOfflineCamera.hpp"
 
+#include "turbojpeg.h"
+
 #ifdef WITH_DUMP_VIDEO_FRAMES
 //#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "cwipc_kinect/stb_image_write.h"
@@ -38,7 +40,8 @@ K4AOfflineCamera::K4AOfflineCamera(recording_t _recording, K4ACaptureConfig& con
 	camera_started(false),
 	capture_started(false),
 	camData(configuration.cameraData[camera_index]),
-	serial(camData.serial),
+	serial(configuration.cameraData[camera_index].serial),
+	filename(configuration.cameraData[camera_index].filename),
 	camSettings(configuration.default_camera_settings),
 	captured_frame_queue(1),
 	processing_frame_queue(1),
@@ -71,7 +74,6 @@ K4AOfflineCamera::K4AOfflineCamera(recording_t _recording, K4ACaptureConfig& con
 	}
 
 	max_delay = 10 * 160; //we set a 160us delay between cameras to avoid laser interference. It is enough for 10x cameras
-
 	_init_filters();
 }
 
@@ -97,34 +99,31 @@ bool K4AOfflineCamera::prepare_next_valid_frame() {
 		if (stream_result == K4A_STREAM_RESULT_EOF)
 		{
 			if (current_capture_timestamp == 0) {
-				printf("ERROR: Recording file is empty: %s\n", filename);
+				printf("ERROR: Recording file is empty: %s\n", filename.c_str());
 				result = K4A_RESULT_FAILED;
 			}
 			else {
-				printf("Recording file '%s' reached EOF\n", filename);
+				printf("Recording file '%s' reached EOF\n", filename.c_str());
 				eof = true;
 			}
 			break;
 		}
 		else if (stream_result == K4A_STREAM_RESULT_FAILED)
 		{
-			printf("ERROR: Failed to read first capture from file: %s\n", filename);
+			printf("ERROR: Failed to read first capture from file: %s\n", filename.c_str());
 			result = K4A_RESULT_FAILED;
 			break;
 		}
 		capture_id++;
-
 		k4a_image_t color = k4a_capture_get_color_image(current_capture);
 		if (color == NULL) {
 			std::cerr << "Color is missing in capture " << capture_id << " from " << filename << std::endl;
-			k4a_image_release(color);
 			continue;
 		}
 
 		k4a_image_t depth = k4a_capture_get_depth_image(current_capture);
 		if (depth == NULL) {
 			std::cerr << "Depth is missing in capture " << capture_id << " from " << filename << std::endl;
-			k4a_image_release(depth);
 			continue;
 		}
 		current_capture_timestamp = k4a_image_get_device_timestamp_usec(color);
@@ -332,7 +331,7 @@ void K4AOfflineCamera::_processing_thread_main()
 		k4a_image_t depth = NULL;
 		k4a_image_t color = NULL;
 
-		bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(10000));
+		bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(1000));
 		if (processing_frameset == NULL) {
 #ifdef CWIPC_DEBUG_THREAD
 			std::cerr << "cwipc_kinect: processing thread: null frameset" << std::endl;
@@ -354,6 +353,57 @@ void K4AOfflineCamera::_processing_thread_main()
 		// Note: the following code uses color as the main source of resolution. To be decided.
 		int color_image_width_pixels = k4a_image_get_width_pixels(color);
 		int color_image_height_pixels = k4a_image_get_height_pixels(color);
+
+
+		uint8_t* color_data;
+		k4a_image_t uncompressed_color_image = NULL;
+		if (k4a_image_get_format(color) == K4A_IMAGE_FORMAT_COLOR_MJPG) {
+			//we need to convert the image to BGRA format.
+
+			k4a_image_t uncompressed_color_image = NULL;
+			if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
+				color_image_width_pixels,
+				color_image_height_pixels,
+				color_image_width_pixels * 4 * (int)sizeof(uint8_t),
+				&uncompressed_color_image))
+			{
+				printf("Failed to create image buffer\n");
+				return;
+			}
+
+			tjhandle tjHandle;
+			tjHandle = tjInitDecompress();
+			if (tjDecompress2(tjHandle,
+				k4a_image_get_buffer(color),
+				static_cast<unsigned long>(k4a_image_get_size(color)),
+				k4a_image_get_buffer(uncompressed_color_image),
+				color_image_width_pixels,
+				0, // pitch
+				color_image_height_pixels,
+				TJPF_BGRA,
+				TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE) != 0)
+			{
+				printf("Failed to decompress color frame\n");
+				if (tjDestroy(tjHandle))
+				{
+					printf("Failed to destroy turboJPEG handle\n");
+				}
+				return;
+			}
+			if (tjDestroy(tjHandle))
+			{
+				printf("Failed to destroy turboJPEG handle\n");
+			}
+
+			color_data = k4a_image_get_buffer(uncompressed_color_image);
+		}
+		else { //we asume the color frame is in BGRA mode:
+			color_data = k4a_image_get_buffer(color);
+		}
+
+
+
+
 #ifdef CWIPC_DEBUG_THREAD
 		std::cerr << "cwipc_kinect: processing: got images for camera " << serial << std::endl;
 #endif
@@ -394,7 +444,6 @@ void K4AOfflineCamera::_processing_thread_main()
 		std::cerr << "cwipc_kinect: processing: created pointcloud image for camera " << serial << std::endl;
 #endif
 		{
-			uint8_t* color_data = k4a_image_get_buffer(color);
 			int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
 			if (camSettings.do_threshold || camSettings.depth_x_erosion || camSettings.depth_y_erosion) {
 				_filter_depth_data(point_cloud_image_data, color_image_width_pixels, color_image_height_pixels);
@@ -407,6 +456,9 @@ void K4AOfflineCamera::_processing_thread_main()
 			{
 				int i_pc = i * 3;
 				int i_rgba = i * 4;
+
+				
+				//printf("%i | i=%i, i_pc=%i, i_rgba=%i, max_i=%i\n", camera_index, i, i_pc, i_rgba, color_image_width_pixels * color_image_height_pixels);
 				cwipc_pcl_point point;
 				int16_t x = point_cloud_image_data[i_pc + 0];
 				int16_t y = point_cloud_image_data[i_pc + 1];
@@ -433,7 +485,7 @@ void K4AOfflineCamera::_processing_thread_main()
 #endif
 		}
 		if (camData.cloud->size() == 0) {
-			std::cerr << "cwipc_kinect: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
+			std::cerr << "cwipc_kinect: warning: captured empty pointcloud from camera " << camera_index << std::endl;
 			//continue;
 		}
 		// Notify wait_for_pc that we're done.
@@ -442,6 +494,7 @@ void K4AOfflineCamera::_processing_thread_main()
 	endloop:
 		//  free all allocated images
 		if (color) k4a_image_release(color);
+		if (uncompressed_color_image) k4a_image_release(uncompressed_color_image);
 		if (depth) k4a_image_release(depth);
 		if (processing_frameset) k4a_capture_release(processing_frameset);
 	}
@@ -514,6 +567,7 @@ void K4AOfflineCamera::create_pc_from_frames()
 		std::cerr << "cwipc_kinect: camera " << serial << ": drop frame before processing" << std::endl;
 		k4a_capture_release(current_capture);
 	}
+	//printf("** Camera %i enqueued frame %i **\n", camera_index, capture_id);
 	current_capture = NULL;
 }
 

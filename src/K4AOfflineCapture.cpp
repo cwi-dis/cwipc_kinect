@@ -118,6 +118,10 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 				result = K4A_RESULT_FAILED;
 				return;
 			}
+
+			//initialize cameradata attributes:
+			configuration.cameraData[i].cloud = new_cwipc_pcl_pointcloud();
+			configuration.cameraData[i].cameraposition = { 0, 0, 0 };
 		}
 
 		if (master_id != -1 && configuration.sync_master_serial != "")

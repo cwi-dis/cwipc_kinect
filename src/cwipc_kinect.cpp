@@ -182,34 +182,119 @@ public:
 };
 
 
-class cwipc_source_k4aoffline_impl : public cwipc_offline
+class cwipc_source_k4aoffline_impl : public cwipc_tiledsource
 {
 protected:
 	K4AOfflineCapture *m_offline;
-	cwipc_source_kinect_impl *m_source;
 public:
 	cwipc_source_k4aoffline_impl(const char* configFilename = NULL)
-		: m_offline(new K4AOfflineCapture(configFilename)),
-		m_source(new cwipc_source_kinect_impl(m_offline))
+		: m_offline(new K4AOfflineCapture(configFilename))
 	{
 	}
 
 	~cwipc_source_k4aoffline_impl()
 	{
 		m_offline = NULL;
-		delete m_source;
+	}
+
+	bool is_valid() {
+		return !m_offline->no_cameras;
 	}
 
 	void free()
 	{
 		m_offline = NULL;
-		delete m_source;
-		m_source = NULL;
 	}
 
-	cwipc_tiledsource* get_source()
+	bool eof()
 	{
-		return m_source;
+		return m_offline->eof;
+	}
+
+	bool available(bool wait)
+	{
+		if (m_offline == NULL) return false;
+		return m_offline->pointcloud_available(wait);
+	}
+
+	cwipc* get()
+	{
+		if (m_offline == NULL) return NULL;
+		uint64_t timestamp;
+		cwipc_pcl_pointcloud pc = m_offline->get_pointcloud(&timestamp);
+		if (pc == NULL) return NULL;
+		cwipc* rv = cwipc_from_pcl(pc, timestamp, NULL, CWIPC_API_VERSION);
+		if (rv) {
+			rv->_set_cellsize(m_offline->get_pointSize());
+		}
+		return rv;
+	}
+
+	int maxtile()
+	{
+		if (m_offline == NULL) return 0;
+		int nCamera = m_offline->configuration.cameraData.size();
+		if (nCamera <= 1) {
+			// Using a single camera or no camera.
+			return nCamera;
+		}
+		return 1 << nCamera;
+	}
+
+	bool get_tileinfo(int tilenum, struct cwipc_tileinfo* tileinfo) {
+		if (m_offline == NULL)
+			return false;
+
+		int nCamera = m_offline->configuration.cameraData.size();
+
+		if (nCamera == 0) { // No camera
+			return false;
+		}
+		if (tilenum < 0 || tilenum >= (1 << nCamera))
+			return false;
+
+		// nCamera > 0
+		cwipc_vector camcenter = { 0, 0, 0 };
+
+		// calculate the center of all cameras
+		for (auto camdat : m_offline->configuration.cameraData) {
+			add_vectors(camcenter, camdat.cameraposition, &camcenter);
+		}
+		mult_vector(1.0 / nCamera, &camcenter);
+
+		// calculate normalized direction vectors from the center towards each camera
+		std::vector<cwipc_vector> camera_directions;
+		for (auto camdat : m_offline->configuration.cameraData) {
+			cwipc_vector normal;
+			diff_vectors(camdat.cameraposition, camcenter, &normal);
+			norm_vector(&normal);
+			camera_directions.push_back(normal);
+		}
+
+		// add all cameradirections that contributed
+		int ncontribcam = 0;
+		int lastcontribcamid = 0;
+		cwipc_vector tile_direction = { 0, 0, 0 };
+		for (int i = 0; i < m_offline->configuration.cameraData.size(); i++) {
+			uint8_t camera_label = (uint8_t)1 << i;
+			if (tilenum == 0 || (tilenum & camera_label)) {
+				add_vectors(tile_direction, camera_directions[i], &tile_direction);
+				ncontribcam++;
+				lastcontribcamid = i;
+			}
+		}
+		norm_vector(&tile_direction);
+
+		if (tileinfo) {
+			tileinfo->normal = tile_direction;
+			tileinfo->camera = NULL;
+			tileinfo->ncamera = ncontribcam;
+			if (ncontribcam == 1) {
+				// A single camera contributed to this
+				tileinfo->camera = (char*)m_offline->configuration.cameraData[lastcontribcamid].serial.c_str();
+			}
+		}
+		return true;
 	}
 };
 
@@ -238,7 +323,7 @@ cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage,
     return NULL;
 }
 
-cwipc_offline* cwipc_k4aoffline(const char* configFilename, char** errorMessage, uint64_t apiVersion)
+cwipc_tiledsource* cwipc_k4aoffline(const char* configFilename, char** errorMessage, uint64_t apiVersion)
 {
 	if (apiVersion < CWIPC_API_VERSION_OLD || apiVersion > CWIPC_API_VERSION) {
 		if (errorMessage) {

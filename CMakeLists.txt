@@ -50,6 +50,12 @@ find_package(KINECT REQUIRED)
 include_directories(${KINECT_INCLUDE_DIRS})
 link_directories(${KINECT_LIBRARY_DIRS})
 
+
+find_package(JPEG_Turbo REQUIRED)
+include_directories(${JPEG_Turbo_INCLUDE_DIR})
+link_directories(${JPEG_Turbo_LIBRARY_DIR})
+
+
 # we need the thirdparty tinyXML for the test programs.
 include(third-party/tinyXML/CMakeLists.txt)
 include_directories(third-party/tinyXML)

@@ -130,9 +130,19 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
             cd->type = type;
         }
 
-		auto filename = cameraElement->Attribute("filename");
-		if (filename != NULL && filename != "") {
-			cd->filename = filename;
+		auto camerafile_c = cameraElement->Attribute("filename");
+		if (camerafile_c != NULL && camerafile_c[0] != '\0') {
+			std::string camerafile(camerafile_c);
+			if (camerafile.substr(0, 1) != "/") {
+				// Relative path (so don''t use windows drive numbers;-)
+				std::string filename_cpp(filename);
+				size_t lastSlashPos = filename_cpp.find_last_of("/\\");
+				if (lastSlashPos != std::string::npos) {
+					camerafile = filename_cpp.substr(0, lastSlashPos + 1) + camerafile;
+				}
+			}
+			cd->filename = camerafile;
+
 		}
         
 		TiXmlElement *trafo = cameraElement->FirstChildElement("trafo");
@@ -157,6 +167,12 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		}
 		else
 			loadOkay = false;
+
+		/*std::cout << (*cd->trafo)(0, 0) << "\t" << (*cd->trafo)(0, 1) << "\t" << (*cd->trafo)(0, 2) << "\t" << (*cd->trafo)(0, 3) << std::endl;
+		std::cout << (*cd->trafo)(1, 0) << "\t" << (*cd->trafo)(1, 1) << "\t" << (*cd->trafo)(1, 2) << "\t" << (*cd->trafo)(1, 3) << std::endl;
+		std::cout << (*cd->trafo)(2, 0) << "\t" << (*cd->trafo)(2, 1) << "\t" << (*cd->trafo)(2, 2) << "\t" << (*cd->trafo)(2, 3) << std::endl;
+		std::cout << (*cd->trafo)(3, 0) << "\t" << (*cd->trafo)(3, 1) << "\t" << (*cd->trafo)(3, 2) << "\t" << (*cd->trafo)(3, 3) << std::endl;*/
+
 		// load optional intrinsicTrafo element (only for offline usage)
 		trafo = cameraElement->FirstChildElement("intrinsicTrafo");
 		if (trafo) {

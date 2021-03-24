@@ -70,7 +70,7 @@ _CWIPC_KINECT_EXPORT cwipc_tiledsource* cwipc_kinect(const char *configFilename,
  * cameras.
  */
 
-_CWIPC_KINECT_EXPORT cwipc_offline* cwipc_k4aoffline(const char* configFilename, char** errorMessage, uint64_t apiVersion);
+_CWIPC_KINECT_EXPORT cwipc_tiledsource* cwipc_k4aoffline(const char* configFilename, char** errorMessage, uint64_t apiVersion);
 
 /** \brief Free the offline converter.
  */

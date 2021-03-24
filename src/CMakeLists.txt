@@ -36,7 +36,7 @@ target_sources(cwipc_kinect
 )
 
 target_link_libraries(cwipc_kinect PUBLIC cwipc_util)
-target_link_libraries(cwipc_kinect PRIVATE ${PCL_LIBRARIES} ${KINECT_LIBRARIES})
+target_link_libraries(cwipc_kinect PRIVATE ${PCL_LIBRARIES} ${KINECT_LIBRARIES} ${JPEG_Turbo_LIBRARY})
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" AND CMAKE_BUILD_TYPE MATCHES "Release")
    target_compile_options(cwipc_kinect PRIVATE /Zi)
