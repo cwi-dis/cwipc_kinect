@@ -8,9 +8,7 @@
 #include <k4a/k4a.h>
 
 #include "defs.h"
-#include "cwipc_kinect/K4ACapture.hpp"
 #include "cwipc_kinect/K4AOfflineCamera.hpp"
-//#include <k4arecord/playback.h>
 
 #ifndef CWIPC_DLL_ENTRY
 #if defined(WIN32) || defined(_WIN32)
@@ -20,7 +18,7 @@
 #endif
 #endif
 
-class CWIPC_DLL_ENTRY K4AOfflineCapture : public K4ACapture {
+class CWIPC_DLL_ENTRY K4AOfflineCapture {
 public:
 	// methods
 	K4AOfflineCapture(const char* configFilename = NULL);
@@ -56,5 +54,8 @@ private:
 	std::condition_variable mergedPC_is_fresh_cv;             // Condition variable for signalling freshly-created pointcloud
 	bool mergedPC_want_new;                                   // Set to true to request a new pointcloud
 	std::condition_variable mergedPC_want_new_cv;             // Condition variable for signalling we want a new pointcloud
+	uint64_t current_ts = 0; 
+	size_t file_count;
+	recording_t* files;
 };
 #endif // cwipc_realsense_RS2Offline_hpp

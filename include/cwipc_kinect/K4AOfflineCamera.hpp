@@ -6,7 +6,6 @@
 #include <mutex>
 #include <condition_variable>
 
-//#include <cwipc_kinect/K4ACamera.hpp>
 #include <k4a/k4a.h>
 #include <k4arecord/playback.h>
 
@@ -62,8 +61,6 @@ protected:
 	void _filter_depth_data(int16_t* depth_values, int width, int height); // Internal: depth data processing
 	void _computePointSize(/*rs2::pipeline_profile profile*/);
 	void _processing_thread_main();
-	virtual void _start_capture_thread();
-	virtual void _capture_thread_main();
 	void transformPoint(cwipc_pcl_point& pt);
 	bool prepare_next_valid_frame();
 	bool prepare_cond_next_valid_frame(uint64_t master_timestamp);
@@ -86,7 +83,6 @@ private:
 	double height_max;
 	uint64_t max_delay;
 
-	std::thread* grabber_thread;
 	std::mutex processing_mutex;
 	std::condition_variable processing_done_cv;
 	bool processing_done;

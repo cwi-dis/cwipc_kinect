@@ -8,13 +8,26 @@
 #include <k4a/k4a.h>
 #include <k4arecord/playback.h>
 
+#include "cwipc_kinect/utils.h";
 #include "cwipc_util/api.h"
 #include "cwipc_kinect/api.h"
 
+bool dirExists(const std::string& dirName_in)
+{
+    DWORD ftyp = GetFileAttributesA(dirName_in.c_str());
+    if (ftyp == INVALID_FILE_ATTRIBUTES)
+        return false;  //something is wrong with your path!
+
+    if (ftyp & FILE_ATTRIBUTE_DIRECTORY)
+        return true;   // this is a directory!
+
+    return false;    // this is not a directory!
+}
+
 int main(int argc, char** argv)
 {
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " inputdirectory [outputdirectory]" << std::endl;
+    if (argc < 3) {
+        std::cerr << "ERROR. Usage: " << argv[0] << " inputdirectory outputdirectory" << std::endl;
         std::cerr << "Generates pointclouds from kinect4a camera recordings using the cameraconfig.xml" << std::endl;
         std::cerr << "If no outputdirectory a subfolder is created in the current folder" << std::endl;
         return 2;
@@ -25,6 +38,11 @@ int main(int argc, char** argv)
     cwipc_tiledsource* generator;
     char* inputdir = NULL;
     inputdir = argv[1];
+    std::string outputdir(argv[2]);
+    if (!dirExists(outputdir)) {
+        std::cerr << "Selected output dir " << outputdir << " does not exist" << std::endl;
+    }
+
     std::string configFile(inputdir);
     configFile += "/cameraconfig.xml";
 
@@ -39,6 +57,7 @@ int main(int argc, char** argv)
     }
 
     int ok = 0;
+    int framenum = 0;
     while (!generator->eof()) {
         cwipc* pc = NULL;
         pc = generator->get();
@@ -49,13 +68,22 @@ int main(int argc, char** argv)
         }
         if (pc->count() <= 0) {
             std::cerr << argv[0] << ": warning: empty pointcloud, grabbing again" << std::endl;
-            break;
+            pc->free();
+            pc->free();
+            continue;
         }
+        framenum++;
         //Good, write the pointcloud
-        snprintf(filename, sizeof(filename), "D:/dump/pointcloud-%lld.cwipcdump", pc->timestamp());
-        std::cout << "-> Writing " << filename << std::endl;
-        ok = cwipc_write_debugdump(filename, pc, &error);
+        std::ostringstream ts;
+        ts << pc->timestamp();
+        std::string outputfile = outputdir + "/pointcloud-" + ts.str() + ".cwipcdump";
+        std::cout << "-> Writing frame " << framenum << " => "<< outputfile << std::endl;
+        ok = cwipc_write_debugdump(outputfile.c_str(), pc, &error); //FASTER WRITE
+        //ok = cwipc_write(filename, pc, &error);
+        if (ok == -1)
+            std::cerr << "Error writing: " << error << std::endl;
         pc->free();
+        std::cout << "--------------------------------------------------------" << std::endl;
     }
     generator->free();
     if (ok < 0) {

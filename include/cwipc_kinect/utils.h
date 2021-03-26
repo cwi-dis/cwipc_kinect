@@ -21,6 +21,7 @@
 #include "cwipc_util/api_pcl.h"
 
 struct K4ACaptureConfig;
+_CWIPC_KINECT_EXPORT void print_stats(std::string header);
 
 _CWIPC_KINECT_EXPORT void cwipc_k4a_log_warning(std::string warning);
 _CWIPC_KINECT_EXPORT extern char **cwipc_k4a_warning_store;

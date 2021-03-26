@@ -11,6 +11,9 @@
 
 #include "tinyxml.h"
 
+
+#include "psapi.h"
+
 typedef struct HsvColor
 {
 	unsigned char h;
@@ -30,6 +33,38 @@ void cwipc_k4a_log_warning(std::string warning)
     }
 }
 
+void print_stats(std::string header) { 
+	//This function can help debugging memory problems. Code taken from: https://stackoverflow.com/questions/63166/how-to-determine-cpu-and-memory-consumption-from-inside-a-process
+	//More info here: https://docs.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-memorystatusex
+	//VALUES COME IN BYTES
+
+	Sleep(500); //give time to the system to update
+	//Total virtual memory
+	MEMORYSTATUSEX memInfo;
+	memInfo.dwLength = sizeof(MEMORYSTATUSEX);
+	GlobalMemoryStatusEx(&memInfo);
+	DWORDLONG totalVirtualMem = memInfo.ullTotalPageFile; // Note: The name "TotalPageFile" is a bit misleading here. In reality this parameter gives the "Virtual Memory Size", which is size of swap file plus installed RAM.
+
+	//Virtual memory currently used:
+	DWORDLONG virtualMemUsed = memInfo.ullTotalPageFile - memInfo.ullAvailPageFile;
+
+	//Virtual Memory currently used by current process:
+	PROCESS_MEMORY_COUNTERS_EX pmc;
+	GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc));
+	SIZE_T virtualMemUsedByMe = pmc.PrivateUsage;
+
+	//Total Physical Memory(RAM) :
+	DWORDLONG totalPhysMem = memInfo.ullTotalPhys;
+
+	//Physical Memory currently used :
+	DWORDLONG physMemUsed = memInfo.ullTotalPhys - memInfo.ullAvailPhys;
+
+	//Physical Memory currently used by current process:
+	SIZE_T physMemUsedByMe = pmc.WorkingSetSize;
+	std::cout << "STATS : " << header << std::endl;
+	std::cout << "\t## RAM(MB): Total:" << totalPhysMem / 1000000 << " | Used:" << physMemUsed / 1000000 << "| UsedByMe:" << physMemUsedByMe / 1000000 << std::endl;
+	std::cout << "\t## VRAM(MB): Total:" << totalVirtualMem / 1000000 << " | Used:" << virtualMemUsed / 1000000 << "| UsedByMe:" << virtualMemUsedByMe / 1000000 << std::endl;
+}
 
 // read and restore the camera transformation setting as stored in the configuration document
 bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
@@ -121,8 +156,6 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 			cd->trafo = trafo;
 			cd->intrinsicTrafo = intrinsicTrafo;
 			cd->cameraposition = { 0, 0, 0 };
-			config->cameraData.push_back(*cd);
-			cd = &config->cameraData.back();
 		}
 
         std::string type = cameraElement->Attribute("type");
@@ -195,6 +228,9 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 			val->QueryDoubleAttribute("v33", &(*cd->intrinsicTrafo)(3, 3));
 		}
 
+		config->cameraData.push_back(*cd);
+		//cd = &config->cameraData.back();
+		delete cd;
 		registeredcameras++;
 		cameraElement = cameraElement->NextSiblingElement("camera");
 	}

@@ -22,7 +22,6 @@
 
 #include <chrono>
 
-#include "cwipc_kinect/defs.h"
 #include "cwipc_kinect/utils.h"
 #include "cwipc_kinect/K4AOfflineCapture.hpp"
 
@@ -31,7 +30,10 @@
 static int numberOfCapturersActive = 0;
 
 K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
-	: K4ACapture(1)
+	: numberOfPCsProduced(0),
+	no_cameras(false),
+	mergedPC_is_fresh(false),
+	mergedPC_want_new(false)
 {
 	// First check that no other K4AOfflineCapture is active within this process (trying to catch programmer errors)
 	numberOfCapturersActive++;
@@ -48,27 +50,28 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 		configFilename = "cameraconfig.xml";
 	}
 	if (cwipc_k4a_file2config(configFilename, &configuration)) {
-
+		
 		// the configuration file did not fully match the current situation so we have to update the admin
 		std::vector<std::string> serials;
 		std::vector<K4ACameraData> realcams;
 
-		size_t file_count = configuration.cameraData.size();
+		file_count = configuration.cameraData.size();
 
 		if (file_count == 0) {
 			// no camera connected, so we'll return nothing
 			no_cameras = true;
 			return;
 		}
+		no_cameras = false;
 		bool master_found = false;
-		k4a_result_t result = K4A_RESULT_SUCCEEDED;
+		k4a_result_t result;
 
 		// Allocate memory to store the state of N recordings.
 
-		recording_t* files = (recording_t*)malloc(sizeof(recording_t) * file_count);
+		files = (recording_t*)malloc(sizeof(recording_t) * file_count);
 		if (files == NULL)
 		{
-			printf("Failed to allocate memory for playback (%zu bytes)\n", sizeof(recording_t) * file_count);
+			std::cerr << "Failed to allocate memory for playback (" << sizeof(recording_t) * file_count << " bytes)" << std::endl;
 			return;
 		}
 		memset(files, 0, sizeof(recording_t) * file_count);
@@ -82,23 +85,23 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 
 			if (result != K4A_RESULT_SUCCEEDED)
 			{
-				printf("Failed to open file: %s\n", files[i].filename);
+				std::cerr << "Failed to open file: " << files[i].filename << std::endl;
 				break;
 			}
 
 			result = k4a_playback_get_record_configuration(files[i].handle, &files[i].record_config);
 			if (result != K4A_RESULT_SUCCEEDED)
 			{
-				printf("Failed to get record configuration for file: %s\n", files[i].filename);
+				std::cerr << "Failed to get record configuration for file: " << files[i].filename << std::endl;
 				break;
 			}
 
 			if (files[i].record_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_MASTER)
 			{
-				printf("Opened master recording file: %s\n", files[i].filename);
+				std::cout << "Opened master recording file: " << files[i].filename << std::endl;
 				if (master_found)
 				{
-					printf("ERROR: Multiple master recordings listed!\n");
+					std::cerr << "ERROR: Multiple master recordings listed!" << std::endl;
 					result = K4A_RESULT_FAILED;
 					break;
 				}
@@ -110,11 +113,11 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 			}
 			else if (files[i].record_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_SUBORDINATE)
 			{
-				printf("Opened subordinate recording file: %s\n", files[i].filename);
+				std::cout << "Opened subordinate recording file: " << files[i].filename << std::endl;
 			}
 			else
 			{
-				printf("ERROR: Recording file was not recorded in master/sub mode: %s\n", files[i].filename);
+				std::cerr << "ERROR: Recording file was not recorded in master/sub mode: " << files[i].filename << std::endl;
 				result = K4A_RESULT_FAILED;
 				return;
 			}
@@ -128,9 +131,6 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 			sync_inuse = true;
 		// Now we have all the configuration information. Create the offlineCamera objects.
 		_create_cameras(files, file_count);
-		// We can now free camera_handles
-		free(files); //TODO: check it does not kill the playbacks
-
 	}
 	// Create an empty pointcloud just in case anyone calls get_mostRecentPointcloud() before one is generated.
 	mergedPC = new_cwipc_pcl_pointcloud();
@@ -198,11 +198,10 @@ K4AOfflineCapture::~K4AOfflineCapture() {
 		return;
 	}
 	uint64_t stopTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-	stopped = true;
 	// Stop all cameras
-	//for (auto cam : cameras) {
-	//	cam->stop();
-	//}
+	for (auto cam : cameras)
+		cam->stop();
+	stopped = true;
 	mergedPC_is_fresh = true;
 	mergedPC_want_new = false;
 	mergedPC_is_fresh_cv.notify_all();
@@ -211,11 +210,25 @@ K4AOfflineCapture::~K4AOfflineCapture() {
 	control_thread->join();
 	delete control_thread;
 	std::cerr << "cwipc_kinect: stopped all cameras\n";
+
 	// Delete all cameras (which will stop their threads as well)
 	for (auto cam : cameras)
 		delete cam;
 	cameras.clear();
 	std::cerr << "cwipc_kinect: deleted all cameras\n";
+
+
+	// We can now free camera_handles
+	for (size_t i = 0; i < file_count; i++)
+	{
+		if (files[i].handle != NULL)
+		{
+			//k4a_playback_close(files[i].handle);
+			files[i].handle = NULL;
+		}
+	}
+	free(files); //TODO: check it does not kill the playbacks
+
 	// Print some minimal statistics of this run
 	float deltaT = (stopTime - starttime) / 1000.0;
 	std::cerr << "cwipc_kinect: ran for " << deltaT << " seconds, produced " << numberOfPCsProduced << " pointclouds at " << numberOfPCsProduced / deltaT << " fps." << std::endl;
@@ -226,7 +239,6 @@ K4AOfflineCapture::~K4AOfflineCapture() {
 cwipc_pcl_pointcloud K4AOfflineCapture::get_pointcloud(uint64_t* timestamp)
 {
 	if (no_cameras) return nullptr;
-	*timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	_request_new_pointcloud();
 	// Wait for a fresh mergedPC to become available.
 	// Note we keep the return value while holding the lock, so we can start the next grab/process/merge cycle before returning.
@@ -238,6 +250,7 @@ cwipc_pcl_pointcloud K4AOfflineCapture::get_pointcloud(uint64_t* timestamp)
 		numberOfPCsProduced++;
 		rv = mergedPC;
 	}
+	*timestamp = current_ts;
 	_request_new_pointcloud();
 	return rv;
 }
@@ -331,6 +344,7 @@ void K4AOfflineCapture::_control_thread_main()
 				if (camts > timestamp) timestamp = camts;
 			}
 		}
+		current_ts = timestamp;
 #ifdef WITH_DUMP_VIDEO_FRAMES
 		// Step 2, if needed: dump image frames.
 		if (configuration.cwi_special_feature == "dumpvideoframes") {

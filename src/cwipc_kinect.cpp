@@ -60,7 +60,6 @@ cwipc_vector* cross_vectors(cwipc_vector a, cwipc_vector b, cwipc_vector *result
 }
 
 class cwipc_source_kinect_impl : public cwipc_tiledsource {
-	friend class cwipc_source_k4aoffline_impl;
 protected:
     K4ACapture *m_grabber;
     cwipc_source_kinect_impl(K4ACapture *obj)
@@ -194,6 +193,7 @@ public:
 
 	~cwipc_source_k4aoffline_impl()
 	{
+		delete m_offline;
 		m_offline = NULL;
 	}
 
@@ -203,6 +203,7 @@ public:
 
 	void free()
 	{
+		delete m_offline;
 		m_offline = NULL;
 	}
 
@@ -331,7 +332,14 @@ cwipc_tiledsource* cwipc_k4aoffline(const char* configFilename, char** errorMess
 		}
 		return NULL;
 	}
-	return new cwipc_source_k4aoffline_impl(configFilename);
+	cwipc_source_k4aoffline_impl* rv = new cwipc_source_k4aoffline_impl(configFilename);
+	// If the grabber found cameras everything is fine
+	if (rv && rv->is_valid()) return rv;
+	delete rv;
+	if (errorMessage && *errorMessage == NULL) {
+		*errorMessage = (char*)"cwipc_kinect: no kinect cameras found";
+	}
+	return NULL;
 }
 
 void cwipc_offline_free(cwipc_offline* obj)

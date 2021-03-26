@@ -47,18 +47,18 @@ bool prepare_next_valid_frame(recording_t* file) {
         if (stream_result == K4A_STREAM_RESULT_EOF)
         {
             if (file->current_capture_timestamp == 0) {
-                printf("ERROR: Recording file is empty: %s\n", file->filename);
+                std::cerr << "ERROR: Recording file is empty: "<< file->filename << std::endl;
                 result = K4A_RESULT_FAILED;
             }
             else {
-                printf("Recording file '%s' reached EOF\n", file->filename);
+                std::cout << "Recording file " << file->filename << " reached EOF" << std::endl;
                 eof = true;
             }
             break;
         }
         else if (stream_result == K4A_STREAM_RESULT_FAILED)
         {
-            printf("ERROR: Failed to read first capture from file: %s\n", file->filename);
+            std::cerr << "ERROR: Failed to read first capture from file: " <<  file->filename << std::endl;
             result = K4A_RESULT_FAILED;
             break;
         }
@@ -147,7 +147,7 @@ int main(int argc, char* argv[])
 	recording_t* files = (recording_t*) malloc(sizeof(recording_t) * file_count);
 	if (files == NULL)
 	{
-		printf("Failed to allocate memory for playback (%zu bytes)\n", sizeof(recording_t) * file_count);
+		std::cerr << "Failed to allocate memory for playback (" << sizeof(recording_t) * file_count << " bytes)" << std::endl);
 		return 1;
 	}
 	memset(files, 0, sizeof(recording_t) * file_count);
@@ -165,23 +165,23 @@ int main(int argc, char* argv[])
 
         if (result != K4A_RESULT_SUCCEEDED)
         {
-            printf("Failed to open file: %s\n", files[i].filename);
+            std::cerr << "Failed to open file: " << files[i].filename << std::endl;
             break;
         }
 
         result = k4a_playback_get_record_configuration(files[i].handle, &files[i].record_config);
         if (result != K4A_RESULT_SUCCEEDED)
         {
-            printf("Failed to get record configuration for file: %s\n", files[i].filename);
+            std::cerr << "Failed to get record configuration for file:" << files[i].filename << std::endl;
             break;
         }
 
         if (files[i].record_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_MASTER)
         {
-            printf("Opened master recording file: %s\n", files[i].filename);
+            std::cout << "Opened master recording file: " << files[i].filename << std::endl;
             if (master_found)
             {
-                printf("ERROR: Multiple master recordings listed!\n");
+                std::cerr << "ERROR: Multiple master recordings listed!" << std::endl;
                 result = K4A_RESULT_FAILED;
                 break;
             }
@@ -193,11 +193,11 @@ int main(int argc, char* argv[])
         }
         else if (files[i].record_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_SUBORDINATE)
         {
-            printf("Opened subordinate recording file: %s\n", files[i].filename);
+            std::cout << "Opened subordinate recording file: " << files[i].filename << std::endl;
         }
         else
         {
-            printf("ERROR: Recording file was not recorded in master/sub mode: %s\n", files[i].filename);
+            std::cerr << "ERROR: Recording file was not recorded in master/sub mode: " << files[i].filename << std::endl;
             result = K4A_RESULT_FAILED;
             break;
         }
@@ -205,7 +205,7 @@ int main(int argc, char* argv[])
 
     if ((result == K4A_RESULT_SUCCEEDED) && master_found)
     {
-        printf("Loading succeeded\n");
+        std::cout << "Loading succeeded" << std::endl;
         int out_frames = 0;
         int skipped_frames = 0;
         first = true;
