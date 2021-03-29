@@ -457,9 +457,10 @@ void K4ACamera::_processing_thread_main()
 		{
 			uint8_t* color_data = k4a_image_get_buffer(color);
 			int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
+			if (camSettings.do_threshold || camSettings.depth_x_erosion || camSettings.depth_y_erosion) {
+				_filter_depth_data(point_cloud_image_data, color_image_width_pixels, color_image_height_pixels);
+			}
 			// Setup depth filtering, if needed
-			int16_t min_depth = (int16_t)(camSettings.threshold_near * 1000);
-			int16_t max_depth = (int16_t)(camSettings.threshold_far * 1000);
 			// now loop over images and create points.
 			camData.cloud->clear();
 			camData.cloud->reserve(color_image_width_pixels * color_image_height_pixels);
@@ -472,8 +473,7 @@ void K4ACamera::_processing_thread_main()
 				int16_t y = point_cloud_image_data[i_pc + 1];
 				int16_t z = point_cloud_image_data[i_pc + 2];
 				if (z == 0) continue;
-				if (camSettings.do_threshold && (z < min_depth || z > max_depth)) continue;
-
+				
 				point.r = color_data[i_rgba + 2];
 				point.g = color_data[i_rgba + 1];
 				point.b = color_data[i_rgba + 0];
@@ -511,6 +511,50 @@ void K4ACamera::_processing_thread_main()
 #ifdef CWIPC_DEBUG_THREAD
 	std::cerr << "cwipc_kinect: K4ACamera: processing: cam=" << serial << " thread stopped" << std::endl;
 #endif
+}
+
+void K4ACamera::_filter_depth_data(int16_t* depth_values, int width, int height) {
+	int16_t min_depth = (int16_t)(camSettings.threshold_near * 1000);
+	int16_t max_depth = (int16_t)(camSettings.threshold_far * 1000);
+	int16_t *z_values = (int16_t *)calloc(width * height, sizeof(int16_t));
+	// Pass one: Copy Z values to temporary buffer, but leave out-of-range values at zero.
+	for (int i = 0; i < width * height; i++)
+	{
+		int i_pc = i * 3;
+		int16_t z = depth_values[i_pc + 2];
+		if (camSettings.do_threshold && (z <= min_depth || z >= max_depth)) continue;
+		z_values[i] = z;
+	}
+	// Pass two: loop for zero pixels in temp buffer, and clear out x/y pixels adjacent in depth buffer
+	int x_delta = camSettings.depth_x_erosion;
+	int y_delta = camSettings.depth_y_erosion;
+	if (x_delta || y_delta) {
+		for (int x = 0; x < width; x++) {
+			for (int y = 0; y < height; y++) {
+				if (z_values[x + y * width] != 0) continue;
+				// Zero depth at (x, y). Clear out pixels 
+				for (int ix = x - x_delta; ix <= x + x_delta; ix++) {
+					if (ix < 0 || ix >= width ) continue;
+					int i_pc = (ix + y * width) * 3;
+					depth_values[i_pc + 2] = 0;
+				}
+				for (int iy = y - y_delta; iy <= y + y_delta; iy++) {
+					if (iy < 0 || iy >= height) continue;
+					int i_pc = (x + iy * width) * 3;
+					depth_values[i_pc + 2] = 0;
+				}
+			}
+		}
+	} else {
+		// Pass three: clear out zero pixels from temporary buffer.
+		for (int i = 0; i < width * height; i++)
+		{
+			if (z_values[i] != 0) continue;
+			int i_pc = i * 3;
+			depth_values[i_pc + 2] = 0;
+		}
+	}
+	free(z_values);
 }
 
 void K4ACamera::transformPoint(cwipc_pcl_point& pt)

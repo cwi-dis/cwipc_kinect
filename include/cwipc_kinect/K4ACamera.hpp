@@ -45,6 +45,7 @@ protected:
 	bool camera_started;
 	bool capture_started;
 	std::thread *processing_thread;
+	void _filter_depth_data(int16_t* depth_values, int width, int height); // Internal: depth data processing
 	void _computePointSize(/*rs2::pipeline_profile profile*/);
 	void _processing_thread_main();
 	virtual void _start_capture_thread();
