@@ -39,13 +39,14 @@ bool check_color_and_depth(recording_t* file) {
 }
 
 bool prepare_next_valid_frame(recording_t* file) {
-    k4a_result_t result = K4A_RESULT_SUCCEEDED;
+    k4a_result_t result;;
+    k4a_stream_result_t stream_result;
     // Read the next capture into memory
     bool succeeded = false;
     while (!succeeded){
         if (file->capture != NULL)
             k4a_capture_release(file->capture);
-        k4a_stream_result_t stream_result = k4a_playback_get_next_capture(file->handle, &file->capture);
+        stream_result = k4a_playback_get_next_capture(file->handle, &file->capture);
         if (stream_result == K4A_STREAM_RESULT_EOF)
         {
             if (file->current_capture_timestamp == 0) {
