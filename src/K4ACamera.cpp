@@ -190,6 +190,7 @@ bool K4ACamera::start()
 	}
 	transformation_handle = k4a_transformation_create(&sensor_calibration);
 
+	/// INITIALIZING BODY TRACKER ///
 	tracker = NULL;
 	k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
 	VERIFY(k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker), "Body tracker initialization failed!");
@@ -298,55 +299,6 @@ void K4ACamera::_capture_thread_main()
 			continue;
 		}
 
-		//// BODY TRACKING
-		//k4a_wait_result_t queue_capture_result = k4abt_tracker_enqueue_capture(tracker, capture_handle, K4A_WAIT_INFINITE);
-		//if (queue_capture_result == K4A_WAIT_RESULT_TIMEOUT)
-		//{
-		//	// It should never hit timeout when K4A_WAIT_INFINITE is set.
-		//	printf("Error! Add capture to tracker process queue timeout!\n");
-		//	break;
-		//}
-		//else if (queue_capture_result == K4A_WAIT_RESULT_FAILED)
-		//{
-		//	printf("Error! Add capture to tracker process queue failed!\n");
-		//	break;
-		//}
-
-		//k4abt_frame_t body_frame = NULL;
-		//k4a_wait_result_t pop_frame_result = k4abt_tracker_pop_result(tracker, &body_frame, K4A_WAIT_INFINITE);
-		//if (pop_frame_result == K4A_WAIT_RESULT_SUCCEEDED)
-		//{
-		//	uint32_t num_bodies = k4abt_frame_get_num_bodies(body_frame);
-		//	printf("%u bodies are detected in Camera %i\n", num_bodies, camera_index);
-
-		//	// Transform each 3d joints from 3d depth space to 2d color image space
-		//	for (uint32_t i = 0; i < num_bodies; i++)
-		//	{
-		//		printf("- Person[%u]:\n", i);
-		//		k4abt_skeleton_t skeleton;
-		//		VERIFY(k4abt_frame_get_body_skeleton(body_frame, i, &skeleton), "Get body from body frame failed!");
-		//		for (int joint_id = 0; joint_id < (int)K4ABT_JOINT_COUNT; joint_id++)
-		//		{
-		//			k4a_float3_t::_xyz pos = skeleton.joints[joint_id].position.xyz; //millimiters
-		//			k4abt_joint_confidence_level_t confidence =  skeleton.joints[joint_id].confidence_level;
-		//			k4a_quaternion_t orientation = skeleton.joints[joint_id].orientation;
-		//			std::cout << "\tJoint " << joint_id << " : \t(" << pos.x << "," << pos.y << "," << pos.z << ")\t\tconfidence_level = " << confidence << "\t orientation: (" << orientation.wxyz.w << "," << orientation.wxyz.x << "," << orientation.wxyz.y << "," << orientation.wxyz.z << ")"<< std::endl;
-		//		}
-		//	}
-		//}
-		//else if (pop_frame_result == K4A_WAIT_RESULT_TIMEOUT)
-		//{
-		//	//  It should never hit timeout when K4A_WAIT_INFINITE is set.
-		//	printf("Error! Pop body frame result timeout! Camera %i\n", camera_index);
-		//	break;
-		//}
-		//else
-		//{
-		//	printf("Pop body frame result failed! Camera %i\n", camera_index);
-		//	break;
-		//}
-		/////
-
 		assert(capture_handle != NULL);
 #ifdef CWIPC_DEBUG_THREAD
 		k4a_image_t color = k4a_capture_get_color_image(capture_handle);
@@ -409,6 +361,67 @@ void K4ACamera::_processing_thread_main()
 #endif
 		assert(processing_frameset);
 		std::lock_guard<std::mutex> lock(processing_mutex);
+
+		// BODY TRACKING
+		k4a_wait_result_t queue_capture_result = k4abt_tracker_enqueue_capture(tracker, processing_frameset, K4A_WAIT_INFINITE);
+		if (queue_capture_result == K4A_WAIT_RESULT_TIMEOUT)
+		{
+			// It should never hit timeout when K4A_WAIT_INFINITE is set.
+			printf("Error! Add capture to tracker process queue timeout!\n");
+		}
+		else if (queue_capture_result == K4A_WAIT_RESULT_FAILED)
+		{
+			printf("Error! Add capture to tracker process queue failed!\n");
+		}
+
+		k4abt_frame_t body_frame = NULL;
+		k4a_wait_result_t pop_frame_result = k4abt_tracker_pop_result(tracker, &body_frame, K4A_WAIT_INFINITE);
+		if (pop_frame_result == K4A_WAIT_RESULT_SUCCEEDED)
+		{
+			uint32_t num_bodies = k4abt_frame_get_num_bodies(body_frame);
+			if (num_bodies > 0) {
+				printf("\n%u bodies are detected in Camera %i\n", num_bodies, camera_index);
+
+				// Transform each 3d joints from 3d depth space to 2d color image space
+				// We assume only one body in the scene (Body[0])
+				printf("- Person[%u]:\n", 0);
+				k4abt_skeleton_t skeleton;
+				VERIFY(k4abt_frame_get_body_skeleton(body_frame, 0, &skeleton), "Get body from body frame failed!");
+				for (int joint_id = 0; joint_id < (int)K4ABT_JOINT_COUNT; joint_id++)
+				{
+					k4a_float3_t::_xyz pos = skeleton.joints[joint_id].position.xyz; //millimiters
+					cwipc_pcl_point point;
+					point.x = pos.x;
+					point.y = pos.y;
+					point.z = pos.z;
+					transformPoint(point);
+					pos.x = point.x;
+					pos.y = point.y;
+					pos.z = point.z;
+					skeleton.joints[joint_id].position.xyz = pos;
+					k4abt_joint_confidence_level_t confidence = skeleton.joints[joint_id].confidence_level;
+					k4a_quaternion_t orientation = skeleton.joints[joint_id].orientation;
+					std::cout << "\tJoint " << joint_id << " : \t(" << pos.x << "," << pos.y << "," << pos.z << ")\t\tconfidence_level = " << confidence << "\t orientation_wxyz: (" << orientation.wxyz.w << "," << orientation.wxyz.x << "," << orientation.wxyz.y << "," << orientation.wxyz.z << ")" << std::endl;
+				}
+				camData.skeleton = skeleton;
+			}
+		}
+		else if (pop_frame_result == K4A_WAIT_RESULT_TIMEOUT)
+		{
+			//  It should never hit timeout when K4A_WAIT_INFINITE is set.
+			printf("Error! Pop body frame result timeout! Camera %i\n", camera_index);
+		}
+		else
+		{
+			printf("Pop body frame result failed! Camera %i\n", camera_index);
+		}
+		///END_BODY TRACKING
+
+
+
+
+
+
 		depth = k4a_capture_get_depth_image(processing_frameset);
 		color = k4a_capture_get_color_image(processing_frameset);
 
@@ -574,52 +587,6 @@ void K4ACamera::create_pc_from_frames()
 		std::cerr << "cwipc_kinect: camera " << serial << ": drop frame before processing" << std::endl;
 		k4a_capture_release(current_frameset);
 	}
-
-	// BODY TRACKING
-	k4a_wait_result_t queue_capture_result = k4abt_tracker_enqueue_capture(tracker, current_frameset, K4A_WAIT_INFINITE);
-	if (queue_capture_result == K4A_WAIT_RESULT_TIMEOUT)
-	{
-		// It should never hit timeout when K4A_WAIT_INFINITE is set.
-		printf("Error! Add capture to tracker process queue timeout!\n");
-	}
-	else if (queue_capture_result == K4A_WAIT_RESULT_FAILED)
-	{
-		printf("Error! Add capture to tracker process queue failed!\n");
-	}
-
-	k4abt_frame_t body_frame = NULL;
-	k4a_wait_result_t pop_frame_result = k4abt_tracker_pop_result(tracker, &body_frame, K4A_WAIT_INFINITE);
-	if (pop_frame_result == K4A_WAIT_RESULT_SUCCEEDED)
-	{
-		uint32_t num_bodies = k4abt_frame_get_num_bodies(body_frame);
-		printf("\n%u bodies are detected in Camera %i\n", num_bodies, camera_index);
-
-		// Transform each 3d joints from 3d depth space to 2d color image space
-		for (uint32_t i = 0; i < num_bodies; i++)
-		{
-			printf("- Person[%u]:\n", i);
-			k4abt_skeleton_t skeleton;
-			VERIFY(k4abt_frame_get_body_skeleton(body_frame, i, &skeleton), "Get body from body frame failed!");
-			for (int joint_id = 0; joint_id < (int)K4ABT_JOINT_COUNT; joint_id++)
-			{
-				k4a_float3_t::_xyz pos = skeleton.joints[joint_id].position.xyz; //millimiters
-				k4abt_joint_confidence_level_t confidence = skeleton.joints[joint_id].confidence_level;
-				k4a_quaternion_t orientation = skeleton.joints[joint_id].orientation;
-				std::cout << "\tJoint " << joint_id << " : \t(" << pos.x << "," << pos.y << "," << pos.z << ")\t\tconfidence_level = " << confidence << "\t orientation: (" << orientation.wxyz.w << "," << orientation.wxyz.x << "," << orientation.wxyz.y << "," << orientation.wxyz.z << ")" << std::endl;
-			}
-		}
-	}
-	else if (pop_frame_result == K4A_WAIT_RESULT_TIMEOUT)
-	{
-		//  It should never hit timeout when K4A_WAIT_INFINITE is set.
-		printf("Error! Pop body frame result timeout! Camera %i\n", camera_index);
-	}
-	else
-	{
-		printf("Pop body frame result failed! Camera %i\n", camera_index);
-	}
-	///
-
 	current_frameset = NULL;
 }
 

@@ -18,6 +18,7 @@
 // Definitions of types used across cwipc_kinect, cwipc_codec and cwipc_util.
 //
 #include "cwipc_util/api_pcl.h"
+#include <k4abt.h>
 
 struct K4ACameraSettings {
 	bool do_threshold = true;
@@ -38,11 +39,12 @@ struct K4ACameraSettings {
 
 struct K4ACameraData {
 	std::string serial;		// Serial number of this camera
-	std::string type = "kinect";       // Camera type (must be realsense)
+	std::string type = "kinect";       // Camera type (must be kinect)
 	pcl::shared_ptr<Eigen::Affine3d> trafo;	//!< Transformation matrix from camera coorindates to world coordinates
 	pcl::shared_ptr<Eigen::Affine3d> intrinsicTrafo;	//!< offline only: matrix to convert color to depth coordinates
 	cwipc_vector cameraposition;	//!< Position of this camera in real world coordinates
 	cwipc_pcl_pointcloud cloud;	//!< Pointcloud most recently captured
+	k4abt_skeleton_t skeleton; // Skeleton extraxted from the body tracking
 };
 
 struct K4ACaptureConfig {
