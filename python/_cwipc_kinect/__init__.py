@@ -46,6 +46,22 @@ def cwipc_kinect(conffile=None):
     if rv:
         return cwipc_tiledsource(rv)
     return None
+
+def cwipc_k4aoffline(conffile=None):
+    """Returns a cwipc_source object that grabs from kinect camera recordings and returns cwipc objects on every get() call."""
+    errorString = ctypes.c_char_p()
+    if conffile:
+        conffile = conffile.encode('utf8')
+    else:
+        conffile = None
+    rv = _cwipc_kinect_dll().cwipc_k4aoffline(conffile, ctypes.byref(errorString), CWIPC_API_VERSION)
+    if errorString and not rv:
+        raise CwipcError(errorString.value.decode('utf8'))
+    if errorString:
+        warnings.warn(errorString.value.decode('utf8'))
+    if rv:
+        return cwipc_tiledsource(rv)
+    return None
          
 def main():
     grabber = cwipc_kinect()

@@ -43,6 +43,8 @@ bool prepare_next_valid_frame(recording_t* file) {
     // Read the next capture into memory
     bool succeeded = false;
     while (!succeeded){
+        if (file->capture != NULL)
+            k4a_capture_release(file->capture);
         k4a_stream_result_t stream_result = k4a_playback_get_next_capture(file->handle, &file->capture);
         if (stream_result == K4A_STREAM_RESULT_EOF)
         {
@@ -75,10 +77,13 @@ bool prepare_next_valid_frame(recording_t* file) {
         if (depth == NULL) {
             if (!first)
                 std::cerr << "Depth is missing in capture " << file->capture_id << " from " << file->filename << std::endl;
+            k4a_image_release(color);
             continue;
         }
         file->current_capture_timestamp = k4a_image_get_device_timestamp_usec(color);
         succeeded = true;
+        k4a_image_release(color);
+        k4a_image_release(depth);
     }
     return succeeded;
 }
@@ -147,7 +152,7 @@ int main(int argc, char* argv[])
 	recording_t* files = (recording_t*) malloc(sizeof(recording_t) * file_count);
 	if (files == NULL)
 	{
-		std::cerr << "Failed to allocate memory for playback (" << sizeof(recording_t) * file_count << " bytes)" << std::endl);
+		std::cerr << "Failed to allocate memory for playback (" << sizeof(recording_t) * file_count << " bytes)" << std::endl;
 		return 1;
 	}
 	memset(files, 0, sizeof(recording_t) * file_count);

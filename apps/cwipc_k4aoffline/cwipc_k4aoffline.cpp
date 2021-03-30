@@ -41,6 +41,7 @@ int main(int argc, char** argv)
     std::string outputdir(argv[2]);
     if (!dirExists(outputdir)) {
         std::cerr << "Selected output dir " << outputdir << " does not exist" << std::endl;
+        return -1;
     }
 
     std::string configFile(inputdir);

@@ -239,6 +239,7 @@ K4AOfflineCapture::~K4AOfflineCapture() {
 cwipc_pcl_pointcloud K4AOfflineCapture::get_pointcloud(uint64_t* timestamp)
 {
 	if (no_cameras) return nullptr;
+	*timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	_request_new_pointcloud();
 	// Wait for a fresh mergedPC to become available.
 	// Note we keep the return value while holding the lock, so we can start the next grab/process/merge cycle before returning.
@@ -250,7 +251,7 @@ cwipc_pcl_pointcloud K4AOfflineCapture::get_pointcloud(uint64_t* timestamp)
 		numberOfPCsProduced++;
 		rv = mergedPC;
 	}
-	*timestamp = current_ts;
+	//*timestamp = current_ts;
 	_request_new_pointcloud();
 	return rv;
 }
