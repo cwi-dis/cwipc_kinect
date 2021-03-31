@@ -50,7 +50,8 @@ find_package(KINECT REQUIRED)
 include_directories(${KINECT_INCLUDE_DIRS})
 link_directories(${KINECT_LIBRARY_DIRS})
 
-
+# Set policy to adhere to JPEG_Turbo_ROOT (default is ignore, which will not work on win10)
+cmake_policy(SET CMP0074 NEW)
 find_package(JPEG_Turbo REQUIRED)
 include_directories(${JPEG_Turbo_INCLUDE_DIR})
 link_directories(${JPEG_Turbo_LIBRARY_DIR})
