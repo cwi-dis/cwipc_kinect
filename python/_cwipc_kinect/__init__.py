@@ -6,6 +6,7 @@ from cwipc.util import cwipc_tiledsource_p
 
 __all__ = [
     "cwipc_kinect",
+    "cwipc_k4aoffline",
     "_cwipc_kinect_dll"
 ]
 

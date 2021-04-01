@@ -181,8 +181,7 @@ public:
 };
 
 
-class cwipc_source_k4aoffline_impl : public cwipc_tiledsource
-{
+class cwipc_source_k4aoffline_impl : public cwipc_tiledsource{
 protected:
 	K4AOfflineCapture *m_offline;
 public:
@@ -342,13 +341,13 @@ cwipc_tiledsource* cwipc_k4aoffline(const char* configFilename, char** errorMess
 	return NULL;
 }
 
-void cwipc_offline_free(cwipc_offline* obj)
-{
-	obj->free();
-}
-
-cwipc_tiledsource* cwipc_offline_get_source(cwipc_offline* obj)
-{
-	return obj->get_source();
-}
+//void cwipc_offline_free(cwipc_offline* obj)
+//{
+//	obj->free();
+//}
+//
+//cwipc_tiledsource* cwipc_offline_get_source(cwipc_offline* obj)
+//{
+//	return obj->get_source();
+//}
 

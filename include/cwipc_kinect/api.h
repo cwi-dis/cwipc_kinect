@@ -19,15 +19,15 @@
  * Note that the image data fed into the converter with feed() must be kept alive
  * until the resulting pointcloud has been retrieved with get_source()->get().
  */
-class cwipc_offline {
-public:
-	virtual ~cwipc_offline() {};
-
-	virtual void free() = 0;
-	/** \brief Return the pointcloud source for this converter.
-	 */
-	virtual cwipc_tiledsource* get_source() = 0;
-};
+//class cwipc_offline {
+//public:
+//	virtual ~cwipc_offline() {};
+//
+//	virtual void free() = 0;
+//	/** \brief Return the pointcloud source for this converter.
+//	 */
+//	virtual cwipc_tiledsource* get_source() = 0;
+//};
 #else
 
 /** \brief Abstract interface to a single pointcloud, C-compatible placeholder.
@@ -74,11 +74,11 @@ _CWIPC_KINECT_EXPORT cwipc_tiledsource* cwipc_k4aoffline(const char* configFilen
 
 /** \brief Free the offline converter.
  */
-_CWIPC_KINECT_EXPORT void cwipc_offline_free(cwipc_offline* obj);
-
-/** \brief Return the pointcloud source for this converter.
- */
-_CWIPC_KINECT_EXPORT cwipc_tiledsource* cwipc_offline_get_source(cwipc_offline* obj);
+//_CWIPC_KINECT_EXPORT void cwipc_offline_free(cwipc_offline* obj);
+//
+///** \brief Return the pointcloud source for this converter.
+// */
+//_CWIPC_KINECT_EXPORT cwipc_tiledsource* cwipc_offline_get_source(cwipc_offline* obj);
 
 
 
