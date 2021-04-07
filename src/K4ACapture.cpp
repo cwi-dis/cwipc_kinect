@@ -495,7 +495,7 @@ void K4ACapture::merge_views()
 		cwipc_pcl_pointcloud cam_cld = cd.cloud;
 		nPoints += cam_cld->size();
 	}
-	mergedPC->reserve(nPoints);
+	mergedPC->reserve(nPoints+32);
 	// Now merge all pointclouds
 	for (K4ACameraData cd : configuration.cameraData) {
 		cwipc_pcl_pointcloud cam_cld = cd.cloud;
@@ -517,16 +517,27 @@ void K4ACapture::merge_views()
 					joint_pos.x += cd.skeletons[0].joints[joint_id].position.xyz.x;
 					joint_pos.y += cd.skeletons[0].joints[joint_id].position.xyz.y;
 					joint_pos.z += cd.skeletons[0].joints[joint_id].position.xyz.z;
+					int color[3] = {0, 0, 0};
+					if (cd.skeletons[0].joints[joint_id].confidence_level == K4ABT_JOINT_CONFIDENCE_HIGH) {
+						color[1] = 255;
+					}
+					else if (cd.skeletons[0].joints[joint_id].confidence_level == K4ABT_JOINT_CONFIDENCE_MEDIUM) {
+						color[0] = 255;
+						color[1] = 165;
+					}
+					else {
+						color[0] = 255;
+					}
+					joint_pos.r = color[0];
+					joint_pos.g = color[1];
+					joint_pos.b = color[2];
+					joint_pos.a = 8;
 					//printf("\tCam %s (%f,%f,%f)\n", cd.serial,cd.skeletons[0].joints[joint_id].position.xyz.x, cd.skeletons[0].joints[joint_id].position.xyz.y, cd.skeletons[0].joints[joint_id].position.xyz.z);
 				}
 			}
 			joint_pos.x /= numsk; //configuration.cameraData.size();
 			joint_pos.y /= numsk; //configuration.cameraData.size();
 			joint_pos.z /= numsk; //configuration.cameraData.size();
-			joint_pos.r = 255;
-			joint_pos.g = 0;
-			joint_pos.b = 0;
-			joint_pos.a = 8;
 			skl->push_back(joint_pos);
 			//printf("Fusion (%f,%f,%f)\n", joint_pos.x, joint_pos.y, joint_pos.z);
 			//printf("%f %f %f\n", joint_pos.x, joint_pos.y, joint_pos.z);
@@ -540,14 +551,14 @@ void K4ACapture::merge_views()
 			std::cout << "Writed skeleton = " << fn << std::endl;
 	}
 	else {
-		/*std::cout << "No skeleton found" << std::endl;
+		std::cout << "No skeleton found" << std::endl;
 		for (int i = 0; i < 32; i++) {
 			cwipc_pcl_point joint_pos;
 			joint_pos.a = 4;
 			skl->push_back(joint_pos);
-		}*/
+		}
 	}
-	//*mergedPC += *skl;
+	*mergedPC += *skl;
 
 }
 

@@ -51,6 +51,7 @@ protected:
 	virtual void _start_capture_thread();
 	virtual void _capture_thread_main();
 	void transformPoint(cwipc_pcl_point& pt);
+	void transformDepthToColorPoint(cwipc_pcl_point& pt);
 private:
 	K4ACameraData& camData;
 	K4ACameraSettings& camSettings;
@@ -77,6 +78,7 @@ private:
 
 
 	k4abt_tracker_t tracker;
+	k4a_calibration_extrinsics_t depth_to_color_extrinsics;
 
 	void _init_filters();
 

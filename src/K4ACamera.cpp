@@ -188,6 +188,7 @@ bool K4ACamera::start()
 		std::cerr << "cwipc_kinect: Failed to k4a_device_get_calibration" << std::endl;
 		return false;
 	}
+	depth_to_color_extrinsics = sensor_calibration.extrinsics[0][1];
 	transformation_handle = k4a_transformation_create(&sensor_calibration);
 
 	/// INITIALIZING BODY TRACKER ///
@@ -406,7 +407,7 @@ void K4ACamera::_processing_thread_main()
 
 		// BODY TRACKING
 		//add transformed depth to the capture for body tracking
-		k4a_capture_set_depth_image(processing_frameset, transformed_depth);
+		//k4a_capture_set_depth_image(processing_frameset, transformed_depth);
 		k4a_wait_result_t queue_capture_result = k4abt_tracker_enqueue_capture(tracker, processing_frameset, K4A_WAIT_INFINITE);
 		if (queue_capture_result == K4A_WAIT_RESULT_TIMEOUT)
 		{
@@ -440,7 +441,8 @@ void K4ACamera::_processing_thread_main()
 						point.x = pos.x;
 						point.y = pos.y;
 						point.z = pos.z;
-						//transformPoint(point);
+						transformDepthToColorPoint(point);
+						transformPoint(point);
 						pos.x = point.x;
 						pos.y = point.y;
 						pos.z = point.z;
@@ -505,7 +507,7 @@ void K4ACamera::_processing_thread_main()
 				point.x = x;
 				point.y = y;
 				point.z = z;
-				//transformPoint(point);
+				transformPoint(point);
 				if (do_height_filtering && (point.y < height_min || point.y > height_max)) continue;
 				if (!do_greenscreen_removal || cwipc_k4a_noChromaRemoval(&point)) // chromakey removal
 					camData.cloud->push_back(point);
@@ -586,6 +588,18 @@ void K4ACamera::transformPoint(cwipc_pcl_point& pt)
 	pt.x = (*camData.trafo)(0,0)*x + (*camData.trafo)(0,1)*y + (*camData.trafo)(0,2)*z + (*camData.trafo)(0,3);
 	pt.y = (*camData.trafo)(1,0)*x + (*camData.trafo)(1,1)*y + (*camData.trafo)(1,2)*z + (*camData.trafo)(1,3);
 	pt.z = (*camData.trafo)(2,0)*x + (*camData.trafo)(2,1)*y + (*camData.trafo)(2,2)*z + (*camData.trafo)(2,3);
+}
+
+void K4ACamera::transformDepthToColorPoint(cwipc_pcl_point& pt)
+{
+	float x = pt.x;
+	float y = pt.y;
+	float z = pt.z;
+	float *rotation = depth_to_color_extrinsics.rotation;
+	float *translation = depth_to_color_extrinsics.rotation;
+	pt.x = rotation[0] * x + rotation[1] * y + rotation[2] * z + translation[0];
+	pt.y = rotation[3] * x + rotation[4] * y + rotation[5] * z + translation[1];
+	pt.z = rotation[6] * x + rotation[7] * y + rotation[8] * z + translation[2];
 }
 
 void K4ACamera::create_pc_from_frames()
