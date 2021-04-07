@@ -44,7 +44,7 @@ struct K4ACameraData {
 	pcl::shared_ptr<Eigen::Affine3d> intrinsicTrafo;	//!< offline only: matrix to convert color to depth coordinates
 	cwipc_vector cameraposition;	//!< Position of this camera in real world coordinates
 	cwipc_pcl_pointcloud cloud;	//!< Pointcloud most recently captured
-	k4abt_skeleton_t skeleton; // Skeleton extraxted from the body tracking
+	std::vector<k4abt_skeleton_t> skeletons; // Skeleton extracted using the body tracking sdk
 };
 
 struct K4ACaptureConfig {

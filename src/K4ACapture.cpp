@@ -359,11 +359,12 @@ float K4ACapture::get_pointSize()
 {
     if (no_cameras) return 0;
 	float rv = 99999;
-	for (auto cam : cameras) {
+	return 0.005;
+	/*for (auto cam : cameras) {
 		if (cam->pointSize < rv) rv = cam->pointSize;
 	}
 	if (rv > 9999) rv = 0;
-	return rv;
+	return rv;*/
 }
 
 bool K4ACapture::pointcloud_available(bool wait)
@@ -486,7 +487,7 @@ void K4ACapture::_request_new_pointcloud()
 
 void K4ACapture::merge_views()
 {
-	cwipc_pcl_pointcloud aligned_cld(new_cwipc_pcl_pointcloud());
+	//cwipc_pcl_pointcloud aligned_cld(new_cwipc_pcl_pointcloud()); //NOT USED?
 	mergedPC->clear();
 	// Pre-allocate space in the merged pointcloud
 	size_t nPoints = 0;
@@ -500,6 +501,54 @@ void K4ACapture::merge_views()
 		cwipc_pcl_pointcloud cam_cld = cd.cloud;
 		*mergedPC += *cam_cld;
 	}
+	cwipc_pcl_pointcloud skl = new_cwipc_pcl_pointcloud();
+	size_t sk_points = 32;
+	skl->reserve(sk_points);
+	//merge skeletons using average
+	if (configuration.cameraData[0].skeletons.size() > 0) {
+		//printf("skeletons merge:\n");
+		for (int joint_id = 0; joint_id < 32; joint_id++) {
+			cwipc_pcl_point joint_pos;
+			//printf("Joint %i:\n", joint_id);
+			int numsk = 0;
+			for (K4ACameraData cd : configuration.cameraData) {
+				if (cd.skeletons.size() > 0) {
+					numsk++;
+					joint_pos.x += cd.skeletons[0].joints[joint_id].position.xyz.x;
+					joint_pos.y += cd.skeletons[0].joints[joint_id].position.xyz.y;
+					joint_pos.z += cd.skeletons[0].joints[joint_id].position.xyz.z;
+					//printf("\tCam %s (%f,%f,%f)\n", cd.serial,cd.skeletons[0].joints[joint_id].position.xyz.x, cd.skeletons[0].joints[joint_id].position.xyz.y, cd.skeletons[0].joints[joint_id].position.xyz.z);
+				}
+			}
+			joint_pos.x /= numsk; //configuration.cameraData.size();
+			joint_pos.y /= numsk; //configuration.cameraData.size();
+			joint_pos.z /= numsk; //configuration.cameraData.size();
+			joint_pos.r = 255;
+			joint_pos.g = 0;
+			joint_pos.b = 0;
+			joint_pos.a = 8;
+			skl->push_back(joint_pos);
+			//printf("Fusion (%f,%f,%f)\n", joint_pos.x, joint_pos.y, joint_pos.z);
+			//printf("%f %f %f\n", joint_pos.x, joint_pos.y, joint_pos.z);
+		}
+		uint64_t t = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		std::string fn = "skeleton_" + std::to_string(t) + ".ply";
+		cwipc* rv = cwipc_from_pcl(skl, t, NULL, CWIPC_API_VERSION);
+		char* error = NULL;
+		int ok = cwipc_write(fn.c_str(), rv, &error);
+		if (ok==0)
+			std::cout << "Writed skeleton = " << fn << std::endl;
+	}
+	else {
+		/*std::cout << "No skeleton found" << std::endl;
+		for (int i = 0; i < 32; i++) {
+			cwipc_pcl_point joint_pos;
+			joint_pos.a = 4;
+			skl->push_back(joint_pos);
+		}*/
+	}
+	//*mergedPC += *skl;
+
 }
 
 K4ACameraData& K4ACapture::get_camera_data(std::string serial) {

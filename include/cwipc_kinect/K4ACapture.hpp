@@ -54,5 +54,6 @@ private:
 	std::condition_variable mergedPC_is_fresh_cv;             // Condition variable for signalling freshly-created pointcloud
 	bool mergedPC_want_new;                                   // Set to true to request a new pointcloud
 	std::condition_variable mergedPC_want_new_cv;             // Condition variable for signalling we want a new pointcloud
+	k4abt_skeleton_t skeleton;
 };
 #endif // cwipc_realsense_MFCapture_hpp
