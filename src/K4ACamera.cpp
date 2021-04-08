@@ -280,7 +280,7 @@ void K4ACamera::_capture_thread_main()
 			break;
 		}
 		k4a_wait_result_t ok = k4a_device_get_capture(device_handle, &capture_handle, 5000);
-		if (ok != K4A_RESULT_SUCCEEDED) {
+		if (ok != K4A_WAIT_RESULT_SUCCEEDED) {
 			std::cerr << "cwipc_kinect: camera " << serial << ": error " << ok << std::endl;
 			cwipc_k4a_log_warning("k4a_device_get_capture failed");
 			k4a_capture_release(capture_handle);
