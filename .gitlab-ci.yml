@@ -129,7 +129,7 @@ build_win:
     - export ziplocation=$(pwd)/cwipc_kinect_win1064_$CI_BUILD_TAG.zip
     - export CTEST_OUTPUT_ON_FAILURE=1
     - cd build
-    - cmake .. -G "Visual Studio 16 2019" -DCMAKE_INSTALL_PREFIX="C:/dist-win/installed"
+    - cmake .. -G "Visual Studio 16 2019" -DCMAKE_INSTALL_PREFIX="C:/dist-win/installed" -DJPEG_Turbo_ROOT="C:/libjpeg-turbo64"
     - cmake --build . --config Release
     - cmake --build . --config Release --target RUN_TESTS
     - find /cygdrive/c/dist-win -type f -print > previously-installed.txt
