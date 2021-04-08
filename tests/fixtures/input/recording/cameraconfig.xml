@@ -1,0 +1,18 @@
+<file>
+    <CameraConfig version="2">
+        <system color_backlight_compensation="-1" color_brightness="-1" color_contrast="-1" color_exposure_time="-1" color_gain="-1" color_height="720" color_powerline_frequency="-1" color_saturation="-1" color_sharpness="-1" color_whitebalance="-1" colormaster="1" depth_height="576" fps="5" sync_master_serial="000123102712" />
+        <postprocessing greenscreenremoval="0" height_max="2.4" height_min="0.05">
+            <depthfilterparameters depth_x_erosion="5" depth_y_erosion="5" do_threshold="1" threshold_far="2.30" threshold_near="0.2" />
+        </postprocessing>
+        <camera serial="000123102712" filename="output_master.mkv" type="kinect">
+            <trafo>
+                <values v00="0.007344491623369485" v01="-0.9981811571967277" v02="0.059836743395630845" v03="-0.07334035977700905" v10="0.9897877540322124" v11="-0.001262138111529647" v12="-0.14254335822919875" v13="1.3680613546597982" v20="0.1423596165022389" v21="0.06027258435464461" v22="0.9879782159362365" v23="-1.780479380550411" v30="0.0" v31="0.0" v32="0.0" v33="1.0" />
+            </trafo>
+        </camera>
+		<camera serial="000174202712" filename="output_sub_1.mkv" type="kinect">
+            <trafo>
+                <values v00="0.16938642841444324" v01="-0.4377945932655809" v02="0.8829745930526122" v03="-1.6333902914757799" v10="0.9846836022479792" v11="0.03762530765219245" v12="-0.17024259069933734" v13="1.3892248544283055" v20="0.041309095039021" v21="0.8982873873830706" v22="0.43746237362263957" v23="-0.7984414958899111" v30="0.0" v31="0.0" v32="0.0" v33="1.0" />
+            </trafo>
+        </camera>
+    </CameraConfig>
+</file>
