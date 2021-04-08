@@ -10,4 +10,4 @@ target_link_libraries(cwipc_k4aoffline_check cwipc_kinect cwipc_util ${PCL_LIBRA
 
 install(TARGETS cwipc_k4aoffline_check RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-# add_test(NAME cwipc_rs2offline COMMAND cwipc_rs2offline input/offlineconfig.xml input/color.png input/depth.png output/rs2offline.ply WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/tests/fixtures )
+add_test(NAME cwipc_k4aoffline_check COMMAND cwipc_k4aoffline_check ${CMAKE_SOURCE_DIR}/tests/fixtures/input/recording/output_master.mkv ${CMAKE_SOURCE_DIR}/tests/fixtures/input/recording/output_sub_1.mkv ) 
