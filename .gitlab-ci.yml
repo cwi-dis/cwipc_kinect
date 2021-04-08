@@ -6,7 +6,8 @@ stages:
 build_linux:
   stage: build
   tags:
-    - ubuntu1804
+    - ubuntu2004
+    - vrtogether
   except: 
   - /latest/
   variables:
@@ -18,7 +19,7 @@ build_linux:
     - apt-get install -y software-properties-common
     - apt-get install -y git
     - apt-get install -y cmake
-    - apt-get install -y libpcl-dev libpcl-common1.8 libpcl-io1.8
+    - apt-get install -y libpcl-dev
     - apt-get install -y libusb-1.0 libusb-dev
     - apt-get install -y libglfw3 libglfw3-dev
 # Install realsense2 from its private list of repos
@@ -31,35 +32,36 @@ build_linux:
     - apt-get install -y python3-pip
     - mkdir deployment-helpers
     - cd deployment-helpers
-    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@baltig.viaccess-orca.com:8443/VRT/deployment-group/Deployment
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/VRTogether_EU/Deployment/Deployment
     - python3 -m pip install -r Deployment/scripts/requirements.txt
     - cd ..
 # Get and install cwipc_util
     - if [ "$CI_COMMIT_TAG" = "" ]; then REL_CWIPC_UTIL="--release_name latest"; else REL_CWIPC_UTIL="--release_name $CI_COMMIT_TAG"; fi
     - echo Getting cwipc_util $REL_CWIPC_UTIL
     - python3 deployment-helpers/Deployment/scripts/getReleaseFromGitLab --cicd --project_name cwipc_util $REL_CWIPC_UTIL
-    - tar --directory /usr/local -xvf cwipc_util_ubuntu1804_*.tgz
+    - tar --directory /usr/local -xvf cwipc_util_ubuntu2004_*.tgz
   script:
     - mkdir -p build
-    - mkdir -p dist-ubuntu1804
+    - mkdir -p dist-ubuntu2004
     - cd build
     - cmake ..
     - make
     - make test ARGS=--output-on-failure
-    - make install DESTDIR=../dist-ubuntu1804
+    - make install DESTDIR=../dist-ubuntu2004
     - cd ..
-    - tar --directory dist-ubuntu1804/usr/local -cvaf cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz .
+    - tar --directory dist-ubuntu2004/usr/local -cvaf cwipc_kinect_ubuntu2004_$CI_BUILD_TAG.tgz .
     - touch successful.tmp
   after_script:
     - if [ ! -e successful.tmp -a -e build/Testing/Temporary/LastTest.log ]; then cat build/Testing/Temporary/LastTest.log; fi
   artifacts:
     paths:
-      - cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz
+      - cwipc_kinect_ubuntu2004_$CI_BUILD_TAG.tgz
       
 build_osx:
   stage: build
   tags:
   - osx1014
+  - vrtogether
   except: 
   - /latest/
   only: 
@@ -74,7 +76,7 @@ build_osx:
     - python3 -m pip install pillow numpy open3d
     - mkdir deployment-helpers
     - cd deployment-helpers
-    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@baltig.viaccess-orca.com:8443/VRT/deployment-group/Deployment
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/VRTogether_EU/Deployment/Deployment
     - python3 -m pip install -r Deployment/scripts/requirements.txt
     - cd ..
 # Get and install cwipc_util
@@ -102,6 +104,7 @@ build_win:
   stage: build
   tags:
     - win10
+    - vrtogether
   except: 
   - /latest/
   before_script:
@@ -111,19 +114,20 @@ build_win:
     - python -m pip install pillow numpy open3d
     - mkdir deployment-helpers
     - cd deployment-helpers
-    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@baltig.viaccess-orca.com:8443/VRT/deployment-group/Deployment
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/VRTogether_EU/Deployment/Deployment
     - python -m pip install -r Deployment/scripts/requirements.txt
     - cd ..
 # Get and install cwipc_util
     - if [ "$CI_COMMIT_TAG" = "" ]; then REL_CWIPC_UTIL="--release_name latest"; else REL_CWIPC_UTIL="--release_name $CI_COMMIT_TAG"; fi
     - python deployment-helpers/Deployment/scripts/getReleaseFromGitLab --cicd --project_name cwipc_util $REL_CWIPC_UTIL
     - (zipfile=$PWD/cwipc_util_win1064_*.zip && cd /cygdrive/c/dist-win && unzip $zipfile)
+    - (cd /cygdrive/c/dist-win/installed/share/cwipc_util/python && python setup.py install)
   script:
     - mkdir -p build
     - export ziplocation=$(pwd)/cwipc_kinect_win1064_$CI_BUILD_TAG.zip
     - export CTEST_OUTPUT_ON_FAILURE=1
     - cd build
-    - cmake .. -G "Visual Studio 15 2017 Win64" -DCMAKE_INSTALL_PREFIX="C:/dist-win/installed"
+    - cmake .. -G "Visual Studio 16 2019" -DCMAKE_INSTALL_PREFIX="C:/dist-win/installed"
     - cmake --build . --config Release
     - cmake --build . --config Release --target RUN_TESTS
     - find /cygdrive/c/dist-win -type f -print > previously-installed.txt
@@ -141,6 +145,7 @@ deploy_all:
   stage: deploy
   tags:
     - linux
+    - vrtogether
   only: 
     - tags
   except: 
@@ -154,21 +159,21 @@ deploy_all:
   - apt-get install -y python3-pip
   - mkdir deployment-helpers
   - cd deployment-helpers
-  - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@baltig.viaccess-orca.com:8443/VRT/deployment-group/Deployment
+  - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/VRTogether_EU/Deployment/Deployment
   - python3 -m pip install -r Deployment/scripts/requirements.txt
   - cd ..
   script:
     - mkdir deliverables
-    - mv cwipc_kinect_win1064_$CI_BUILD_TAG.zip cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz  deliverables
+    - mv cwipc_kinect_win1064_$CI_BUILD_TAG.zip cwipc_kinect_ubuntu2004_$CI_BUILD_TAG.tgz  deliverables
 #noyetimplemented    - mv cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz deliverables
-    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --notag cwipc_kinect_win1064_$CI_BUILD_TAG.zip cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz
+    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --notag --package_version `deployment-helpers/Deployment/scripts/mkpackageversion.sh` cwipc_kinect_win1064_$CI_BUILD_TAG.zip cwipc_kinect_ubuntu2004_$CI_BUILD_TAG.tgz
 #notyetimplemented    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --notag  cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz
-  
 
 deploy_all_untagged:
   stage: deploy
   tags:
     - linux
+    - vrtogether
   except: 
     - tags
     - /latest/
@@ -181,15 +186,15 @@ deploy_all_untagged:
   - apt-get install -y python3-pip
   - mkdir deployment-helpers
   - cd deployment-helpers
-  - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@baltig.viaccess-orca.com:8443/VRT/deployment-group/Deployment
+  - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/VRTogether_EU/Deployment/Deployment
   - python3 -m pip install -r Deployment/scripts/requirements.txt
   - cd ..
   script:
     - mkdir deliverables
-    - mv cwipc_kinect_win1064_$CI_BUILD_TAG.zip cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz deliverables
+    - mv cwipc_kinect_win1064_$CI_BUILD_TAG.zip cwipc_kinect_ubuntu2004_$CI_BUILD_TAG.tgz deliverables
 #notyetimplemented    - mv cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz  deliverables
     - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --tag_name latest --release_name latest --deleterelease || true
     - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --tag_name latest --release_name latest --deletetag || true
-    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --tag_name latest --release_name latest --branch_to_tag "$CI_COMMIT_REF_NAME" cwipc_kinect_win1064_$CI_BUILD_TAG.zip cwipc_kinect_ubuntu1804_$CI_BUILD_TAG.tgz
+    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --tag_name latest --release_name latest --branch_to_tag "$CI_COMMIT_REF_NAME" --package_version `deployment-helpers/Deployment/scripts/mkpackageversion.sh` cwipc_kinect_win1064_$CI_BUILD_TAG.zip cwipc_kinect_ubuntu2004_$CI_BUILD_TAG.tgz
 #notyetimplemented    - python3 deployment-helpers/Deployment/scripts/addReleaseToGitLab --cicd --tag_name latest --release_name latest --branch_to_tag "$CI_COMMIT_REF_NAME" cwipc_kinect_osx1014_$CI_BUILD_TAG.tgz 
   

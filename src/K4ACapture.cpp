@@ -80,7 +80,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 		}
 		cd.serial = std::string(serial_buf);
 		serials.push_back(serial_buf);
-		boost::shared_ptr<Eigen::Affine3d> default_trafo(new Eigen::Affine3d());
+		pcl::shared_ptr<Eigen::Affine3d> default_trafo(new Eigen::Affine3d());
 		default_trafo->setIdentity();
 		cd.trafo = default_trafo;
 		cd.intrinsicTrafo = default_trafo;
