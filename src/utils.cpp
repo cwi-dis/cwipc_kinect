@@ -156,6 +156,8 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 			cd->trafo = trafo;
 			cd->intrinsicTrafo = intrinsicTrafo;
 			cd->cameraposition = { 0, 0, 0 };
+			config->cameraData.push_back(*cd);
+			cd = &config->cameraData.back();
 		}
 
         std::string type = cameraElement->Attribute("type");
@@ -228,9 +230,6 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 			val->QueryDoubleAttribute("v33", &(*cd->intrinsicTrafo)(3, 3));
 		}
 
-		config->cameraData.push_back(*cd);
-		//cd = &config->cameraData.back();
-		delete cd;
 		registeredcameras++;
 		cameraElement = cameraElement->NextSiblingElement("camera");
 	}
