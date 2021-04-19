@@ -52,7 +52,7 @@ protected:
 	void transformPoint(cwipc_pcl_point& pt);
 private:
 	K4ACameraData& camData;
-	K4ACameraSettings& camSettings;
+	K4ACameraConfig& camSettings;
 	k4a_transformation_t transformation_handle;
 	moodycamel::BlockingReaderWriterQueue<k4a_capture_t> captured_frame_queue;
 	moodycamel::BlockingReaderWriterQueue<k4a_capture_t> processing_frame_queue;

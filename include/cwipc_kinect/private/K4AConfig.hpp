@@ -20,7 +20,7 @@
 //
 #include "cwipc_util/api_pcl.h"
 
-struct K4ACameraSettings {
+struct K4ACameraConfig {
 	bool do_threshold = true;
 	double threshold_near = 0.15;         // float, near point for distance threshold
 	double threshold_far = 6.0;           // float, far point for distance threshold
@@ -59,7 +59,7 @@ struct K4ACaptureConfig {
 	// special features
 	std::string cwi_special_feature = ""; // Specifier for temporary development specific feature
 
-	K4ACameraSettings default_camera_settings;
+	K4ACameraConfig default_camera_settings;
 	// realsense specific post processing filtering
 
 	// per camera data
