@@ -94,7 +94,8 @@ K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int 
 	camera_started(false),
 	capture_started(false),
 	camData(_camData),
-	camSettings(configuration.default_camera_settings),
+	camSettings(configuration.camera_config),
+	current_pointcloud(nullptr),
 	captured_frame_queue(1),
 	processing_frame_queue(1),
 	current_frameset(NULL),
@@ -126,6 +127,15 @@ K4ACamera::~K4ACamera()
 void K4ACamera::_init_filters()
 {
 	if (!do_depth_filtering) return;
+}
+
+void K4ACamera::_init_pointcloud(int size) 
+{
+	if (current_pointcloud == nullptr) {
+		current_pointcloud = new_cwipc_pcl_pointcloud();
+	}
+	current_pointcloud->clear();
+	current_pointcloud->reserve(size);
 }
 
 bool K4ACamera::capture_frameset()
@@ -456,8 +466,7 @@ void K4ACamera::_processing_thread_main()
 			}
 			// Setup depth filtering, if needed
 			// now loop over images and create points.
-			camData.cloud->clear();
-			camData.cloud->reserve(color_image_width_pixels * color_image_height_pixels);
+			_init_pointcloud(color_image_width_pixels * color_image_height_pixels);
 			for (int i = 0; i < color_image_width_pixels * color_image_height_pixels; i++)
 			{
 				int i_pc = i * 3;
@@ -481,13 +490,13 @@ void K4ACamera::_processing_thread_main()
 				transformPoint(point);
 				if (do_height_filtering && (point.y < height_min || point.y > height_max)) continue;
 				if (!do_greenscreen_removal || isNotGreen(&point)) // chromakey removal
-					camData.cloud->push_back(point);
+					current_pointcloud->push_back(point);
 			}
 #ifdef CWIPC_DEBUG_THREAD
 			std::cerr << "cwipc_kinect: camera " << serial << " produced " << camData.cloud->size() << " point" << std::endl;
 #endif
 		}
-		if (camData.cloud->size() == 0) {
+		if (current_pointcloud->size() == 0) {
 			std::cerr << "cwipc_kinect: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
 			//continue;
 		}

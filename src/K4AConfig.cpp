@@ -53,15 +53,15 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 #ifdef notyet
 		systemElement->QueryBoolAttribute("colormaster", &(config->colormaster));
 #endif
-		systemElement->QueryIntAttribute("color_exposure_time", &(config->default_camera_settings.color_exposure_time));
-		systemElement->QueryIntAttribute("color_whitebalance", &(config->default_camera_settings.color_whitebalance));
-		systemElement->QueryIntAttribute("color_backlight_compensation", &(config->default_camera_settings.color_backlight_compensation));
-		systemElement->QueryIntAttribute("color_brightness", &(config->default_camera_settings.color_brightness));
-		systemElement->QueryIntAttribute("color_contrast", &(config->default_camera_settings.color_contrast));
-		systemElement->QueryIntAttribute("color_saturation", &(config->default_camera_settings.color_saturation));
-		systemElement->QueryIntAttribute("color_sharpness", &(config->default_camera_settings.color_sharpness));
-		systemElement->QueryIntAttribute("color_gain", &(config->default_camera_settings.color_gain));
-		systemElement->QueryIntAttribute("color_powerline_frequency", &(config->default_camera_settings.color_powerline_frequency));
+		systemElement->QueryIntAttribute("color_exposure_time", &(config->camera_config.color_exposure_time));
+		systemElement->QueryIntAttribute("color_whitebalance", &(config->camera_config.color_whitebalance));
+		systemElement->QueryIntAttribute("color_backlight_compensation", &(config->camera_config.color_backlight_compensation));
+		systemElement->QueryIntAttribute("color_brightness", &(config->camera_config.color_brightness));
+		systemElement->QueryIntAttribute("color_contrast", &(config->camera_config.color_contrast));
+		systemElement->QueryIntAttribute("color_saturation", &(config->camera_config.color_saturation));
+		systemElement->QueryIntAttribute("color_sharpness", &(config->camera_config.color_sharpness));
+		systemElement->QueryIntAttribute("color_gain", &(config->camera_config.color_gain));
+		systemElement->QueryIntAttribute("color_powerline_frequency", &(config->camera_config.color_powerline_frequency));
 }
 
     // get the processing related information
@@ -72,15 +72,15 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		postprocessingElement->QueryDoubleAttribute("height_max", &(config->height_max));
         TiXmlElement* parameterElement = postprocessingElement->FirstChildElement("depthfilterparameters");
         if (parameterElement) {
-			parameterElement->QueryBoolAttribute("do_threshold", &(config->default_camera_settings.do_threshold));
-			parameterElement->QueryDoubleAttribute("threshold_near", &(config->default_camera_settings.threshold_near));
-			parameterElement->QueryDoubleAttribute("threshold_far", &(config->default_camera_settings.threshold_far));
-			parameterElement->QueryIntAttribute("depth_x_erosion", &(config->default_camera_settings.depth_x_erosion));
-			parameterElement->QueryIntAttribute("depth_y_erosion", &(config->default_camera_settings.depth_y_erosion));
+			parameterElement->QueryBoolAttribute("do_threshold", &(config->camera_config.do_threshold));
+			parameterElement->QueryDoubleAttribute("threshold_near", &(config->camera_config.threshold_near));
+			parameterElement->QueryDoubleAttribute("threshold_far", &(config->camera_config.threshold_far));
+			parameterElement->QueryIntAttribute("depth_x_erosion", &(config->camera_config.depth_x_erosion));
+			parameterElement->QueryIntAttribute("depth_y_erosion", &(config->camera_config.depth_y_erosion));
 		}
     }
     
-	bool allnewcameras = config->cameraData.size() == 0; // if empty we have to set up a new administration
+	bool allnewcameras = config->camera_data.size() == 0; // if empty we have to set up a new administration
 	int registeredcameras = 0;
 
 	// now get the per camera info
@@ -91,14 +91,14 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		K4ACameraData* cd;
 
 		int i = 0;
-		while (i < config->cameraData.size()) {
-			if (config->cameraData[i].serial == serial) {
-				cd = &config->cameraData[i];
+		while (i < config->camera_data.size()) {
+			if (config->camera_data[i].serial == serial) {
+				cd = &config->camera_data[i];
 				break;
 			}
 			i++;
 		}
-		if (i == config->cameraData.size()) {
+		if (i == config->camera_data.size()) {
 			// this camera was not in the admin yet
 			if (!allnewcameras)
 				loadOkay = false;
@@ -111,8 +111,8 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 			cd->trafo = trafo;
 			cd->intrinsicTrafo = intrinsicTrafo;
 			cd->cameraposition = { 0, 0, 0 };
-			config->cameraData.push_back(*cd);
-			cd = &config->cameraData.back();
+			config->camera_data.push_back(*cd);
+			cd = &config->camera_data.back();
 		}
 
         std::string type = cameraElement->Attribute("type");
@@ -167,7 +167,7 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		registeredcameras++;
 		cameraElement = cameraElement->NextSiblingElement("camera");
 	}
-	if (config->cameraData.size() != registeredcameras)
+	if (config->camera_data.size() != registeredcameras)
 		loadOkay = false;
 
     if (!loadOkay) {

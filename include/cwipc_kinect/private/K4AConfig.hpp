@@ -43,7 +43,6 @@ struct K4ACameraData {
 	pcl::shared_ptr<Eigen::Affine3d> trafo;	//!< Transformation matrix from camera coorindates to world coordinates
 	pcl::shared_ptr<Eigen::Affine3d> intrinsicTrafo;	//!< offline only: matrix to convert color to depth coordinates
 	cwipc_vector cameraposition;	//!< Position of this camera in real world coordinates
-	cwipc_pcl_pointcloud cloud;	//!< Pointcloud most recently captured
 };
 
 struct K4ACaptureConfig {
@@ -56,14 +55,11 @@ struct K4ACaptureConfig {
 	double height_max = 0.0;			  // If height_min != height_max perform height filtering
 
 	std::string sync_master_serial = "";  // If empty run without sync. If non-empty this camera is the sync master
-	// special features
-	std::string cwi_special_feature = ""; // Specifier for temporary development specific feature
-
-	K4ACameraConfig default_camera_settings;
-	// realsense specific post processing filtering
-
+	
+	K4ACameraConfig camera_config;
+	
 	// per camera data
-	std::vector<K4ACameraData> cameraData;
+	std::vector<K4ACameraData> camera_data;
 };
 
 
