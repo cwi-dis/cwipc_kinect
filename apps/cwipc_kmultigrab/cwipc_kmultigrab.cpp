@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
+#include <inttypes.h>
 
 #include "cwipc_util/api_pcl.h"
 #include "cwipc_kinect/api.h"
@@ -44,7 +45,7 @@ int main(int argc, char** argv)
 	count = atoi(argv[1]);
 	while (count-- > 0 && ok == 0) {
 		if (strcmp(argv[2], "-") != 0) {
-			snprintf(filename, sizeof(filename), "%s/pointcloud-%lld.ply", argv[2], timestamps.back());
+			snprintf(filename, sizeof(filename), "%s/pointcloud-%" PRIu64 ".ply", argv[2], timestamps.back());
 			ok = cwipc_write(filename, cwipc_from_pcl(capturepointclouds.back(), timestamps.back(), &error, CWIPC_API_VERSION), &error);
 		}
 		capturepointclouds.pop_back();

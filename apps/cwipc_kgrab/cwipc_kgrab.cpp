@@ -2,6 +2,7 @@
 #include <fstream>
 #include "string.h"
 #include <stdlib.h>
+#include <inttypes.h>
 
 #include "cwipc_util/api.h"
 #include "cwipc_kinect/api.h"
@@ -47,7 +48,7 @@ int main(int argc, char** argv)
             std::cerr << argv[0] << ": warning: empty pointcloud, grabbing again" << std::endl;
         }
 		if (strcmp(argv[2], "-") != 0) {
-			snprintf(filename, sizeof(filename), "%s/pointcloud-%lld.ply", argv[2], pc->timestamp());
+			snprintf(filename, sizeof(filename), "%s/pointcloud-%" PRIu64 ".ply", argv[2], pc->timestamp());
             std::cout << "-> Writing " << filename << std::endl;
 			ok = cwipc_write(filename, pc, &error);
 		}

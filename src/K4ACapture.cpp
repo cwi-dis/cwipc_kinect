@@ -73,7 +73,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 		K4ACameraData cd;
 		char serial_buf[64];
 		size_t serial_buf_size = sizeof(serial_buf) / sizeof(serial_buf[0]);
-		if (k4a_device_get_serialnum(camera_handles[i], serial_buf, &serial_buf_size) != K4A_RESULT_SUCCEEDED) {
+		if (k4a_device_get_serialnum(camera_handles[i], serial_buf, &serial_buf_size) != K4A_BUFFER_RESULT_SUCCEEDED) {
 			cwipc_k4a_log_warning("get_serialnum failed");
 			any_failure = true;
 			continue;
