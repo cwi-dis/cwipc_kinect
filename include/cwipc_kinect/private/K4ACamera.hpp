@@ -8,7 +8,7 @@
 
 #include <k4a/k4a.h>
 
-#include "cwipc_kinect/private/defs.h"
+#include "cwipc_kinect/private/K4AConfig.hpp"
 #include "cwipc_kinect/private/readerwriterqueue.h"
 
 class K4ACamera {

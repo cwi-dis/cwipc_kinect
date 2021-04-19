@@ -4,8 +4,8 @@
 //  Created by Fons Kuijk on 12-12-18.
 //
 
-#ifndef cwipc_kinect_defs_h
-#define cwipc_kinect_defs_h
+#ifndef cwipc_kinect_k4aconfig_hpp
+#define cwipc_kinect_k4aconfig_hpp
 
 #include <pcl/common/transforms.h>
 #include <pcl/common/common_headers.h>
@@ -62,4 +62,4 @@ struct K4ACaptureConfig {
 	// per camera data
 	std::vector<K4ACameraData> cameraData;
 };
-#endif /* cwipc_kinect_defs_h */
+#endif /* cwipc_kinect_k4aconfig_hpp */

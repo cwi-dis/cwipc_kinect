@@ -4,7 +4,7 @@
 //  Created by Fons Kuijk on 12-12-18.
 //
 
-#include "cwipc_kinect/private/defs.h"
+#include "cwipc_kinect/private/K4AConfig.hpp"
 #include "cwipc_kinect/private/utils.h"
 
 #include "tinyxml.h"

@@ -14,7 +14,7 @@
 
 #include <chrono>
 
-#include "cwipc_kinect/private/defs.h"
+#include "cwipc_kinect/private/K4AConfig.hpp"
 #include "cwipc_kinect/private/utils.h"
 #include "cwipc_kinect/private/K4ACapture.hpp"
 #include "cwipc_kinect/private/K4ACamera.hpp"
