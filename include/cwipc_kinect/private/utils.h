@@ -19,9 +19,6 @@ extern char **cwipc_k4a_warning_store;
 
 bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config);
 
-
-bool cwipc_k4a_noChromaRemoval(cwipc_pcl_point* p);
-
 #ifdef _WIN32
 #include <Windows.h>
 inline void _cwipc_setThreadName(std::thread* thr, const wchar_t* name) {

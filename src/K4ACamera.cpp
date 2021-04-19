@@ -24,6 +24,68 @@
 #endif
 
 
+typedef struct HsvColor
+{
+	unsigned char h;
+	unsigned char s;
+	unsigned char v;
+} HsvColor;
+
+
+static HsvColor rgbToHsv(cwipc_pcl_point* pnt)
+{
+	HsvColor hsv;
+	unsigned char rgbMin, rgbMax;
+
+	rgbMin = pnt->r < pnt->g ? (pnt->r < pnt->b ? pnt->r : pnt->b) : (pnt->g < pnt->b ? pnt->g : pnt->b);
+	rgbMax = pnt->r > pnt->g ? (pnt->r > pnt->b ? pnt->r : pnt->b) : (pnt->g > pnt->b ? pnt->g : pnt->b);
+
+	hsv.v = rgbMax;
+	if (hsv.v == 0)
+	{
+		hsv.h = 0;
+		hsv.s = 0;
+		return hsv;
+	}
+
+	hsv.s = 255 * ((long)(rgbMax - rgbMin)) / hsv.v;
+	if (hsv.s == 0)
+	{
+		hsv.h = 0;
+		return hsv;
+	}
+
+	if (rgbMax == pnt->r)
+		hsv.h = 0 + 43 * (pnt->g - pnt->b) / (rgbMax - rgbMin);
+	else if (rgbMax == pnt->g)
+		hsv.h = 85 + 43 * (pnt->b - pnt->r) / (rgbMax - rgbMin);
+	else
+		hsv.h = 171 + 43 * (pnt->r - pnt->g) / (rgbMax - rgbMin);
+
+	return hsv;
+}
+
+static bool isNotGreen(cwipc_pcl_point* p)
+{
+	HsvColor hsv = rgbToHsv(p);
+
+	if (hsv.h >= 60 && hsv.h <= 130) {
+		if (hsv.s >= 0.15 && hsv.v >= 0.15) {
+			// reducegreen
+			if ((p->r * p->b) != 0 && (p->g * p->g) / (p->r * p->b) > 1.5) {
+				p->r *= 1.4;
+				p->b *= 1.4;
+			}
+			else {
+				p->r *= 1.2;
+				p->b *= 1.2;
+			}
+		}
+		return !(hsv.s >= 0.4 && hsv.v >= 0.3);
+	}
+	return true;
+}
+
 K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData)
 :	pointSize(0), minx(0), minz(0), maxz(0),
 	device_handle(_handle),
@@ -419,7 +481,7 @@ void K4ACamera::_processing_thread_main()
 				point.z = z;
 				transformPoint(point);
 				if (do_height_filtering && (point.y < height_min || point.y > height_max)) continue;
-				if (!do_greenscreen_removal || cwipc_k4a_noChromaRemoval(&point)) // chromakey removal
+				if (!do_greenscreen_removal || isNotGreen(&point)) // chromakey removal
 					camData.cloud->push_back(point);
 			}
 #ifdef CWIPC_DEBUG_THREAD
