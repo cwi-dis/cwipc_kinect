@@ -14,11 +14,6 @@
 #include <vld.h>
 #endif
 
-// This is the dll source, so define external symbols as dllexport on windows.
-
-#if defined(WIN32) || defined(_WIN32)
-#define _CWIPC_KINECT_EXPORT __declspec(dllexport)
-#endif
 
 #include "cwipc_kinect/private/defs.h"
 #include "cwipc_kinect/private/utils.h"

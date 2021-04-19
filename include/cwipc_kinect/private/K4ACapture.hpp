@@ -9,17 +9,10 @@
 
 #include "cwipc_kinect/private/defs.h"
 
-#ifndef CWIPC_DLL_ENTRY
-#if defined(WIN32) || defined(_WIN32)
-#define CWIPC_DLL_ENTRY __declspec(dllimport)
-#else
-#define CWIPC_DLL_ENTRY 
-#endif
-#endif
 
 class K4ACamera;
 
-class CWIPC_DLL_ENTRY K4ACapture {
+class K4ACapture {
 protected:
 	K4ACapture(int dummy);
 public:
