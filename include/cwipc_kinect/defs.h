@@ -19,6 +19,12 @@
 //
 #include "cwipc_util/api_pcl.h"
 
+typedef enum
+{
+	SENSOR_MAP_DEPTH_TO_COLOR = 0, //DEFAULT
+	SENSOR_MAP_COLOR_TO_DEPTH,
+} sensor_mapping_t;
+
 struct K4ACameraSettings {
 	bool do_threshold = true;
 	double threshold_near = 0.15;         // float, near point for distance threshold
@@ -34,6 +40,7 @@ struct K4ACameraSettings {
 	int32_t color_sharpness = 2;         // default for manual: 2;
 	int32_t color_gain = 0;              // default for manual: 100;
 	int32_t color_powerline_frequency = 2;     // default for manual: 2;
+	int32_t sensor_mapping = SENSOR_MAP_DEPTH_TO_COLOR; // default DEPTH_TO_COLOR
 };
 
 struct K4ACameraData {
