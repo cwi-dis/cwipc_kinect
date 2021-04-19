@@ -7,6 +7,9 @@
 #ifndef cwipc_kinect_k4aconfig_hpp
 #define cwipc_kinect_k4aconfig_hpp
 
+#include <cstdint>
+#include <thread>
+
 #include <pcl/common/transforms.h>
 #include <pcl/common/common_headers.h>
 #include <pcl/filters/voxel_grid.h>
@@ -62,4 +65,22 @@ struct K4ACaptureConfig {
 	// per camera data
 	std::vector<K4ACameraData> cameraData;
 };
+
+
+struct K4ACaptureConfig;
+
+void cwipc_k4a_log_warning(std::string warning);
+extern char** cwipc_k4a_warning_store;
+
+bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config);
+
+#ifdef _WIN32
+#include <Windows.h>
+inline void _cwipc_setThreadName(std::thread* thr, const wchar_t* name) {
+	HANDLE threadHandle = static_cast<HANDLE>(thr->native_handle());
+	SetThreadDescription(threadHandle, name);
+}
+#else
+inline void _cwipc_setThreadName(std::thread* thr, const wchar_t* name) {}
+#endif
 #endif /* cwipc_kinect_k4aconfig_hpp */

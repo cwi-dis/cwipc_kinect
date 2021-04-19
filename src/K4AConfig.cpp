@@ -5,7 +5,6 @@
 //
 
 #include "cwipc_kinect/private/K4AConfig.hpp"
-#include "cwipc_kinect/private/utils.h"
 
 #include "tinyxml.h"
 

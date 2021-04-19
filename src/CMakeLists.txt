@@ -13,7 +13,7 @@ add_library(cwipc_kinect
 	cwipc_kinect.cpp 
 	K4ACapture.cpp 
 	K4ACamera.cpp 
-	utils.cpp 
+	K4AConfig.cpp 
 	cwipc_pcl_additions.cpp 
 	${TINY_SRC}
 )
@@ -21,7 +21,6 @@ add_library(cwipc_kinect
 target_sources(cwipc_kinect
 	PRIVATE
 	"../include/cwipc_kinect/private/K4AConfig.hpp"
-	"../include/cwipc_kinect/private/utils.h"
 	"../include/cwipc_kinect/private/K4ACapture.hpp"
 	"../include/cwipc_kinect/private/K4ACamera.hpp"
 	"../include/cwipc_kinect/private/readerwriterqueue.h"
