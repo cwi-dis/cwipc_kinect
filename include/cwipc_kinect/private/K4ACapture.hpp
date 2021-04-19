@@ -7,7 +7,7 @@
 #include <condition_variable>
 #include <k4a/k4a.h>
 
-#include "defs.h"
+#include "cwipc_kinect/private/defs.h"
 
 #ifndef CWIPC_DLL_ENTRY
 #if defined(WIN32) || defined(_WIN32)

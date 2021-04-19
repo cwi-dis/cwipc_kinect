@@ -20,13 +20,13 @@
 #define _CWIPC_KINECT_EXPORT __declspec(dllexport)
 #endif
 
-#include "cwipc_kinect/defs.h"
-#include "cwipc_kinect/utils.h"
-#include "cwipc_kinect/K4ACamera.hpp"
+#include "cwipc_kinect/private/defs.h"
+#include "cwipc_kinect/private/utils.h"
+#include "cwipc_kinect/private/K4ACamera.hpp"
 
 #ifdef WITH_DUMP_VIDEO_FRAMES
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "cwipc_kinect/stb_image_write.h"
+#include "cwipc_kinect/private/stb_image_write.h"
 #endif
 
 

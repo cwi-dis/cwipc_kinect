@@ -6,8 +6,8 @@
 #if defined(WIN32) || defined(_WIN32)
 #define _CWIPC_KINECT_EXPORT __declspec(dllexport)
 #endif
-#include "cwipc_kinect/defs.h"
-#include "cwipc_kinect/utils.h"
+#include "cwipc_kinect/private/defs.h"
+#include "cwipc_kinect/private/utils.h"
 
 #include "tinyxml.h"
 

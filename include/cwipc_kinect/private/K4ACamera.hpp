@@ -8,8 +8,8 @@
 
 #include <k4a/k4a.h>
 
-#include "defs.h"
-#include "readerwriterqueue.h"
+#include "cwipc_kinect/private/defs.h"
+#include "cwipc_kinect/private/readerwriterqueue.h"
 
 class K4ACamera {
 private:

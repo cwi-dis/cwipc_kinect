@@ -6,8 +6,8 @@
 #include "cwipc_util/api_pcl.h"
 #include "cwipc_util/api.h"
 #include "cwipc_kinect/api.h"
-#include "cwipc_kinect/utils.h"
-#include "cwipc_kinect/K4ACapture.hpp"
+#include "cwipc_kinect/private/utils.h"
+#include "cwipc_kinect/private/K4ACapture.hpp"
 
 
 // Global variables (constants, really)
