@@ -11,8 +11,6 @@
 #include <pcl/common/common_headers.h>
 #include <pcl/filters/voxel_grid.h>
 
-// Define to enable optional dumping of RGB video frames (to test hardware sync)
-#define WITH_DUMP_VIDEO_FRAMES
 
 //
 // Definitions of types used across cwipc_kinect, cwipc_codec and cwipc_util.

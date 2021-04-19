@@ -26,7 +26,6 @@
 
 #ifdef WITH_DUMP_VIDEO_FRAMES
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "cwipc_kinect/private/stb_image_write.h"
 #endif
 
 
