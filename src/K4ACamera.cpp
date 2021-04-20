@@ -129,15 +129,6 @@ void K4ACamera::_init_filters()
 	if (!do_depth_filtering) return;
 }
 
-void K4ACamera::_init_pointcloud(int size) 
-{
-	if (current_pointcloud == nullptr) {
-		current_pointcloud = new_cwipc_pcl_pointcloud();
-	}
-	current_pointcloud->clear();
-	current_pointcloud->reserve(size);
-}
-
 bool K4ACamera::capture_frameset()
 {
 	if (stopped) return false;
@@ -466,7 +457,8 @@ void K4ACamera::_processing_thread_main()
 			}
 			// Setup depth filtering, if needed
 			// now loop over images and create points.
-			_init_pointcloud(color_image_width_pixels * color_image_height_pixels);
+			cwipc_pcl_pointcloud new_pointcloud = new_cwipc_pcl_pointcloud();
+			new_pointcloud->reserve(color_image_width_pixels * color_image_height_pixels);
 			for (int i = 0; i < color_image_width_pixels * color_image_height_pixels; i++)
 			{
 				int i_pc = i * 3;
@@ -490,8 +482,9 @@ void K4ACamera::_processing_thread_main()
 				transformPoint(point);
 				if (do_height_filtering && (point.y < height_min || point.y > height_max)) continue;
 				if (!do_greenscreen_removal || isNotGreen(&point)) // chromakey removal
-					current_pointcloud->push_back(point);
+					new_pointcloud->push_back(point);
 			}
+			current_pointcloud = new_pointcloud;
 #ifdef CWIPC_DEBUG_THREAD
 			std::cerr << "cwipc_kinect: camera " << serial << " produced " << camData.cloud->size() << " point" << std::endl;
 #endif

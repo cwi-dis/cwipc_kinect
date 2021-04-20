@@ -55,7 +55,8 @@ int main(int argc, char** argv)
                 ok = -1;
                 break;
             }
-            if (pc->count() > 0) break;
+            int count = pc->count();
+            if (count > 0) break;
             std::cerr << argv[0] << ": warning: empty pointcloud, grabbing again" << std::endl;
         }
 		if (strcmp(argv[2], "-") != 0) {
@@ -71,7 +72,7 @@ int main(int argc, char** argv)
         else {
             std::cerr << argv[0] << ": auxdata: " << ap->count() << " items:" << std::endl;
             for (int i = 0; i < ap->count(); i++) {
-                std::cerr << argv[0] << "auxdata: item " << i << " name=" << ap->name(i) << ", size=" << (int)ap->size(i) << std::endl;
+                std::cerr << argv[0] << "auxdata: item " << i << " name=" << ap->name(i) << ", size=" << (int)ap->size(i) << ", descr=" << ap->description(i) << std::endl;
             }
         }
 #endif

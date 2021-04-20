@@ -48,7 +48,6 @@ protected:
 	std::thread *processing_thread;
 	void _filter_depth_data(int16_t* depth_values, int width, int height); // Internal: depth data processing
 	void _computePointSize(/*rs2::pipeline_profile profile*/);
-	void _init_pointcloud(int size);
 	void _processing_thread_main();
 	virtual void _start_capture_thread();
 	virtual void _capture_thread_main();

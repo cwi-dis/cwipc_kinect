@@ -401,16 +401,12 @@ void K4ACapture::_control_thread_main()
 			timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		}
 		// Step 2 - Create pointcloud, and save rgb/depth images if wanted
-		if (mergedPC && mergedPC_is_fresh) {
-			mergedPC->free();
-			mergedPC = nullptr;
-		}
 		cwipc_pcl_pointcloud pcl_pointcloud = new_cwipc_pcl_pointcloud();
-		mergedPC = cwipc_from_pcl(pcl_pointcloud, timestamp, NULL, CWIPC_API_VERSION);
+		cwipc *newPC = cwipc_from_pcl(pcl_pointcloud, timestamp, NULL, CWIPC_API_VERSION);
 
 		if (want_auxdata_rgb || want_auxdata_depth) {
 			for (auto cam : cameras) {
-				cam->save_auxdata(mergedPC, want_auxdata_rgb, want_auxdata_depth);
+				cam->save_auxdata(newPC, want_auxdata_rgb, want_auxdata_depth);
 			}
 		}
 
@@ -422,7 +418,12 @@ void K4ACapture::_control_thread_main()
         // processing threads. This so the main thread doesn't go off and do
         // useless things if it is calling available(true).
         std::unique_lock<std::mutex> mylock(mergedPC_mutex);
-        // Step 4: wait for frame processing to complete.
+		if (mergedPC && mergedPC_is_fresh) {
+			mergedPC->free();
+			mergedPC = nullptr;
+		}
+		mergedPC = newPC;
+		// Step 4: wait for frame processing to complete.
         for(auto cam : cameras) {
             cam->wait_for_pc();
         }
@@ -452,7 +453,7 @@ void K4ACapture::_control_thread_main()
         mergedPC_is_fresh_cv.notify_all();
 	}
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "wipc_kinect: K4ACapture: processing thread stopped" << std::endl;
+	std::cerr << "cwipc_kinect: K4ACapture: processing thread stopped" << std::endl;
 #endif
 }
 
