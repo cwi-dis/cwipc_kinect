@@ -602,11 +602,20 @@ K4ACamera::save_auxdata(cwipc* pc, bool rgb, bool depth)
 		if (image != NULL) {
 			uint8_t* data_pointer = k4a_image_get_buffer(image);
 			const size_t size = k4a_image_get_size(image);
+			int width = k4a_image_get_width_pixels(image);
+			int height = k4a_image_get_height_pixels(image);
+			int stride = k4a_image_get_stride_bytes(image);
+			int format = k4a_image_get_format(image);
+			std::string description =
+				"width=" + std::to_string(width) +
+				",height=" + std::to_string(height) +
+				",stride=" + std::to_string(stride) +
+				",format=" + std::to_string(format);
 			void* pointer = malloc(size);
 			if (pointer) {
 				memcpy(pointer, data_pointer, size);
 				cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
-				ap->_add(name, pointer, size, ::free);
+				ap->_add(name, description, pointer, size, ::free);
 			}
 		}
 	}
@@ -616,11 +625,20 @@ K4ACamera::save_auxdata(cwipc* pc, bool rgb, bool depth)
 		if (image != NULL) {
 			uint8_t* data_pointer = k4a_image_get_buffer(image);
 			const size_t size = k4a_image_get_size(image);
+			int width = k4a_image_get_width_pixels(image);
+			int height = k4a_image_get_height_pixels(image);
+			int stride = k4a_image_get_stride_bytes(image);
+			int format = k4a_image_get_format(image);
+			std::string description =
+				"width=" + std::to_string(width) +
+				",height=" + std::to_string(height) +
+				",stride=" + std::to_string(stride) +
+				",format=" + std::to_string(format);
 			void* pointer = malloc(size);
 			if (pointer) {
 				memcpy(pointer, data_pointer, size);
 				cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
-				ap->_add(name, pointer, size, ::free);
+				ap->_add(name, description, pointer, size, ::free);
 			}
 		}
 	}
