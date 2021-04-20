@@ -25,6 +25,8 @@ static int numberOfCapturersActive = 0;
 
 K4ACapture::K4ACapture(int dummy)
 :	numberOfPCsProduced(0),
+	want_auxdata_rgb(false),
+	want_auxdata_depth(false),
     no_cameras(true),
 	mergedPC_is_fresh(false),
 	mergedPC_want_new(false)
@@ -36,7 +38,9 @@ K4ACapture::K4ACapture(int dummy)
 
 K4ACapture::K4ACapture(const char *configFilename)
 :	numberOfPCsProduced(0),
-    no_cameras(false),
+	want_auxdata_rgb(false),
+	want_auxdata_depth(false),
+	no_cameras(false),
 	mergedPC_is_fresh(false),
 	mergedPC_want_new(false)
 {
@@ -396,6 +400,22 @@ void K4ACapture::_control_thread_main()
             uint64_t camts = cam->get_capture_timestamp();
             if (camts > timestamp) timestamp = camts;
         }
+		// Step 2 - Create pointcloud, and save rgb/depth images if wanted
+		mergedPC = new_cwipc_pcl_pointcloud();
+#if 0
+		if (mergedPC && mergedPC_is_fresh) {
+			mergedPC->free();
+			mergedPC = nullptr;
+		}
+		cwipc_pcl_pointcloud pcl_pointcloud = new_cwipc_pcl_pointcloud();
+		mergedPC = cwipc_from_pcl(pcl_pointcloud, timestamp, NULL, CWIPC_API_VERSION);
+
+		if (want_auxdata_rgb || want_auxdata_depth) {
+			for (auto cam : cameras) {
+				cam->save_auxdata(mergedPC, want_auxdata_rgb, want_auxdata_depth);
+			}
+		}
+#endif
 #ifdef WITH_DUMP_VIDEO_FRAMES
         // Step 2, if needed: dump image frames.
         if (configuration.cwi_special_feature == "dumpvideoframes") {
@@ -419,7 +439,6 @@ void K4ACapture::_control_thread_main()
             cam->wait_for_pc();
         }
         // Step 5: merge views
-        mergedPC = new_cwipc_pcl_pointcloud();
         merge_views();
         if (mergedPC->size() > 0) {
 #ifdef CWIPC_DEBUG
@@ -476,12 +495,17 @@ void K4ACapture::merge_views()
 	size_t nPoints = 0;
 	for (auto cam : cameras) {
 		cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
+		if (cam_cld == nullptr) {
+			cwipc_k4a_log_warning("Camera " + cam->serial + " has NULL cloud");
+			continue;
+		}
 		nPoints += cam_cld->size();
 	}
 	mergedPC->reserve(nPoints);
 	// Now merge all pointclouds
 	for (auto cam : cameras) {
 		cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
+		if (cam_cld == nullptr) continue;
 		*mergedPC += *cam_cld;
 	}
 }

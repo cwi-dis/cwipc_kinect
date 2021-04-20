@@ -31,7 +31,13 @@ public:
 	uint64_t starttime;
 	int numberOfPCsProduced;
     bool no_cameras;                        // True of no cameras attached
+	void request_image_auxdata(bool _rgb, bool _depth) {
+		want_auxdata_rgb = _rgb;
+		want_auxdata_depth = _depth;
+	}
 protected:
+	bool want_auxdata_rgb;
+	bool want_auxdata_depth;
 	virtual void _create_cameras(k4a_device_t* cameras, std::vector<std::string> serials, uint32_t camera_count);
 	std::vector<K4ACamera*> cameras;                // Storage of camera specifics
 	void _control_thread_main();              // Internal: main thread that controls per-camera grabbing and processing and combines pointclouds.
