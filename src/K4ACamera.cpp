@@ -592,6 +592,40 @@ uint64_t K4ACamera::get_capture_timestamp()
 	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
+
+void
+K4ACamera::save_auxdata(cwipc* pc, bool rgb, bool depth)
+{
+	if (rgb) {
+		std::string name = "rgb." + serial;
+		k4a_image_t image = k4a_capture_get_color_image(current_frameset);
+		if (image != NULL) {
+			uint8_t* data_pointer = k4a_image_get_buffer(image);
+			const size_t size = k4a_image_get_size(image);
+			void* pointer = malloc(size);
+			if (pointer) {
+				memcpy(pointer, data_pointer, size);
+				cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
+				ap->_add(name, pointer, size, ::free);
+			}
+		}
+	}
+	if (depth) {
+		std::string name = "depth." + serial;
+		k4a_image_t image = k4a_capture_get_depth_image(current_frameset);
+		if (image != NULL) {
+			uint8_t* data_pointer = k4a_image_get_buffer(image);
+			const size_t size = k4a_image_get_size(image);
+			void* pointer = malloc(size);
+			if (pointer) {
+				memcpy(pointer, data_pointer, size);
+				cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
+				ap->_add(name, pointer, size, ::free);
+			}
+		}
+	}
+}
+
 void
 K4ACamera::dump_color_frame(const std::string& filename)
 {

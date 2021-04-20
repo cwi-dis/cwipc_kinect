@@ -28,11 +28,11 @@ K4ACapture::K4ACapture(int dummy)
 	want_auxdata_rgb(false),
 	want_auxdata_depth(false),
     no_cameras(true),
+	mergedPC(nullptr),
 	mergedPC_is_fresh(false),
 	mergedPC_want_new(false)
 {
 	numberOfCapturersActive++;
-	mergedPC = new_cwipc_pcl_pointcloud();
 	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
@@ -216,9 +216,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	// We can now free camera_handles
 	delete camera_handles;
 
-	// Create an empty pointcloud just in case anyone calls get_mostRecentPointcloud() before one is generated.
-	mergedPC = new_cwipc_pcl_pointcloud();
-
+	
 	// find camerapositions
 	for (int i = 0; i < configuration.camera_data.size(); i++) {
 		cwipc_pcl_pointcloud pcptr(new_cwipc_pcl_pointcloud());
@@ -324,14 +322,13 @@ K4ACapture::~K4ACapture() {
 }
 
 // API function that triggers the capture and returns the merged pointcloud and timestamp
-cwipc_pcl_pointcloud K4ACapture::get_pointcloud(uint64_t *timestamp)
+cwipc* K4ACapture::get_pointcloud()
 {
     if (no_cameras) return nullptr;
-	*timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	_request_new_pointcloud();
 	// Wait for a fresh mergedPC to become available.
 	// Note we keep the return value while holding the lock, so we can start the next grab/process/merge cycle before returning.
-	cwipc_pcl_pointcloud rv;
+	cwipc* rv;
 	{
 		std::unique_lock<std::mutex> mylock(mergedPC_mutex);
 		mergedPC_is_fresh_cv.wait(mylock, [this]{return mergedPC_is_fresh; });
@@ -400,9 +397,10 @@ void K4ACapture::_control_thread_main()
             uint64_t camts = cam->get_capture_timestamp();
             if (camts > timestamp) timestamp = camts;
         }
+		if (timestamp <= 0) {
+			timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		}
 		// Step 2 - Create pointcloud, and save rgb/depth images if wanted
-		mergedPC = new_cwipc_pcl_pointcloud();
-#if 0
 		if (mergedPC && mergedPC_is_fresh) {
 			mergedPC->free();
 			mergedPC = nullptr;
@@ -415,17 +413,7 @@ void K4ACapture::_control_thread_main()
 				cam->save_auxdata(mergedPC, want_auxdata_rgb, want_auxdata_depth);
 			}
 		}
-#endif
-#ifdef WITH_DUMP_VIDEO_FRAMES
-        // Step 2, if needed: dump image frames.
-        if (configuration.cwi_special_feature == "dumpvideoframes") {
-            for(auto cam : cameras) {
-                std::stringstream png_file;
-                png_file <<  "videoframe_" << timestamp - starttime << "_" << cam->camera_index << ".png";
-                cam->dump_color_frame(png_file.str());
-            }
-        }
-#endif // WITH_DUMP_VIDEO_FRAMES
+
         // Step 3: start processing frames to pointclouds, for each camera
         for(auto cam : cameras) {
             cam->create_pc_from_frames();
@@ -440,7 +428,7 @@ void K4ACapture::_control_thread_main()
         }
         // Step 5: merge views
         merge_views();
-        if (mergedPC->size() > 0) {
+        if (mergedPC->access_pcl_pointcloud()->size() > 0) {
 #ifdef CWIPC_DEBUG
             std::cerr << "cwipc_kinect: capturer produced a merged cloud of " << mergedPC->size() << " points" << std::endl;
 #endif
@@ -469,7 +457,7 @@ void K4ACapture::_control_thread_main()
 }
 
 // return the merged cloud 
-cwipc_pcl_pointcloud K4ACapture::get_mostRecentPointCloud()
+cwipc* K4ACapture::get_mostRecentPointCloud()
 {
     if (no_cameras) return nullptr;
 	// This call doesn't need a fresh pointcloud (Jack thinks), but it does need one that is
@@ -489,8 +477,8 @@ void K4ACapture::_request_new_pointcloud()
 
 void K4ACapture::merge_views()
 {
-	cwipc_pcl_pointcloud aligned_cld(new_cwipc_pcl_pointcloud());
-	mergedPC->clear();
+	cwipc_pcl_pointcloud aligned_cld(mergedPC->access_pcl_pointcloud());
+	aligned_cld->clear();
 	// Pre-allocate space in the merged pointcloud
 	size_t nPoints = 0;
 	for (auto cam : cameras) {
@@ -501,12 +489,12 @@ void K4ACapture::merge_views()
 		}
 		nPoints += cam_cld->size();
 	}
-	mergedPC->reserve(nPoints);
+	aligned_cld->reserve(nPoints);
 	// Now merge all pointclouds
 	for (auto cam : cameras) {
 		cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
 		if (cam_cld == nullptr) continue;
-		*mergedPC += *cam_cld;
+		*aligned_cld += *cam_cld;
 	}
 }
 
