@@ -486,7 +486,7 @@ void K4ACapture::_request_new_pointcloud()
 
 void K4ACapture::merge_views()
 {
-	cwipc_pcl_pointcloud aligned_cld(new_cwipc_pcl_pointcloud());
+	//cwipc_pcl_pointcloud aligned_cld(new_cwipc_pcl_pointcloud()); //NOT IN USE!
 	mergedPC->clear();
 	// Pre-allocate space in the merged pointcloud
 	size_t nPoints = 0;

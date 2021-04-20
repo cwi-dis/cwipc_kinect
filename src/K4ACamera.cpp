@@ -188,7 +188,7 @@ bool K4ACamera::start()
 		std::cerr << "cwipc_kinect: failed to start camera " << serial << std::endl;
 		return false;
 	}
-	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". color_height=" << color_height << ", depth_height=" << depth_height << " @" << camera_fps << "fps as " << (camera_sync_inuse ? (camera_sync_ismaster? "Master" : "Subordinate") : "Standalone") << std::endl;
+	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". color_height=" << color_height << ", depth_height=" << depth_height << " sensor_mapping=" << (camSettings.sensor_mapping==1 ? "COLOR_TO_DEPTH" : "DEPTH_TO_COLOR") << " @" << camera_fps << "fps as " << (camera_sync_inuse ? (camera_sync_ismaster? "Master" : "Subordinate") : "Standalone") << std::endl;
 	
 	camera_started = true;
 	return true;
