@@ -62,7 +62,7 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		systemElement->QueryIntAttribute("color_sharpness", &(config->camera_config.color_sharpness));
 		systemElement->QueryIntAttribute("color_gain", &(config->camera_config.color_gain));
 		systemElement->QueryIntAttribute("color_powerline_frequency", &(config->camera_config.color_powerline_frequency));
-		systemElement->QueryIntAttribute("sensor_mapping", &(config->camera_settings.sensor_mapping));
+		systemElement->QueryIntAttribute("sensor_mapping", &(config->camera_config.sensor_mapping));
 }
 
     // get the processing related information
