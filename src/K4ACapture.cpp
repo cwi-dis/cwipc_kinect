@@ -12,20 +12,11 @@
 #undef CWIPC_DEBUG_THREAD
 
 
-
-// This is the dll source, so define external symbols as dllexport on windows.
-
-#ifdef _WIN32
-#define _CWIPC_KINECT_EXPORT __declspec(dllexport)
-#define CWIPC_DLL_ENTRY __declspec(dllexport)
-#endif
-
 #include <chrono>
 
-#include "cwipc_kinect/defs.h"
-#include "cwipc_kinect/utils.h"
-#include "cwipc_kinect/K4ACapture.hpp"
-#include "cwipc_kinect/K4ACamera.hpp"
+#include "cwipc_kinect/private/K4AConfig.hpp"
+#include "cwipc_kinect/private/K4ACapture.hpp"
+#include "cwipc_kinect/private/K4ACamera.hpp"
 
 
 // Static variable used to print a warning message when we re-create an K4ACapture
@@ -34,18 +25,22 @@ static int numberOfCapturersActive = 0;
 
 K4ACapture::K4ACapture(int dummy)
 :	numberOfPCsProduced(0),
+	want_auxdata_rgb(false),
+	want_auxdata_depth(false),
     no_cameras(true),
+	mergedPC(nullptr),
 	mergedPC_is_fresh(false),
 	mergedPC_want_new(false)
 {
 	numberOfCapturersActive++;
-	mergedPC = new_cwipc_pcl_pointcloud();
 	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
 K4ACapture::K4ACapture(const char *configFilename)
 :	numberOfPCsProduced(0),
-    no_cameras(false),
+	want_auxdata_rgb(false),
+	want_auxdata_depth(false),
+	no_cameras(false),
 	mergedPC_is_fresh(false),
 	mergedPC_want_new(false)
 {
@@ -84,9 +79,8 @@ K4ACapture::K4ACapture(const char *configFilename)
 		default_trafo->setIdentity();
 		cd.trafo = default_trafo;
 		cd.intrinsicTrafo = default_trafo;
-		cd.cloud = new_cwipc_pcl_pointcloud();
 		cd.cameraposition = { 0, 0, 0 };
-		configuration.cameraData.push_back(cd);
+		configuration.camera_data.push_back(cd);
 	}
 	if (any_failure) {
 		no_cameras = true;
@@ -109,7 +103,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 
 
 		// collect all camera's in the config that are connected
-		for (K4ACameraData cd : configuration.cameraData) {
+		for (K4ACameraData cd : configuration.camera_data) {
 #if 1 // xxxjack find() doesn't work??!?
 			realcams.push_back(cd);
 #else
@@ -120,53 +114,53 @@ K4ACapture::K4ACapture(const char *configFilename)
 #endif
 		}
 		// Reduce the active configuration to cameras that are connected
-		configuration.cameraData = realcams;
+		configuration.camera_data = realcams;
 	}
 
 	// Set various camera hardware parameters (color)
 	for (int i = 0; i < camera_count; i++) {
 		//options for color sensor
-		if (configuration.default_camera_settings.color_exposure_time >= 0) {	//MANUAL
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_exposure_time); // Exposure_time (in microseconds)
+		if (configuration.camera_config.color_exposure_time >= 0) {	//MANUAL
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_exposure_time); // Exposure_time (in microseconds)
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_exposure_time should be microsecond and in range (500-133330)" << std::endl;
 		}
 		else {	//AUTO
 			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
 		}
-		if (configuration.default_camera_settings.color_whitebalance >= 0) {	//MANUAL
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_whitebalance); // White_balance (2500-12500)
+		if (configuration.camera_config.color_whitebalance >= 0) {	//MANUAL
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_whitebalance); // White_balance (2500-12500)
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_whitebalance should be in range (2500-12500)" << std::endl;
 		}
 		else {	//AUTO
 			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
 		}
 
-		if (configuration.default_camera_settings.color_backlight_compensation >= 0){
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_backlight_compensation); // Backlight_compensation 0=disabled | 1=enabled. Default=0
+		if (configuration.camera_config.color_backlight_compensation >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_backlight_compensation); // Backlight_compensation 0=disabled | 1=enabled. Default=0
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_backlight_compensation should be 0=Enabled, 1= Disabled" << std::endl;
 		}
-		if (configuration.default_camera_settings.color_brightness >= 0){
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_BRIGHTNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_brightness); // Brightness. (0 to 255). Default=128.
+		if (configuration.camera_config.color_brightness >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_BRIGHTNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_brightness); // Brightness. (0 to 255). Default=128.
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_brightness should be in range (0-255)" << std::endl;
 		}
-		if (configuration.default_camera_settings.color_contrast >= 0){
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_CONTRAST, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_contrast); // Contrast (0-10). Default=5
+		if (configuration.camera_config.color_contrast >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_CONTRAST, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_contrast); // Contrast (0-10). Default=5
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_contrast should be in range (0-10)" << std::endl;
 		}
-		if (configuration.default_camera_settings.color_saturation >= 0){
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_SATURATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_saturation); // saturation (0-63). Default=32
+		if (configuration.camera_config.color_saturation >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_SATURATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_saturation); // saturation (0-63). Default=32
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_saturation should be in range (0-63)" << std::endl;
 		}
-		if (configuration.default_camera_settings.color_sharpness >= 0){
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_SHARPNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_sharpness); // Sharpness (0-4). Default=2
+		if (configuration.camera_config.color_sharpness >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_SHARPNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_sharpness); // Sharpness (0-4). Default=2
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_sharpness should be in range (0-4)" << std::endl;
 		}
-		if (configuration.default_camera_settings.color_gain >= 0){	//if autoexposure mode=AUTO gain does not affect
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_GAIN, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_gain); // Gain (0-255). Default=0
+		if (configuration.camera_config.color_gain >= 0){	//if autoexposure mode=AUTO gain does not affect
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_GAIN, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_gain); // Gain (0-255). Default=0
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_gain should be in range (0-255)" << std::endl;
 		}
-		if (configuration.default_camera_settings.color_powerline_frequency >= 0){
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.default_camera_settings.color_powerline_frequency); // Powerline_Frequency (1=50Hz, 2=60Hz). Default=2
+		if (configuration.camera_config.color_powerline_frequency >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_powerline_frequency); // Powerline_Frequency (1=50Hz, 2=60Hz). Default=2
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_powerline_frequency should be 1=50Hz or 2=60Hz" << std::endl;
 		}
 	}
@@ -222,28 +216,20 @@ K4ACapture::K4ACapture(const char *configFilename)
 	// We can now free camera_handles
 	delete camera_handles;
 
-	// Create an empty pointcloud just in case anyone calls get_mostRecentPointcloud() before one is generated.
-	mergedPC = new_cwipc_pcl_pointcloud();
-
-	// optionally set request for cwi_special_feature
-	char* feature_request;
-	feature_request = getenv("CWI_CAPTURE_FEATURE");
-	if (feature_request != NULL)
-		configuration.cwi_special_feature = feature_request;
-
+	
 	// find camerapositions
-	for (int i = 0; i < configuration.cameraData.size(); i++) {
+	for (int i = 0; i < configuration.camera_data.size(); i++) {
 		cwipc_pcl_pointcloud pcptr(new_cwipc_pcl_pointcloud());
 		cwipc_pcl_point pt;
 		pt.x = 0;
 		pt.y = 0;
 		pt.z = 0;
 		pcptr->push_back(pt);
-		transformPointCloud(*pcptr, *pcptr, *configuration.cameraData[i].trafo);
+		transformPointCloud(*pcptr, *pcptr, *configuration.camera_data[i].trafo);
 		cwipc_pcl_point pnt = pcptr->points[0];
-		configuration.cameraData[i].cameraposition.x = pnt.x;
-		configuration.cameraData[i].cameraposition.y = pnt.y;
-		configuration.cameraData[i].cameraposition.z = pnt.z;
+		configuration.camera_data[i].cameraposition.x = pnt.x;
+		configuration.camera_data[i].cameraposition.y = pnt.y;
+		configuration.camera_data[i].cameraposition.z = pnt.z;
 	}
 
 	//
@@ -336,14 +322,13 @@ K4ACapture::~K4ACapture() {
 }
 
 // API function that triggers the capture and returns the merged pointcloud and timestamp
-cwipc_pcl_pointcloud K4ACapture::get_pointcloud(uint64_t *timestamp)
+cwipc* K4ACapture::get_pointcloud()
 {
     if (no_cameras) return nullptr;
-	*timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	_request_new_pointcloud();
 	// Wait for a fresh mergedPC to become available.
 	// Note we keep the return value while holding the lock, so we can start the next grab/process/merge cycle before returning.
-	cwipc_pcl_pointcloud rv;
+	cwipc* rv;
 	{
 		std::unique_lock<std::mutex> mylock(mergedPC_mutex);
 		mergedPC_is_fresh_cv.wait(mylock, [this]{return mergedPC_is_fresh; });
@@ -413,16 +398,19 @@ void K4ACapture::_control_thread_main()
             uint64_t camts = cam->get_capture_timestamp();
             if (camts > timestamp) timestamp = camts;
         }
-#ifdef WITH_DUMP_VIDEO_FRAMES
-        // Step 2, if needed: dump image frames.
-        if (configuration.cwi_special_feature == "dumpvideoframes") {
-            for(auto cam : cameras) {
-                std::stringstream png_file;
-                png_file <<  "videoframe_" << timestamp - starttime << "_" << cam->camera_index << ".png";
-                cam->dump_color_frame(png_file.str());
-            }
-        }
-#endif // WITH_DUMP_VIDEO_FRAMES
+		if (timestamp <= 0) {
+			timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		}
+		// Step 2 - Create pointcloud, and save rgb/depth images if wanted
+		cwipc_pcl_pointcloud pcl_pointcloud = new_cwipc_pcl_pointcloud();
+		cwipc *newPC = cwipc_from_pcl(pcl_pointcloud, timestamp, NULL, CWIPC_API_VERSION);
+
+		if (want_auxdata_rgb || want_auxdata_depth) {
+			for (auto cam : cameras) {
+				cam->save_auxdata(newPC, want_auxdata_rgb, want_auxdata_depth);
+			}
+		}
+
         // Step 3: start processing frames to pointclouds, for each camera
         for(auto cam : cameras) {
             cam->create_pc_from_frames();
@@ -431,14 +419,18 @@ void K4ACapture::_control_thread_main()
         // processing threads. This so the main thread doesn't go off and do
         // useless things if it is calling available(true).
         std::unique_lock<std::mutex> mylock(mergedPC_mutex);
-        // Step 4: wait for frame processing to complete.
+		if (mergedPC && mergedPC_is_fresh) {
+			mergedPC->free();
+			mergedPC = nullptr;
+		}
+		mergedPC = newPC;
+		// Step 4: wait for frame processing to complete.
         for(auto cam : cameras) {
             cam->wait_for_pc();
         }
         // Step 5: merge views
-        mergedPC = new_cwipc_pcl_pointcloud();
         merge_views();
-        if (mergedPC->size() > 0) {
+        if (mergedPC->access_pcl_pointcloud()->size() > 0) {
 #ifdef CWIPC_DEBUG
             std::cerr << "cwipc_kinect: capturer produced a merged cloud of " << mergedPC->size() << " points" << std::endl;
 #endif
@@ -462,12 +454,12 @@ void K4ACapture::_control_thread_main()
         mergedPC_is_fresh_cv.notify_all();
 	}
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "wipc_kinect: K4ACapture: processing thread stopped" << std::endl;
+	std::cerr << "cwipc_kinect: K4ACapture: processing thread stopped" << std::endl;
 #endif
 }
 
 // return the merged cloud 
-cwipc_pcl_pointcloud K4ACapture::get_mostRecentPointCloud()
+cwipc* K4ACapture::get_mostRecentPointCloud()
 {
     if (no_cameras) return nullptr;
 	// This call doesn't need a fresh pointcloud (Jack thinks), but it does need one that is
@@ -487,20 +479,30 @@ void K4ACapture::_request_new_pointcloud()
 
 void K4ACapture::merge_views()
 {
-	//cwipc_pcl_pointcloud aligned_cld(new_cwipc_pcl_pointcloud()); //NOT USED?
-	mergedPC->clear();
+	cwipc_pcl_pointcloud aligned_cld(mergedPC->access_pcl_pointcloud());
+	aligned_cld->clear();
+
 	// Pre-allocate space in the merged pointcloud
 	size_t nPoints = 0;
-	for (K4ACameraData cd : configuration.cameraData) {
-		cwipc_pcl_pointcloud cam_cld = cd.cloud;
+	for (auto cam : cameras) {
+		cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
+		if (cam_cld == nullptr) {
+			cwipc_k4a_log_warning("Camera " + cam->serial + " has NULL cloud");
+			continue;
+		}
 		nPoints += cam_cld->size();
 	}
-	mergedPC->reserve(nPoints+32);
+	aligned_cld->reserve(nPoints);
+
 	// Now merge all pointclouds
-	for (K4ACameraData cd : configuration.cameraData) {
-		cwipc_pcl_pointcloud cam_cld = cd.cloud;
-		*mergedPC += *cam_cld;
+	for (auto cam : cameras) {
+		cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
+		if (cam_cld == nullptr) continue;
+		*aligned_cld += *cam_cld;
 	}
+
+#ifdef xxNacho_skeleton_DEBUG
+
 	cwipc_pcl_pointcloud skl = new_cwipc_pcl_pointcloud();
 	size_t sk_points = 32;
 	skl->reserve(sk_points);
@@ -560,12 +562,13 @@ void K4ACapture::merge_views()
 	}
 	*mergedPC += *skl;
 
+#endif // xxNacho_skeleton_DEBUG
 }
 
 K4ACameraData& K4ACapture::get_camera_data(std::string serial) {
-	for (int i = 0; i < configuration.cameraData.size(); i++)
-		if (configuration.cameraData[i].serial == serial)
-			return configuration.cameraData[i];
+	for (int i = 0; i < configuration.camera_data.size(); i++)
+		if (configuration.camera_data[i].serial == serial)
+			return configuration.camera_data[i];
 	cwipc_k4a_log_warning("Unknown camera " + serial);
 	abort();
 }

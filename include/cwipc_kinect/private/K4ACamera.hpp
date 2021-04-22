@@ -9,8 +9,8 @@
 #include <k4a/k4a.h>
 #include <k4abt.h>
 
-#include "defs.h"
-#include "readerwriterqueue.h"
+#include "cwipc_kinect/private/K4AConfig.hpp"
+#include "cwipc_kinect/private/readerwriterqueue.h"
 
 class K4ACamera {
 private:
@@ -26,8 +26,10 @@ public:
 	bool capture_frameset();
 	void create_pc_from_frames();
 	void wait_for_pc();
+	void save_auxdata(cwipc* pc, bool rgb, bool depth);
 	void dump_color_frame(const std::string& filename);
 	uint64_t get_capture_timestamp();
+	cwipc_pcl_pointcloud get_current_pointcloud() { return current_pointcloud; }
 	bool is_sync_master() { return camera_sync_ismaster;  }
 public:
 	float pointSize;
@@ -54,7 +56,8 @@ protected:
 	void transformDepthToColorPoint(cwipc_pcl_point& pt);
 private:
 	K4ACameraData& camData;
-	K4ACameraSettings& camSettings;
+	K4ACameraConfig& camSettings;
+	cwipc_pcl_pointcloud current_pointcloud;
 	k4a_transformation_t transformation_handle;
 	moodycamel::BlockingReaderWriterQueue<k4a_capture_t> captured_frame_queue;
 	moodycamel::BlockingReaderWriterQueue<k4a_capture_t> processing_frame_queue;

@@ -14,19 +14,12 @@
 #include <vld.h>
 #endif
 
-// This is the dll source, so define external symbols as dllexport on windows.
 
-#if defined(WIN32) || defined(_WIN32)
-#define _CWIPC_KINECT_EXPORT __declspec(dllexport)
-#endif
-
-#include "cwipc_kinect/defs.h"
-#include "cwipc_kinect/utils.h"
-#include "cwipc_kinect/K4ACamera.hpp"
+#include "cwipc_kinect/private/K4AConfig.hpp"
+#include "cwipc_kinect/private/K4ACamera.hpp"
 
 #ifdef WITH_DUMP_VIDEO_FRAMES
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "cwipc_kinect/stb_image_write.h"
 #endif
 
 #define VERIFY(result, error)                                                                            \
@@ -37,6 +30,68 @@
     } 
 
 
+typedef struct HsvColor
+{
+	unsigned char h;
+	unsigned char s;
+	unsigned char v;
+} HsvColor;
+
+
+static HsvColor rgbToHsv(cwipc_pcl_point* pnt)
+{
+	HsvColor hsv;
+	unsigned char rgbMin, rgbMax;
+
+	rgbMin = pnt->r < pnt->g ? (pnt->r < pnt->b ? pnt->r : pnt->b) : (pnt->g < pnt->b ? pnt->g : pnt->b);
+	rgbMax = pnt->r > pnt->g ? (pnt->r > pnt->b ? pnt->r : pnt->b) : (pnt->g > pnt->b ? pnt->g : pnt->b);
+
+	hsv.v = rgbMax;
+	if (hsv.v == 0)
+	{
+		hsv.h = 0;
+		hsv.s = 0;
+		return hsv;
+	}
+
+	hsv.s = 255 * ((long)(rgbMax - rgbMin)) / hsv.v;
+	if (hsv.s == 0)
+	{
+		hsv.h = 0;
+		return hsv;
+	}
+
+	if (rgbMax == pnt->r)
+		hsv.h = 0 + 43 * (pnt->g - pnt->b) / (rgbMax - rgbMin);
+	else if (rgbMax == pnt->g)
+		hsv.h = 85 + 43 * (pnt->b - pnt->r) / (rgbMax - rgbMin);
+	else
+		hsv.h = 171 + 43 * (pnt->r - pnt->g) / (rgbMax - rgbMin);
+
+	return hsv;
+}
+
+static bool isNotGreen(cwipc_pcl_point* p)
+{
+	HsvColor hsv = rgbToHsv(p);
+
+	if (hsv.h >= 60 && hsv.h <= 130) {
+		if (hsv.s >= 0.15 && hsv.v >= 0.15) {
+			// reducegreen
+			if ((p->r * p->b) != 0 && (p->g * p->g) / (p->r * p->b) > 1.5) {
+				p->r *= 1.4;
+				p->b *= 1.4;
+			}
+			else {
+				p->r *= 1.2;
+				p->b *= 1.2;
+			}
+		}
+		return !(hsv.s >= 0.4 && hsv.v >= 0.3);
+	}
+	return true;
+}
+
 K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData)
 :	pointSize(0), minx(0), minz(0), maxz(0),
 	device_handle(_handle),
@@ -46,7 +101,8 @@ K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int 
 	camera_started(false),
 	capture_started(false),
 	camData(_camData),
-	camSettings(configuration.default_camera_settings),
+	camSettings(configuration.camera_config),
+	current_pointcloud(nullptr),
 	captured_frame_queue(1),
 	processing_frame_queue(1),
 	current_frameset(NULL),
@@ -485,8 +541,8 @@ void K4ACamera::_processing_thread_main()
 			}
 			// Setup depth filtering, if needed
 			// now loop over images and create points.
-			camData.cloud->clear();
-			camData.cloud->reserve(color_image_width_pixels * color_image_height_pixels);
+			cwipc_pcl_pointcloud new_pointcloud = new_cwipc_pcl_pointcloud();
+			new_pointcloud->reserve(color_image_width_pixels * color_image_height_pixels);
 			for (int i = 0; i < color_image_width_pixels * color_image_height_pixels; i++)
 			{
 				int i_pc = i * 3;
@@ -509,14 +565,15 @@ void K4ACamera::_processing_thread_main()
 				point.z = z;
 				transformPoint(point);
 				if (do_height_filtering && (point.y < height_min || point.y > height_max)) continue;
-				if (!do_greenscreen_removal || cwipc_k4a_noChromaRemoval(&point)) // chromakey removal
-					camData.cloud->push_back(point);
+				if (!do_greenscreen_removal || isNotGreen(&point)) // chromakey removal
+					new_pointcloud->push_back(point);
 			}
+			current_pointcloud = new_pointcloud;
 #ifdef CWIPC_DEBUG_THREAD
 			std::cerr << "cwipc_kinect: camera " << serial << " produced " << camData.cloud->size() << " point" << std::endl;
 #endif
 		}
-		if (camData.cloud->size() == 0) {
+		if (current_pointcloud->size() == 0) {
 			std::cerr << "cwipc_kinect: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
 			//continue;
 		}
@@ -622,6 +679,58 @@ void K4ACamera::wait_for_pc()
 uint64_t K4ACamera::get_capture_timestamp()
 {
 	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
+
+void
+K4ACamera::save_auxdata(cwipc* pc, bool rgb, bool depth)
+{
+	if (rgb) {
+		std::string name = "rgb." + serial;
+		k4a_image_t image = k4a_capture_get_color_image(current_frameset);
+		if (image != NULL) {
+			uint8_t* data_pointer = k4a_image_get_buffer(image);
+			const size_t size = k4a_image_get_size(image);
+			int width = k4a_image_get_width_pixels(image);
+			int height = k4a_image_get_height_pixels(image);
+			int stride = k4a_image_get_stride_bytes(image);
+			int format = k4a_image_get_format(image);
+			std::string description =
+				"width=" + std::to_string(width) +
+				",height=" + std::to_string(height) +
+				",stride=" + std::to_string(stride) +
+				",format=" + std::to_string(format);
+			void* pointer = malloc(size);
+			if (pointer) {
+				memcpy(pointer, data_pointer, size);
+				cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
+				ap->_add(name, description, pointer, size, ::free);
+			}
+		}
+	}
+	if (depth) {
+		std::string name = "depth." + serial;
+		k4a_image_t image = k4a_capture_get_depth_image(current_frameset);
+		if (image != NULL) {
+			uint8_t* data_pointer = k4a_image_get_buffer(image);
+			const size_t size = k4a_image_get_size(image);
+			int width = k4a_image_get_width_pixels(image);
+			int height = k4a_image_get_height_pixels(image);
+			int stride = k4a_image_get_stride_bytes(image);
+			int format = k4a_image_get_format(image);
+			std::string description =
+				"width=" + std::to_string(width) +
+				",height=" + std::to_string(height) +
+				",stride=" + std::to_string(stride) +
+				",format=" + std::to_string(format);
+			void* pointer = malloc(size);
+			if (pointer) {
+				memcpy(pointer, data_pointer, size);
+				cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
+				ap->_add(name, description, pointer, size, ::free);
+			}
+		}
+	}
 }
 
 void
