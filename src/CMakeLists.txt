@@ -25,6 +25,8 @@ target_sources(cwipc_kinect
 	"../include/cwipc_kinect/private/K4AConfig.hpp"
 	"../include/cwipc_kinect/private/K4ACapture.hpp"
 	"../include/cwipc_kinect/private/K4ACamera.hpp"
+	"../include/cwipc_kinect/private/K4AOfflineCapture.hpp"
+	"../include/cwipc_kinect/private/K4AOfflineCamera.hpp"
 	"../include/cwipc_kinect/private/readerwriterqueue.h"
 	"../include/cwipc_kinect/private/atomicops.h"
 	"../include/cwipc_kinect/api.h"
