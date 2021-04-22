@@ -244,7 +244,7 @@ bool K4ACamera::start()
 		std::cerr << "cwipc_kinect: failed to start camera " << serial << std::endl;
 		return false;
 	}
-	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". color_height=" << color_height << ", depth_height=" << depth_height << " sensor_mapping=" << (camSettings.sensor_mapping==1 ? "COLOR_TO_DEPTH" : "DEPTH_TO_COLOR") << " @" << camera_fps << "fps as " << (camera_sync_inuse ? (camera_sync_ismaster? "Master" : "Subordinate") : "Standalone") << std::endl;
+	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". color_height=" << color_height << ", depth_height=" << depth_height << " map_color_to_depth=" << camSettings.map_color_to_depth << " @" << camera_fps << "fps as " << (camera_sync_inuse ? (camera_sync_ismaster? "Master" : "Subordinate") : "Standalone") << std::endl;
 	
 	camera_started = true;
 	return true;
@@ -408,10 +408,10 @@ void K4ACamera::_processing_thread_main()
 		color_image = k4a_capture_get_color_image(processing_frameset);
 
 		cwipc_pcl_pointcloud new_pointcloud = nullptr;
-		if (camSettings.sensor_mapping == SENSOR_MAP_COLOR_TO_DEPTH) {
+		if (camSettings.map_color_to_depth) {
 			new_pointcloud = generate_point_cloud_color_to_depth(transformation_handle, depth_image, color_image);
 		}
-		else { //SENSOR_MAP_DEPTH_TO_COLOR = DEFAULT
+		else {
 			new_pointcloud = generate_point_cloud_depth_to_color(transformation_handle, depth_image, color_image);
 		}
 		if (new_pointcloud != nullptr) {
