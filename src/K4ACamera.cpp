@@ -18,11 +18,6 @@
 #include "cwipc_kinect/private/K4AConfig.hpp"
 #include "cwipc_kinect/private/K4ACamera.hpp"
 
-#ifdef WITH_DUMP_VIDEO_FRAMES
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#endif
-
-
 typedef struct HsvColor
 {
 	unsigned char h;

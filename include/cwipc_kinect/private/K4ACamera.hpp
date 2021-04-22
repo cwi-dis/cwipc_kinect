@@ -47,7 +47,7 @@ protected:
 	bool capture_started;
 	std::thread *processing_thread;
 	void _filter_depth_data(int16_t* depth_values, int width, int height); // Internal: depth data processing
-	void _computePointSize(/*rs2::pipeline_profile profile*/);
+	void _computePointSize();
 	void _processing_thread_main();
 	cwipc_pcl_pointcloud generate_point_cloud_color_to_depth(k4a_transformation_t transformation_handle, const k4a_image_t depth_image, const k4a_image_t color_image);
 	cwipc_pcl_pointcloud generate_point_cloud_depth_to_color(k4a_transformation_t transformation_handle, const k4a_image_t depth_image, const k4a_image_t color_image);

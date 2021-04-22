@@ -423,6 +423,7 @@ void K4ACapture::_control_thread_main()
 			mergedPC = nullptr;
 		}
 		mergedPC = newPC;
+
 		// Step 4: wait for frame processing to complete.
         for(auto cam : cameras) {
             cam->wait_for_pc();

@@ -21,9 +21,7 @@
 #endif
 
 #include <chrono>
-
-#include "cwipc_kinect/utils.h"
-#include "cwipc_kinect/K4AOfflineCapture.hpp"
+#include "cwipc_kinect/private/K4AOfflineCapture.hpp"
 
 // Static variable used to print a warning message when we re-create an K4AOfflineCapture
 // if there is another one open.
@@ -55,7 +53,7 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 		std::vector<std::string> serials;
 		std::vector<K4ACameraData> realcams;
 
-		file_count = configuration.cameraData.size();
+		file_count = configuration.camera_data.size();
 
 		if (file_count == 0) {
 			// no camera connected, so we'll return nothing
@@ -79,7 +77,7 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 		// Open each recording file and validate they were recorded in master/subordinate mode.
 		for (size_t i = 0; i < file_count; i++)
 		{
-			files[i].filename = (char *)configuration.cameraData[i].filename.c_str();
+			files[i].filename = (char *)configuration.camera_data[i].filename.c_str();
 
 			result = k4a_playback_open(files[i].filename, &files[i].handle);
 
@@ -123,8 +121,7 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 			}
 
 			//initialize cameradata attributes:
-			configuration.cameraData[i].cloud = new_cwipc_pcl_pointcloud();
-			configuration.cameraData[i].cameraposition = { 0, 0, 0 };
+			configuration.camera_data[i].cameraposition = { 0, 0, 0 };
 		}
 
 		if (master_id != -1 && configuration.sync_master_serial != "")
@@ -132,28 +129,20 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 		// Now we have all the configuration information. Create the offlineCamera objects.
 		_create_cameras(files, file_count);
 	}
-	// Create an empty pointcloud just in case anyone calls get_mostRecentPointcloud() before one is generated.
-	mergedPC = new_cwipc_pcl_pointcloud();
-
-	// optionally set request for cwi_special_feature
-	char* feature_request;
-	feature_request = getenv("CWI_CAPTURE_FEATURE");
-	if (feature_request != NULL)
-		configuration.cwi_special_feature = feature_request;
 
 	// find camerapositions
-	for (int i = 0; i < configuration.cameraData.size(); i++) {
+	for (int i = 0; i < configuration.camera_data.size(); i++) {
 		cwipc_pcl_pointcloud pcptr(new_cwipc_pcl_pointcloud());
 		cwipc_pcl_point pt;
 		pt.x = 0;
 		pt.y = 0;
 		pt.z = 0;
 		pcptr->push_back(pt);
-		transformPointCloud(*pcptr, *pcptr, *configuration.cameraData[i].trafo);
+		transformPointCloud(*pcptr, *pcptr, *configuration.camera_data[i].trafo);
 		cwipc_pcl_point pnt = pcptr->points[0];
-		configuration.cameraData[i].cameraposition.x = pnt.x;
-		configuration.cameraData[i].cameraposition.y = pnt.y;
-		configuration.cameraData[i].cameraposition.z = pnt.z;
+		configuration.camera_data[i].cameraposition.x = pnt.x;
+		configuration.camera_data[i].cameraposition.y = pnt.y;
+		configuration.camera_data[i].cameraposition.z = pnt.z;
 	}
 
 	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -183,7 +172,7 @@ void K4AOfflineCapture::_create_cameras(recording_t* recordings, uint32_t camera
 		std::cout << "K4AOfflineCapture: opening camera " << serials[i] << std::endl;
 #endif
 		// Found a kinect camera. Create a default data entry for it.
-		K4ACameraData& cd = configuration.cameraData[i];
+		K4ACameraData& cd = configuration.camera_data[i];
 		if (cd.type != "kinect") {
 			cwipc_k4a_log_warning("Camera " + cd.serial + " is type " + cd.type + " in stead of kinect");
 		}
@@ -236,14 +225,13 @@ K4AOfflineCapture::~K4AOfflineCapture() {
 }
 
 // API function that triggers the capture and returns the merged pointcloud and timestamp
-cwipc_pcl_pointcloud K4AOfflineCapture::get_pointcloud(uint64_t* timestamp)
+cwipc* K4AOfflineCapture::get_pointcloud()
 {
 	if (no_cameras) return nullptr;
-	*timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	_request_new_pointcloud();
 	// Wait for a fresh mergedPC to become available.
 	// Note we keep the return value while holding the lock, so we can start the next grab/process/merge cycle before returning.
-	cwipc_pcl_pointcloud rv;
+	cwipc* rv;
 	{
 		std::unique_lock<std::mutex> mylock(mergedPC_mutex);
 		mergedPC_is_fresh_cv.wait(mylock, [this] {return mergedPC_is_fresh; });
@@ -251,7 +239,6 @@ cwipc_pcl_pointcloud K4AOfflineCapture::get_pointcloud(uint64_t* timestamp)
 		numberOfPCsProduced++;
 		rv = mergedPC;
 	}
-	//*timestamp = current_ts;
 	_request_new_pointcloud();
 	return rv;
 }
@@ -316,7 +303,7 @@ void K4AOfflineCapture::_control_thread_main()
 		for (auto cam : cameras) { //SUBORDINATE or STANDALONE
 			if (cam->is_sync_master()) continue;
 			if (sync_inuse) { //there is sync
-				if (!cam->capture_frameset(cameras[master_id]->current_capture_timestamp)) {
+				if (!cam->capture_frameset(cameras[master_id]->current_frameset_timestamp)) {
 					all_captures_ok = false;
 					break;
 				}
@@ -337,25 +324,26 @@ void K4AOfflineCapture::_control_thread_main()
 		// And get the best timestamp
 		uint64_t timestamp = 0;
 		if (sync_inuse) { //sync on
-			timestamp = cameras[master_id]->current_capture_timestamp;
+			timestamp = cameras[master_id]->current_frameset_timestamp;
 		}
 		else {
 			for (auto cam : cameras) {
-				uint64_t camts = cam->current_capture_timestamp;
+				uint64_t camts = cam->current_frameset_timestamp;
 				if (camts > timestamp) timestamp = camts;
 			}
 		}
 		current_ts = timestamp;
-#ifdef WITH_DUMP_VIDEO_FRAMES
-		// Step 2, if needed: dump image frames.
-		if (configuration.cwi_special_feature == "dumpvideoframes") {
+		
+		// Step 2 - Create pointcloud, and save rgb/depth images if wanted
+		cwipc_pcl_pointcloud pcl_pointcloud = new_cwipc_pcl_pointcloud();
+		cwipc* newPC = cwipc_from_pcl(pcl_pointcloud, timestamp, NULL, CWIPC_API_VERSION);
+
+		if (want_auxdata_rgb || want_auxdata_depth) {
 			for (auto cam : cameras) {
-				std::stringstream png_file;
-				png_file << "videoframe_" << timestamp - starttime << "_" << cam->camera_index << ".png";
-				cam->dump_color_frame(png_file.str());
+				cam->save_auxdata(newPC, want_auxdata_rgb, want_auxdata_depth);
 			}
 		}
-#endif // WITH_DUMP_VIDEO_FRAMES
+
 		// Step 3: start processing frames to pointclouds, for each camera
 		for (auto cam : cameras) {
 			cam->create_pc_from_frames();
@@ -364,14 +352,19 @@ void K4AOfflineCapture::_control_thread_main()
 		// processing threads. This so the main thread doesn't go off and do
 		// useless things if it is calling available(true).
 		std::unique_lock<std::mutex> mylock(mergedPC_mutex);
+		if (mergedPC && mergedPC_is_fresh) {
+			mergedPC->free();
+			mergedPC = nullptr;
+		}
+		mergedPC = newPC;
+
 		// Step 4: wait for frame processing to complete.
 		for (auto cam : cameras) {
 			cam->wait_for_pc();
 		}
 		// Step 5: merge views
-		mergedPC = new_cwipc_pcl_pointcloud();
 		merge_views();
-		if (mergedPC->size() > 0) {
+		if (mergedPC->access_pcl_pointcloud()->size() > 0) {
 #ifdef CWIPC_DEBUG
 			std::cerr << "cwipc_kinect: capturer produced a merged cloud of " << mergedPC->size() << " points" << std::endl;
 #endif
@@ -401,7 +394,7 @@ void K4AOfflineCapture::_control_thread_main()
 }
 
 // return the merged cloud 
-cwipc_pcl_pointcloud K4AOfflineCapture::get_mostRecentPointCloud()
+cwipc* K4AOfflineCapture::get_mostRecentPointCloud()
 {
 	if (no_cameras) return nullptr;
 	// This call doesn't need a fresh pointcloud (Jack thinks), but it does need one that is
@@ -421,26 +414,31 @@ void K4AOfflineCapture::_request_new_pointcloud()
 
 void K4AOfflineCapture::merge_views()
 {
-	cwipc_pcl_pointcloud aligned_cld(new_cwipc_pcl_pointcloud());
-	mergedPC->clear();
+	cwipc_pcl_pointcloud aligned_cld(mergedPC->access_pcl_pointcloud());
+	aligned_cld->clear();
 	// Pre-allocate space in the merged pointcloud
 	size_t nPoints = 0;
-	for (K4ACameraData cd : configuration.cameraData) {
-		cwipc_pcl_pointcloud cam_cld = cd.cloud;
+	for (auto cam : cameras) {
+		cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
+		if (cam_cld == nullptr) {
+			cwipc_k4a_log_warning("Camera " + cam->serial + " has NULL cloud");
+			continue;
+		}
 		nPoints += cam_cld->size();
 	}
-	mergedPC->reserve(nPoints);
+	aligned_cld->reserve(nPoints);
 	// Now merge all pointclouds
-	for (K4ACameraData cd : configuration.cameraData) {
-		cwipc_pcl_pointcloud cam_cld = cd.cloud;
-		*mergedPC += *cam_cld;
+	for (auto cam : cameras) {
+		cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
+		if (cam_cld == nullptr) continue;
+		*aligned_cld += *cam_cld;
 	}
 }
 
 K4ACameraData& K4AOfflineCapture::get_camera_data(std::string serial) {
-	for (int i = 0; i < configuration.cameraData.size(); i++)
-		if (configuration.cameraData[i].serial == serial)
-			return configuration.cameraData[i];
+	for (int i = 0; i < configuration.camera_data.size(); i++)
+		if (configuration.camera_data[i].serial == serial)
+			return configuration.camera_data[i];
 	cwipc_k4a_log_warning("Unknown camera " + serial);
 	abort();
 }
