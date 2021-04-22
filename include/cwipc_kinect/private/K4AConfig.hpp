@@ -36,6 +36,7 @@ struct K4ACameraConfig {
 	int32_t color_sharpness = 2;         // default for manual: 2;
 	int32_t color_gain = 0;              // default for manual: 100;
 	int32_t color_powerline_frequency = 2;     // default for manual: 2;
+	bool map_color_to_depth = false; // default DEPTH_TO_COLOR
 };
 
 struct K4ACameraData {

@@ -257,7 +257,7 @@ bool K4ACamera::start()
 		std::cerr << "cwipc_kinect: failed to start camera " << serial << std::endl;
 		return false;
 	}
-	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". color_height=" << color_height << ", depth_height=" << depth_height << " @" << camera_fps << "fps as " << (camera_sync_inuse ? (camera_sync_ismaster? "Master" : "Subordinate") : "Standalone") << std::endl;
+	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". color_height=" << color_height << ", depth_height=" << depth_height << " map_color_to_depth=" << camSettings.map_color_to_depth << " @" << camera_fps << "fps as " << (camera_sync_inuse ? (camera_sync_ismaster? "Master" : "Subordinate") : "Standalone") << std::endl;
 	
 	camera_started = true;
 	return true;
@@ -305,6 +305,8 @@ void K4ACamera::stop()
 	stopped = true;
 	processing_frame_queue.try_enqueue(NULL);
 	if (capture_started) {
+		if (current_frameset != NULL)
+			k4a_capture_release(current_frameset);
 		k4a_device_stop_cameras(device_handle);
 		k4a_transformation_destroy(transformation_handle);
 		camera_started = false;
@@ -396,12 +398,10 @@ void K4ACamera::_processing_thread_main()
 #ifdef CWIPC_DEBUG_THREAD
 	std::cerr << "cwipc_kinect: K4ACamera: processing: cam=" << serial << " thread started" << std::endl;
 #endif
-	k4a_image_t point_cloud_image = NULL;
-	k4a_image_t transformed_depth = NULL;
-	while(!stopped) {
+	while (!stopped) {
 		k4a_capture_t processing_frameset = NULL;
-		k4a_image_t depth = NULL;
-		k4a_image_t color = NULL;
+		k4a_image_t depth_image = NULL;
+		k4a_image_t color_image = NULL;
 
 		bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(10000));
 		if (processing_frameset == NULL) {
@@ -420,46 +420,8 @@ void K4ACamera::_processing_thread_main()
 		assert(processing_frameset);
 		std::lock_guard<std::mutex> lock(processing_mutex);
 
-		//////////////////
-
-
-		depth = k4a_capture_get_depth_image(processing_frameset);
-		color = k4a_capture_get_color_image(processing_frameset);
-
-		// Note: the following code uses color as the main source of resolution. To be decided.
-		int color_image_width_pixels = k4a_image_get_width_pixels(color);
-		int color_image_height_pixels = k4a_image_get_height_pixels(color);
-#ifdef CWIPC_DEBUG_THREAD
-		std::cerr << "cwipc_kinect: processing: got images for camera " << serial << std::endl;
-#endif
-
-		k4a_result_t sts;
-		if (transformed_depth == NULL) {
-			sts = k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16, color_image_width_pixels, color_image_height_pixels, color_image_width_pixels * (int)sizeof(uint16_t), &transformed_depth);
-			if (sts != K4A_RESULT_SUCCEEDED) {
-				std::cerr << "cwipc_kinect: cannot create transformed depth image" << std::endl;
-				goto endloop;
-			}
-		}
-		if (point_cloud_image == NULL) {
-			sts = k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM, color_image_width_pixels, color_image_height_pixels, color_image_width_pixels * 3 * (int)sizeof(int16_t), &point_cloud_image);
-			if (sts != K4A_RESULT_SUCCEEDED) {
-				std::cerr << "cwipc_kinect: cannot create pointcloud image" << std::endl;
-				goto endloop;
-			}
-		}
-#ifdef CWIPC_DEBUG_THREAD
-		std::cerr << "cwipc_kinect: processing: created aux images for camera " << serial << std::endl;
-#endif
-
-		sts = k4a_transformation_depth_image_to_color_camera(transformation_handle, depth, transformed_depth);
-		if (sts != K4A_RESULT_SUCCEEDED) {
-			std::cerr << "cwipc_kinect: cannot transform depth image" << std::endl;
-			goto endloop;
-		}
-#ifdef CWIPC_DEBUG_THREAD
-		std::cerr << "cwipc_kinect: processing: transformed depth image for camera " << serial << std::endl;
-#endif
+		depth_image = k4a_capture_get_depth_image(processing_frameset);
+		color_image = k4a_capture_get_color_image(processing_frameset);
 
 		// BODY TRACKING
 		//add transformed depth to the capture for body tracking
@@ -523,74 +485,185 @@ void K4ACamera::_processing_thread_main()
 		///END_BODY TRACKING
 
 
-
-
-		sts = k4a_transformation_depth_image_to_point_cloud(transformation_handle, transformed_depth, K4A_CALIBRATION_TYPE_COLOR, point_cloud_image);
-		if (sts != K4A_RESULT_SUCCEEDED) {
-			std::cerr << "cwipc_kinect: cannot create point cloud" << std::endl;
-			goto endloop;
+		cwipc_pcl_pointcloud new_pointcloud = nullptr;
+		if (camSettings.map_color_to_depth) {
+			new_pointcloud = generate_point_cloud_color_to_depth(transformation_handle, depth_image, color_image);
 		}
-#ifdef CWIPC_DEBUG_THREAD
-		std::cerr << "cwipc_kinect: processing: created pointcloud image for camera " << serial << std::endl;
-#endif
-		{
-			uint8_t* color_data = k4a_image_get_buffer(color);
-			int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
-			if (camSettings.do_threshold || camSettings.depth_x_erosion || camSettings.depth_y_erosion) {
-				_filter_depth_data(point_cloud_image_data, color_image_width_pixels, color_image_height_pixels);
-			}
-			// Setup depth filtering, if needed
-			// now loop over images and create points.
-			cwipc_pcl_pointcloud new_pointcloud = new_cwipc_pcl_pointcloud();
-			new_pointcloud->reserve(color_image_width_pixels * color_image_height_pixels);
-			for (int i = 0; i < color_image_width_pixels * color_image_height_pixels; i++)
-			{
-				int i_pc = i * 3;
-				int i_rgba = i * 4;
-				cwipc_pcl_point point;
-				int16_t x = point_cloud_image_data[i_pc + 0];
-				int16_t y = point_cloud_image_data[i_pc + 1];
-				int16_t z = point_cloud_image_data[i_pc + 2];
-				if (z == 0) continue;
-				
-				point.r = color_data[i_rgba + 2];
-				point.g = color_data[i_rgba + 1];
-				point.b = color_data[i_rgba + 0];
-				point.a = (uint8_t)1 << camera_index;
-				uint8_t alpha = color_data[i_rgba + 3];
-
-				if (point.r == 0 && point.g == 0 && point.b == 0 && alpha == 0) continue;
-				point.x = x;
-				point.y = y;
-				point.z = z;
-				transformPoint(point);
-				if (do_height_filtering && (point.y < height_min || point.y > height_max)) continue;
-				if (!do_greenscreen_removal || isNotGreen(&point)) // chromakey removal
-					new_pointcloud->push_back(point);
-			}
+		else {
+			new_pointcloud = generate_point_cloud_depth_to_color(transformation_handle, depth_image, color_image);
+		}
+		if (new_pointcloud != nullptr) {
 			current_pointcloud = new_pointcloud;
 #ifdef CWIPC_DEBUG_THREAD
 			std::cerr << "cwipc_kinect: camera " << serial << " produced " << camData.cloud->size() << " point" << std::endl;
 #endif
+			if (current_pointcloud->size() == 0) {
+				std::cerr << "cwipc_kinect: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
+				//continue;
+			}
+			// Notify wait_for_pc that we're done.
+			processing_done = true;
+			processing_done_cv.notify_one();
 		}
-		if (current_pointcloud->size() == 0) {
-			std::cerr << "cwipc_kinect: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
-			//continue;
-		}
-		// Notify wait_for_pc that we're done.
-		processing_done = true;
-		processing_done_cv.notify_one(); 
-	endloop:
-		//  free all allocated images
-		if (color) k4a_image_release(color);
-		if (depth) k4a_image_release(depth);
-		if (processing_frameset) k4a_capture_release(processing_frameset);
+		if (processing_frameset != NULL) k4a_capture_release(processing_frameset);
 	}
-	if (transformed_depth) k4a_image_release(transformed_depth);
-	if (point_cloud_image) k4a_image_release(point_cloud_image);
 #ifdef CWIPC_DEBUG_THREAD
 	std::cerr << "cwipc_kinect: K4ACamera: processing: cam=" << serial << " thread stopped" << std::endl;
 #endif
+}
+
+cwipc_pcl_pointcloud K4ACamera::generate_point_cloud_color_to_depth(k4a_transformation_t transformation_handle,
+	const k4a_image_t depth_image,
+	const k4a_image_t color_image)
+{
+	int depth_image_width_pixels = k4a_image_get_width_pixels(depth_image);
+	int depth_image_height_pixels = k4a_image_get_height_pixels(depth_image);
+	k4a_image_t transformed_color_image = NULL;
+	if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
+		depth_image_width_pixels,
+		depth_image_height_pixels,
+		depth_image_width_pixels * 4 * (int)sizeof(uint8_t),
+		&transformed_color_image))
+	{
+		std::cerr << "cwipc_kinect: Failed to create transformed color image" << std::endl;
+		return nullptr;
+	}
+
+	k4a_image_t point_cloud_image = NULL;
+	if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
+		depth_image_width_pixels,
+		depth_image_height_pixels,
+		depth_image_width_pixels * 3 * (int)sizeof(int16_t),
+		&point_cloud_image))
+	{
+		std::cerr << "cwipc_kinect: Failed to create point cloud image" << std::endl;
+		return nullptr;
+	}
+
+	if (K4A_RESULT_SUCCEEDED != k4a_transformation_color_image_to_depth_camera(transformation_handle,
+		depth_image,
+		color_image,
+		transformed_color_image))
+	{
+		std::cerr << "cwipc_kinect: Failed to compute transformed color image" << std::endl;
+		return nullptr;
+	}
+
+	if (K4A_RESULT_SUCCEEDED != k4a_transformation_depth_image_to_point_cloud(transformation_handle,
+		depth_image,
+		K4A_CALIBRATION_TYPE_DEPTH,
+		point_cloud_image))
+	{
+		std::cerr << "cwipc_kinect: Failed to compute point cloud" << std::endl;
+		return nullptr;
+	}
+
+	cwipc_pcl_pointcloud rv = generate_point_cloud(point_cloud_image, transformed_color_image);
+
+	k4a_image_release(transformed_color_image);
+	k4a_image_release(point_cloud_image);
+
+	return rv;
+}
+
+cwipc_pcl_pointcloud K4ACamera::generate_point_cloud_depth_to_color(k4a_transformation_t transformation_handle,
+	const k4a_image_t depth_image,
+	const k4a_image_t color_image)
+{
+	// transform color image into depth camera geometry
+	int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
+	int color_image_height_pixels = k4a_image_get_height_pixels(color_image);
+	k4a_image_t transformed_depth_image = NULL;
+	if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16,
+		color_image_width_pixels,
+		color_image_height_pixels,
+		color_image_width_pixels * (int)sizeof(uint16_t),
+		&transformed_depth_image))
+	{
+		std::cerr << "cwipc_kinect: Failed to create transformed depth image" << std::endl;
+		return nullptr;
+	}
+
+	k4a_image_t point_cloud_image = NULL;
+	if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
+		color_image_width_pixels,
+		color_image_height_pixels,
+		color_image_width_pixels * 3 * (int)sizeof(int16_t),
+		&point_cloud_image))
+	{
+		std::cerr << "cwipc_kinect: Failed to create point cloud image" << std::endl;
+		return nullptr;
+	}
+
+	if (K4A_RESULT_SUCCEEDED !=
+		k4a_transformation_depth_image_to_color_camera(transformation_handle, depth_image, transformed_depth_image))
+	{
+		std::cerr << "cwipc_kinect: Failed to compute transformed depth image" << std::endl;
+		return nullptr;
+	}
+
+	if (K4A_RESULT_SUCCEEDED != k4a_transformation_depth_image_to_point_cloud(transformation_handle,
+		transformed_depth_image,
+		K4A_CALIBRATION_TYPE_COLOR,
+		point_cloud_image))
+	{
+		std::cerr << "cwipc_kinect: Failed to compute point cloud" << std::endl;
+		return nullptr;
+	}
+
+	cwipc_pcl_pointcloud rv = generate_point_cloud(point_cloud_image, color_image);
+
+	k4a_image_release(transformed_depth_image);
+	k4a_image_release(point_cloud_image);
+
+	return rv;
+}
+
+cwipc_pcl_pointcloud K4ACamera::generate_point_cloud(const k4a_image_t point_cloud_image, const k4a_image_t color_image)
+{
+	int width = k4a_image_get_width_pixels(point_cloud_image);
+	int height = k4a_image_get_height_pixels(color_image);
+
+	uint8_t * color_data = k4a_image_get_buffer(color_image);
+	int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
+	if (camSettings.do_threshold || camSettings.depth_x_erosion || camSettings.depth_y_erosion) {
+		_filter_depth_data(point_cloud_image_data, width, height);
+	}
+	// Setup depth filtering, if needed
+	// now loop over images and create points.
+	cwipc_pcl_pointcloud new_cloud = new_cwipc_pcl_pointcloud();
+	new_cloud->clear();
+	new_cloud->reserve(width * height);
+	for (int i = 0; i < width * height; i++)
+	{
+		int i_pc = i * 3;
+		int i_rgba = i * 4;
+		cwipc_pcl_point point;
+		int16_t x = point_cloud_image_data[i_pc + 0];
+		int16_t y = point_cloud_image_data[i_pc + 1];
+		int16_t z = point_cloud_image_data[i_pc + 2];
+		if (z == 0) continue;
+
+		// color_data is BGR
+		point.r = color_data[i_rgba + 2];
+		point.g = color_data[i_rgba + 1];
+		point.b = color_data[i_rgba + 0];
+		point.a = (uint8_t)1 << camera_index;
+		uint8_t alpha = color_data[i_rgba + 3];
+
+		if (point.r == 0 && point.g == 0 && point.b == 0 && alpha == 0) continue;
+		point.x = x;
+		point.y = y;
+		point.z = z;
+		transformPoint(point);
+		if (do_height_filtering && (point.y < height_min || point.y > height_max)) continue;
+		if (!do_greenscreen_removal || isNotGreen(&point)) // chromakey removal
+			new_cloud->push_back(point);
+	}
+#ifdef CWIPC_DEBUG_THREAD
+	std::cerr << "cwipc_kinect: camera " << serial << " produced " << camData.cloud->size() << " point" << std::endl;
+#endif
+	return new_cloud;
 }
 
 void K4ACamera::_filter_depth_data(int16_t* depth_values, int width, int height) {
