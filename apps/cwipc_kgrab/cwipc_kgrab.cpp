@@ -7,6 +7,8 @@
 #include "cwipc_util/api.h"
 #include "cwipc_kinect/api.h"
 
+#undef DEBUG_AUXDATA
+
 int main(int argc, char** argv)
 {
     if (argc < 3) {
@@ -34,6 +36,11 @@ int main(int argc, char** argv)
         std::cerr << argv[0] << ": warning while creating kinect grabber: " << error << std::endl;
     }
 
+#ifdef DEBUG_AUXDATA
+    generator->request_auxiliary_data("rgb");
+    generator->request_auxiliary_data("depth");
+#endif
+
 	int ok = 0;
     while (count-- > 0 && ok == 0) {
         cwipc *pc = NULL;
@@ -44,7 +51,8 @@ int main(int argc, char** argv)
                 ok = -1;
                 break;
             }
-            if (pc->count() > 0) break;
+            int count = pc->count();
+            if (count > 0) break;
             std::cerr << argv[0] << ": warning: empty pointcloud, grabbing again" << std::endl;
         }
 		if (strcmp(argv[2], "-") != 0) {
@@ -52,7 +60,19 @@ int main(int argc, char** argv)
             std::cout << "-> Writing " << filename << std::endl;
 			ok = cwipc_write(filename, pc, &error);
 		}
-		pc->free();
+#ifdef DEBUG_AUXDATA
+        cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
+        if (ap == nullptr) {
+            std::cerr << argv[0] << ": access_auxiliary_data: returned null pointer" << std::endl;
+        }
+        else {
+            std::cerr << argv[0] << ": auxdata: " << ap->count() << " items:" << std::endl;
+            for (int i = 0; i < ap->count(); i++) {
+                std::cerr << argv[0] << "auxdata: item " << i << " name=" << ap->name(i) << ", size=" << (int)ap->size(i) << ", descr=" << ap->description(i) << std::endl;
+            }
+        }
+#endif
+        pc->free();
     }
     generator->free();
     if (ok < 0) {

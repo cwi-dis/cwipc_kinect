@@ -3,23 +3,11 @@
 //
 //  Created by Fons Kuijk on 12-12-18.
 //
-#if defined(WIN32) || defined(_WIN32)
-#define _CWIPC_KINECT_EXPORT __declspec(dllexport)
-#endif
-#include "cwipc_kinect/defs.h"
-#include "cwipc_kinect/utils.h"
+
+#include "cwipc_kinect/private/K4AConfig.hpp"
 
 #include "tinyxml.h"
-
-
 #include "psapi.h"
-
-typedef struct HsvColor
-{
-	unsigned char h;
-	unsigned char s;
-	unsigned char v;
-} HsvColor;
 
 static std::string k4a_most_recent_warning;
 char **cwipc_k4a_warning_store;
@@ -97,15 +85,16 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 #ifdef notyet
 		systemElement->QueryBoolAttribute("colormaster", &(config->colormaster));
 #endif
-		systemElement->QueryIntAttribute("color_exposure_time", &(config->default_camera_settings.color_exposure_time));
-		systemElement->QueryIntAttribute("color_whitebalance", &(config->default_camera_settings.color_whitebalance));
-		systemElement->QueryIntAttribute("color_backlight_compensation", &(config->default_camera_settings.color_backlight_compensation));
-		systemElement->QueryIntAttribute("color_brightness", &(config->default_camera_settings.color_brightness));
-		systemElement->QueryIntAttribute("color_contrast", &(config->default_camera_settings.color_contrast));
-		systemElement->QueryIntAttribute("color_saturation", &(config->default_camera_settings.color_saturation));
-		systemElement->QueryIntAttribute("color_sharpness", &(config->default_camera_settings.color_sharpness));
-		systemElement->QueryIntAttribute("color_gain", &(config->default_camera_settings.color_gain));
-		systemElement->QueryIntAttribute("color_powerline_frequency", &(config->default_camera_settings.color_powerline_frequency));
+		systemElement->QueryIntAttribute("color_exposure_time", &(config->camera_config.color_exposure_time));
+		systemElement->QueryIntAttribute("color_whitebalance", &(config->camera_config.color_whitebalance));
+		systemElement->QueryIntAttribute("color_backlight_compensation", &(config->camera_config.color_backlight_compensation));
+		systemElement->QueryIntAttribute("color_brightness", &(config->camera_config.color_brightness));
+		systemElement->QueryIntAttribute("color_contrast", &(config->camera_config.color_contrast));
+		systemElement->QueryIntAttribute("color_saturation", &(config->camera_config.color_saturation));
+		systemElement->QueryIntAttribute("color_sharpness", &(config->camera_config.color_sharpness));
+		systemElement->QueryIntAttribute("color_gain", &(config->camera_config.color_gain));
+		systemElement->QueryIntAttribute("color_powerline_frequency", &(config->camera_config.color_powerline_frequency));
+		systemElement->QueryBoolAttribute("map_color_to_depth", &(config->camera_config.map_color_to_depth));
 }
 
     // get the processing related information
@@ -116,15 +105,15 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		postprocessingElement->QueryDoubleAttribute("height_max", &(config->height_max));
         TiXmlElement* parameterElement = postprocessingElement->FirstChildElement("depthfilterparameters");
         if (parameterElement) {
-			parameterElement->QueryBoolAttribute("do_threshold", &(config->default_camera_settings.do_threshold));
-			parameterElement->QueryDoubleAttribute("threshold_near", &(config->default_camera_settings.threshold_near));
-			parameterElement->QueryDoubleAttribute("threshold_far", &(config->default_camera_settings.threshold_far));
-			parameterElement->QueryIntAttribute("depth_x_erosion", &(config->default_camera_settings.depth_x_erosion));
-			parameterElement->QueryIntAttribute("depth_y_erosion", &(config->default_camera_settings.depth_y_erosion));
+			parameterElement->QueryBoolAttribute("do_threshold", &(config->camera_config.do_threshold));
+			parameterElement->QueryDoubleAttribute("threshold_near", &(config->camera_config.threshold_near));
+			parameterElement->QueryDoubleAttribute("threshold_far", &(config->camera_config.threshold_far));
+			parameterElement->QueryIntAttribute("depth_x_erosion", &(config->camera_config.depth_x_erosion));
+			parameterElement->QueryIntAttribute("depth_y_erosion", &(config->camera_config.depth_y_erosion));
 		}
     }
     
-	bool allnewcameras = config->cameraData.size() == 0; // if empty we have to set up a new administration
+	bool allnewcameras = config->camera_data.size() == 0; // if empty we have to set up a new administration
 	int registeredcameras = 0;
 
 	// now get the per camera info
@@ -135,14 +124,14 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		K4ACameraData* cd;
 
 		int i = 0;
-		while (i < config->cameraData.size()) {
-			if (config->cameraData[i].serial == serial) {
-				cd = &config->cameraData[i];
+		while (i < config->camera_data.size()) {
+			if (config->camera_data[i].serial == serial) {
+				cd = &config->camera_data[i];
 				break;
 			}
 			i++;
 		}
-		if (i == config->cameraData.size()) {
+		if (i == config->camera_data.size()) {
 			// this camera was not in the admin yet
 			if (!allnewcameras)
 				loadOkay = false;
@@ -156,8 +145,8 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 			cd->trafo = trafo;
 			cd->intrinsicTrafo = intrinsicTrafo;
 			cd->cameraposition = { 0, 0, 0 };
-			config->cameraData.push_back(*cd);
-			cd = &config->cameraData.back();
+			config->camera_data.push_back(*cd);
+			cd = &config->camera_data.back();
 		}
 
         std::string type = cameraElement->Attribute("type");
@@ -203,11 +192,6 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		else
 			loadOkay = false;
 
-		/*std::cout << (*cd->trafo)(0, 0) << "\t" << (*cd->trafo)(0, 1) << "\t" << (*cd->trafo)(0, 2) << "\t" << (*cd->trafo)(0, 3) << std::endl;
-		std::cout << (*cd->trafo)(1, 0) << "\t" << (*cd->trafo)(1, 1) << "\t" << (*cd->trafo)(1, 2) << "\t" << (*cd->trafo)(1, 3) << std::endl;
-		std::cout << (*cd->trafo)(2, 0) << "\t" << (*cd->trafo)(2, 1) << "\t" << (*cd->trafo)(2, 2) << "\t" << (*cd->trafo)(2, 3) << std::endl;
-		std::cout << (*cd->trafo)(3, 0) << "\t" << (*cd->trafo)(3, 1) << "\t" << (*cd->trafo)(3, 2) << "\t" << (*cd->trafo)(3, 3) << std::endl;*/
-
 		// load optional intrinsicTrafo element (only for offline usage)
 		trafo = cameraElement->FirstChildElement("intrinsicTrafo");
 		if (trafo) {
@@ -233,7 +217,7 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		registeredcameras++;
 		cameraElement = cameraElement->NextSiblingElement("camera");
 	}
-	if (config->cameraData.size() != registeredcameras)
+	if (config->camera_data.size() != registeredcameras)
 		loadOkay = false;
 
     if (!loadOkay) {
@@ -242,118 +226,4 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 	return loadOkay;
 }
 
-cwipc_pcl_point* hsvToRgb(HsvColor hsv, cwipc_pcl_point* pnt)
-{
-	unsigned char region, p, q, t;
-	unsigned int h, s, v, remainder;
 
-	if (hsv.s == 0)
-	{
-		pnt->r = hsv.v;
-		pnt->g = hsv.v;
-		pnt->b = hsv.v;
-		return pnt;
-	}
-
-	// converting to 16 bit to prevent overflow
-	h = hsv.h;
-	s = hsv.s;
-	v = hsv.v;
-
-	region = h / 43;
-	remainder = (h - (region * 43)) * 6;
-
-	p = (v * (255 - s)) >> 8;
-	q = (v * (255 - ((s * remainder) >> 8))) >> 8;
-	t = (v * (255 - ((s * (255 - remainder)) >> 8))) >> 8;
-
-	switch (region)
-	{
-	case 0:
-		pnt->r = v;
-		pnt->g = t;
-		pnt->b = p;
-		break;
-	case 1:
-		pnt->r = q;
-		pnt->g = v;
-		pnt->b = p;
-		break;
-	case 2:
-		pnt->r = p;
-		pnt->g = v;
-		pnt->b = t;
-		break;
-	case 3:
-		pnt->r = p;
-		pnt->g = q;
-		pnt->b = v;
-		break;
-	case 4:
-		pnt->r = t;
-		pnt->g = p;
-		pnt->b = v;
-		break;
-	default:
-		pnt->r = v;
-		pnt->g = p;
-		pnt->b = q;
-		break;
-	}
-
-	return pnt;
-}
-
-HsvColor rgbToHsv(cwipc_pcl_point* pnt)
-{
-	HsvColor hsv;
-	unsigned char rgbMin, rgbMax;
-
-	rgbMin = pnt->r < pnt->g ? (pnt->r < pnt->b ? pnt->r : pnt->b) : (pnt->g < pnt->b ? pnt->g : pnt->b);
-	rgbMax = pnt->r > pnt->g ? (pnt->r > pnt->b ? pnt->r : pnt->b) : (pnt->g > pnt->b ? pnt->g : pnt->b);
-
-	hsv.v = rgbMax;
-	if (hsv.v == 0)
-	{
-		hsv.h = 0;
-		hsv.s = 0;
-		return hsv;
-	}
-
-	hsv.s = 255 * ((long)(rgbMax - rgbMin)) / hsv.v;
-	if (hsv.s == 0)
-	{
-		hsv.h = 0;
-		return hsv;
-	}
-
-	if (rgbMax == pnt->r)
-		hsv.h = 0 + 43 * (pnt->g - pnt->b) / (rgbMax - rgbMin);
-	else if (rgbMax == pnt->g)
-		hsv.h = 85 + 43 * (pnt->b - pnt->r) / (rgbMax - rgbMin);
-	else
-		hsv.h = 171 + 43 * (pnt->r - pnt->g) / (rgbMax - rgbMin);
-
-	return hsv;
-}
-
-bool cwipc_k4a_noChromaRemoval(cwipc_pcl_point* p)
-{
-	HsvColor hsv = rgbToHsv(p);
-
-	if (hsv.h >= 60 && hsv.h <= 130) {
-		if (hsv.s >= 0.15 && hsv.v >= 0.15) {
-			// reducegreen
-			if ((p->r * p->b) != 0 && (p->g * p->g) / (p->r * p->b) > 1.5) {
-				p->r *= 1.4;
-				p->b *= 1.4;
-			}
-			else {
-				p->r *= 1.2;
-				p->b *= 1.2;
-			}
-		}
-		return !(hsv.s >= 0.4 && hsv.v >= 0.3);
-	}
-	return true;
-}
