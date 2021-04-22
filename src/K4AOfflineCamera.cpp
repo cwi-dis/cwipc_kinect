@@ -116,7 +116,7 @@ K4AOfflineCamera::K4AOfflineCamera(recording_t _recording, K4ACaptureConfig& con
 	k4a_calibration_t calibration;
 	if (K4A_RESULT_SUCCEEDED != k4a_playback_get_calibration(playback_handle, &calibration))
 	{
-		std::cerr << "cwipc_kinect: Failed to k4a_device_get_calibration" << std::endl;
+		std::cerr << "cwipc_kinect: K4AOfflineCamera:  Failed to k4a_device_get_calibration" << std::endl;
 		camera_started = false;
 		return;
 	}
@@ -132,7 +132,7 @@ K4AOfflineCamera::K4AOfflineCamera(recording_t _recording, K4ACaptureConfig& con
 K4AOfflineCamera::~K4AOfflineCamera()
 {
 #ifdef CWIPC_DEBUG
-	std::cout << "K4AOfflineCamera: destroying " << serial << std::endl;
+	std::cout << "cwipc_kinect: K4AOfflineCamera: destroying " << serial << std::endl;
 #endif
 	assert(stopped);
 }
@@ -156,31 +156,31 @@ bool K4AOfflineCamera::prepare_next_valid_frame() {
 		if (stream_result == K4A_STREAM_RESULT_EOF)
 		{
 			if (current_frameset_timestamp == 0) {
-				std::cerr << "ERROR: Recording file is empty: " << filename << std::endl;
+				std::cerr << "cwipc_kinect: K4AOfflineCamera: ERROR: Recording file is empty: " << filename << std::endl;
 				result = K4A_RESULT_FAILED;
 			}
 			else {
-				std::cout << "Recording file " << filename << " reached EOF" << std::endl;
+				std::cout << "cwipc_kinect: K4AOfflineCamera: Recording file " << filename << " reached EOF" << std::endl;
 				eof = true;
 			}
 			break;
 		}
 		else if (stream_result == K4A_STREAM_RESULT_FAILED)
 		{
-			std::cerr << "ERROR: Failed to read first capture from file: " << filename << std::endl;
+			std::cerr << "cwipc_kinect: K4AOfflineCamera: ERROR: Failed to read first capture from file: " << filename << std::endl;
 			result = K4A_RESULT_FAILED;
 			break;
 		}
 		capture_id++;
 		k4a_image_t color = k4a_capture_get_color_image(current_frameset);
 		if (color == NULL) {
-			std::cerr << "Color is missing in capture " << capture_id << " from " << filename << std::endl;
+			std::cerr << "cwipc_kinect: K4AOfflineCamera: Color is missing in capture " << capture_id << " from " << filename << std::endl;
 			continue;
 		}
 
 		k4a_image_t depth = k4a_capture_get_depth_image(current_frameset);
 		if (depth == NULL) {
-			std::cerr << "Depth is missing in capture " << capture_id << " from " << filename << std::endl;
+			std::cerr << "cwipc_kinect: K4AOfflineCamera: Depth is missing in capture " << capture_id << " from " << filename << std::endl;
 			//color was not null so we have to release it
 			k4a_image_release(color);
 			continue;
@@ -337,7 +337,7 @@ void K4AOfflineCamera::start_capturer()
 void K4AOfflineCamera::_processing_thread_main()
 {
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "cwipc_kinect: K4ACamera: processing: cam=" << serial << " thread started" << std::endl;
+	std::cerr << "cwipc_kinect: K4AOfflineCamera: processing: cam=" << serial << " thread started" << std::endl;
 #endif
 	while (!stopped) {
 		k4a_capture_t processing_frameset = NULL;
@@ -347,36 +347,77 @@ void K4AOfflineCamera::_processing_thread_main()
 		bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(10000));
 		if (processing_frameset == NULL) {
 #ifdef CWIPC_DEBUG_THREAD
-			std::cerr << "cwipc_kinect: processing thread: null frameset" << std::endl;
+			std::cerr << "cwipc_kinect: K4AOfflineCamera: processing thread: null frameset" << std::endl;
 #endif
 			continue;
 		}
 		if (!ok) {
-			std::cerr << "cwipc_kinect: no frameset for 10 seconds, camera " << serial << std::endl;
+			std::cerr << "cwipc_kinect: K4AOfflineCamera: no frameset for 10 seconds, camera " << serial << std::endl;
 			continue;
 		}
 #ifdef CWIPC_DEBUG_THREAD
-		std::cerr << "cwipc_kinect: processing: got frame for camera " << serial << std::endl;
+		std::cerr << "cwipc_kinect: K4AOfflineCamera: processing: got frame for camera " << serial << std::endl;
 #endif
 		assert(processing_frameset);
 		std::lock_guard<std::mutex> lock(processing_mutex);
 		depth_image = k4a_capture_get_depth_image(processing_frameset);
 		color_image = k4a_capture_get_color_image(processing_frameset);
 
+		k4a_image_t uncompressed_color_image = NULL;
+		int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
+		int color_image_height_pixels = k4a_image_get_height_pixels(color_image);
+		if (k4a_image_get_format(color_image) == K4A_IMAGE_FORMAT_COLOR_MJPG) {
+			//COLOR image is JPEG compressed. we need to convert the image to BGRA format.
+
+			if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
+				color_image_width_pixels,
+				color_image_height_pixels,
+				color_image_width_pixels * 4 * (int)sizeof(uint8_t),
+				&uncompressed_color_image))
+			{
+				std::cerr << "Failed to create image buffer" << std::endl;
+				return;
+			}
+
+			tjhandle tjHandle;
+			tjHandle = tjInitDecompress();
+			if (tjDecompress2(tjHandle,
+				k4a_image_get_buffer(color_image),
+				static_cast<unsigned long>(k4a_image_get_size(color_image)),
+				k4a_image_get_buffer(uncompressed_color_image),
+				color_image_width_pixels,
+				0, // pitch
+				color_image_height_pixels,
+				TJPF_BGRA,
+				TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE) != 0)
+			{
+				std::cerr << "Failed to decompress color frame" << std::endl;
+				if (tjDestroy(tjHandle))
+				{
+					std::cerr << "Failed to destroy turboJPEG handle" << std::endl;
+				}
+				return;
+			}
+			if (tjDestroy(tjHandle))
+			{
+				std::cerr << "Failed to destroy turboJPEG handle" << std::endl;
+			}
+		}
+
 		cwipc_pcl_pointcloud new_pointcloud = nullptr;
 		if (camSettings.map_color_to_depth) {
-			new_pointcloud = generate_point_cloud_color_to_depth(transformation_handle, depth_image, color_image);
+			new_pointcloud = generate_point_cloud_color_to_depth(transformation_handle, depth_image, uncompressed_color_image);
 		}
 		else {
-			new_pointcloud = generate_point_cloud_depth_to_color(transformation_handle, depth_image, color_image);
+			new_pointcloud = generate_point_cloud_depth_to_color(transformation_handle, depth_image, uncompressed_color_image);
 		}
 		if (new_pointcloud != nullptr) {
 			current_pointcloud = new_pointcloud;
 #ifdef CWIPC_DEBUG_THREAD
-			std::cerr << "cwipc_kinect: camera " << serial << " produced " << camData.cloud->size() << " point" << std::endl;
+			std::cerr << "cwipc_kinect: K4AOfflineCamera: camera " << serial << " produced " << camData.cloud->size() << " point" << std::endl;
 #endif
 			if (current_pointcloud->size() == 0) {
-				std::cerr << "cwipc_kinect: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
+				std::cerr << "cwipc_kinect: K4AOfflineCamera: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
 				//continue;
 			}
 			// Notify wait_for_pc that we're done.
@@ -386,7 +427,7 @@ void K4AOfflineCamera::_processing_thread_main()
 		if (processing_frameset != NULL) k4a_capture_release(processing_frameset);
 	}
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "cwipc_kinect: K4ACamera: processing: cam=" << serial << " thread stopped" << std::endl;
+	std::cerr << "cwipc_kinect: K4AOfflineCamera: processing: cam=" << serial << " thread stopped" << std::endl;
 #endif
 }
 
@@ -403,7 +444,7 @@ cwipc_pcl_pointcloud K4AOfflineCamera::generate_point_cloud_color_to_depth(k4a_t
 		depth_image_width_pixels * 4 * (int)sizeof(uint8_t),
 		&transformed_color_image))
 	{
-		std::cerr << "cwipc_kinect: Failed to create transformed color image" << std::endl;
+		std::cerr << "cwipc_kinect: K4AOfflineCamera: Failed to create transformed color image" << std::endl;
 		return nullptr;
 	}
 
@@ -414,7 +455,7 @@ cwipc_pcl_pointcloud K4AOfflineCamera::generate_point_cloud_color_to_depth(k4a_t
 		depth_image_width_pixels * 3 * (int)sizeof(int16_t),
 		&point_cloud_image))
 	{
-		std::cerr << "cwipc_kinect: Failed to create point cloud image" << std::endl;
+		std::cerr << "cwipc_kinect: K4AOfflineCamera: Failed to create point cloud image" << std::endl;
 		return nullptr;
 	}
 
@@ -423,7 +464,7 @@ cwipc_pcl_pointcloud K4AOfflineCamera::generate_point_cloud_color_to_depth(k4a_t
 		color_image,
 		transformed_color_image))
 	{
-		std::cerr << "cwipc_kinect: Failed to compute transformed color image" << std::endl;
+		std::cerr << "cwipc_kinect: K4AOfflineCamera: Failed to compute transformed color image" << std::endl;
 		return nullptr;
 	}
 
@@ -432,7 +473,7 @@ cwipc_pcl_pointcloud K4AOfflineCamera::generate_point_cloud_color_to_depth(k4a_t
 		K4A_CALIBRATION_TYPE_DEPTH,
 		point_cloud_image))
 	{
-		std::cerr << "cwipc_kinect: Failed to compute point cloud" << std::endl;
+		std::cerr << "cwipc_kinect: K4AOfflineCamera: Failed to compute point cloud" << std::endl;
 		return nullptr;
 	}
 
@@ -458,7 +499,7 @@ cwipc_pcl_pointcloud K4AOfflineCamera::generate_point_cloud_depth_to_color(k4a_t
 		color_image_width_pixels * (int)sizeof(uint16_t),
 		&transformed_depth_image))
 	{
-		std::cerr << "cwipc_kinect: Failed to create transformed depth image" << std::endl;
+		std::cerr << "cwipc_kinect: K4AOfflineCamera: Failed to create transformed depth image" << std::endl;
 		return nullptr;
 	}
 
@@ -469,14 +510,14 @@ cwipc_pcl_pointcloud K4AOfflineCamera::generate_point_cloud_depth_to_color(k4a_t
 		color_image_width_pixels * 3 * (int)sizeof(int16_t),
 		&point_cloud_image))
 	{
-		std::cerr << "cwipc_kinect: Failed to create point cloud image" << std::endl;
+		std::cerr << "cwipc_kinect: K4AOfflineCamera: Failed to create point cloud image" << std::endl;
 		return nullptr;
 	}
 
 	if (K4A_RESULT_SUCCEEDED !=
 		k4a_transformation_depth_image_to_color_camera(transformation_handle, depth_image, transformed_depth_image))
 	{
-		std::cerr << "cwipc_kinect: Failed to compute transformed depth image" << std::endl;
+		std::cerr << "cwipc_kinect: K4AOfflineCamera: Failed to compute transformed depth image" << std::endl;
 		return nullptr;
 	}
 
@@ -485,7 +526,7 @@ cwipc_pcl_pointcloud K4AOfflineCamera::generate_point_cloud_depth_to_color(k4a_t
 		K4A_CALIBRATION_TYPE_COLOR,
 		point_cloud_image))
 	{
-		std::cerr << "cwipc_kinect: Failed to compute point cloud" << std::endl;
+		std::cerr << "cwipc_kinect: K4AOfflineCamera: Failed to compute point cloud" << std::endl;
 		return nullptr;
 	}
 
@@ -603,7 +644,7 @@ void K4AOfflineCamera::create_pc_from_frames()
 {
 	assert(current_capture);
 	if (!processing_frame_queue.try_enqueue(current_frameset)) {
-		std::cerr << "cwipc_kinect: camera " << serial << ": drop frame before processing" << std::endl;
+		std::cerr << "cwipc_kinect: K4AOfflineCamera:  camera " << serial << ": drop frame before processing" << std::endl;
 		k4a_capture_release(current_frameset);
 	}
 	current_frameset = NULL;

@@ -8,7 +8,7 @@
 #include <k4a/k4a.h>
 #include <k4arecord/playback.h>
 
-#include "cwipc_kinect/utils.h";
+#include "cwipc_kinect/private/K4AConfig.hpp";
 #include "cwipc_util/api.h"
 #include "cwipc_kinect/api.h"
 
@@ -40,7 +40,7 @@ int main(int argc, char** argv)
     inputdir = argv[1];
     std::string outputdir(argv[2]);
     if (!dirExists(outputdir)) {
-        std::cerr << "Selected output dir " << outputdir << " does not exist" << std::endl;
+        std::cerr << "cwipc_k4aoffline: Selected output dir " << outputdir << " does not exist" << std::endl;
         return -1;
     }
 
@@ -82,13 +82,13 @@ int main(int argc, char** argv)
         ok = cwipc_write_debugdump(outputfile.c_str(), pc, &error); //FASTER WRITE
         //ok = cwipc_write(filename, pc, &error);
         if (ok == -1)
-            std::cerr << "Error writing: " << error << std::endl;
+            std::cerr << "cwipc_k4aoffline: Error writing: " << error << std::endl;
         pc->free();
         std::cout << "--------------------------------------------------------" << std::endl;
     }
     generator->free();
     if (ok < 0) {
-        std::cerr << "Error: " << error << std::endl;
+        std::cerr << "cwipc_k4aoffline: Error: " << error << std::endl;
         return 1;
     }
     return 0;

@@ -69,7 +69,7 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 		files = (recording_t*)malloc(sizeof(recording_t) * file_count);
 		if (files == NULL)
 		{
-			std::cerr << "Failed to allocate memory for playback (" << sizeof(recording_t) * file_count << " bytes)" << std::endl;
+			std::cerr << "cwipc_K4AOfflineCapture: Failed to allocate memory for playback (" << sizeof(recording_t) * file_count << " bytes)" << std::endl;
 			return;
 		}
 		memset(files, 0, sizeof(recording_t) * file_count);
@@ -83,23 +83,23 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 
 			if (result != K4A_RESULT_SUCCEEDED)
 			{
-				std::cerr << "Failed to open file: " << files[i].filename << std::endl;
+				std::cerr << "cwipc_K4AOfflineCapture: Failed to open file: " << files[i].filename << std::endl;
 				break;
 			}
 
 			result = k4a_playback_get_record_configuration(files[i].handle, &files[i].record_config);
 			if (result != K4A_RESULT_SUCCEEDED)
 			{
-				std::cerr << "Failed to get record configuration for file: " << files[i].filename << std::endl;
+				std::cerr << "cwipc_K4AOfflineCapture: Failed to get record configuration for file: " << files[i].filename << std::endl;
 				break;
 			}
 
 			if (files[i].record_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_MASTER)
 			{
-				std::cout << "Opened master recording file: " << files[i].filename << std::endl;
+				std::cout << "cwipc_K4AOfflineCapture: Opened master recording file: " << files[i].filename << std::endl;
 				if (master_found)
 				{
-					std::cerr << "ERROR: Multiple master recordings listed!" << std::endl;
+					std::cerr << "cwipc_K4AOfflineCapture: ERROR: Multiple master recordings listed!" << std::endl;
 					result = K4A_RESULT_FAILED;
 					break;
 				}
@@ -111,11 +111,11 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 			}
 			else if (files[i].record_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_SUBORDINATE)
 			{
-				std::cout << "Opened subordinate recording file: " << files[i].filename << std::endl;
+				std::cout << "cwipc_K4AOfflineCapture: Opened subordinate recording file: " << files[i].filename << std::endl;
 			}
 			else
 			{
-				std::cerr << "ERROR: Recording file was not recorded in master/sub mode: " << files[i].filename << std::endl;
+				std::cerr << "cwipc_K4AOfflineCapture: ERROR: Recording file was not recorded in master/sub mode: " << files[i].filename << std::endl;
 				result = K4A_RESULT_FAILED;
 				return;
 			}
@@ -198,13 +198,13 @@ K4AOfflineCapture::~K4AOfflineCapture() {
 	mergedPC_want_new_cv.notify_all();
 	control_thread->join();
 	delete control_thread;
-	std::cerr << "cwipc_kinect: stopped all cameras\n";
+	std::cerr << "cwipc_K4AOfflineCapture: stopped all cameras\n";
 
 	// Delete all cameras (which will stop their threads as well)
 	for (auto cam : cameras)
 		delete cam;
 	cameras.clear();
-	std::cerr << "cwipc_kinect: deleted all cameras\n";
+	std::cerr << "cwipc_K4AOfflineCapture: deleted all cameras\n";
 
 
 	// We can now free camera_handles
@@ -220,7 +220,7 @@ K4AOfflineCapture::~K4AOfflineCapture() {
 
 	// Print some minimal statistics of this run
 	float deltaT = (stopTime - starttime) / 1000.0;
-	std::cerr << "cwipc_kinect: ran for " << deltaT << " seconds, produced " << numberOfPCsProduced << " pointclouds at " << numberOfPCsProduced / deltaT << " fps." << std::endl;
+	std::cerr << "cwipc_K4AOfflineCapture: ran for " << deltaT << " seconds, produced " << numberOfPCsProduced << " pointclouds at " << numberOfPCsProduced / deltaT << " fps." << std::endl;
 	numberOfCapturersActive--;
 }
 
@@ -268,7 +268,7 @@ bool K4AOfflineCapture::pointcloud_available(bool wait)
 void K4AOfflineCapture::_control_thread_main()
 {
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "cwipc_kinect: K4AOfflineCapture: processing thread started" << std::endl;
+	std::cerr << "cwipc_K4AOfflineCapture: processing thread started" << std::endl;
 #endif
 	while (!stopped) {
 		{
@@ -366,12 +366,12 @@ void K4AOfflineCapture::_control_thread_main()
 		merge_views();
 		if (mergedPC->access_pcl_pointcloud()->size() > 0) {
 #ifdef CWIPC_DEBUG
-			std::cerr << "cwipc_kinect: capturer produced a merged cloud of " << mergedPC->size() << " points" << std::endl;
+			std::cerr << "cwipc_K4AOfflineCapture: capturer produced a merged cloud of " << mergedPC->size() << " points" << std::endl;
 #endif
 		}
 		else {
 #ifdef CWIPC_DEBUG
-			std::cerr << "cwipc_kinect: Warning: capturer got an empty pointcloud\n";
+			std::cerr << "cwipc_K4AOfflineCapture: Warning: capturer got an empty pointcloud\n";
 #endif
 #if 0
 			// HACK to make sure the encoder does not get an empty pointcloud
@@ -389,7 +389,7 @@ void K4AOfflineCapture::_control_thread_main()
 		mergedPC_is_fresh_cv.notify_all();
 	}
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "wipc_kinect: K4AOfflineCapture: processing thread stopped" << std::endl;
+	std::cerr << "cwipc_K4AOfflineCapture: processing thread stopped" << std::endl;
 #endif
 }
 
