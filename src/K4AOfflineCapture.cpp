@@ -295,7 +295,7 @@ void K4AOfflineCapture::_control_thread_main()
 
 		for (auto cam : cameras) { //MASTER
 			if (!cam->is_sync_master()) continue;
-			if (!cam->capture_frameset(NULL)) {
+			if (!cam->capture_frameset(0)) {
 				all_captures_ok = false;
 				break;
 			}

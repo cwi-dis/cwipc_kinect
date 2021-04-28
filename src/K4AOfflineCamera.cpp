@@ -642,7 +642,7 @@ void K4AOfflineCamera::transformPoint(cwipc_pcl_point& pt)
 
 void K4AOfflineCamera::create_pc_from_frames()
 {
-	assert(current_capture);
+	assert(current_frameset);
 	if (!processing_frame_queue.try_enqueue(current_frameset)) {
 		std::cerr << "cwipc_kinect: K4AOfflineCamera:  camera " << serial << ": drop frame before processing" << std::endl;
 		k4a_capture_release(current_frameset);
