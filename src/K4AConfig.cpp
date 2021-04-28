@@ -4,10 +4,13 @@
 //  Created by Fons Kuijk on 12-12-18.
 //
 
+//enable this to print memory statistics
+#undef MEMORY_DEBUG 
 #include "cwipc_kinect/private/K4AConfig.hpp"
-
 #include "tinyxml.h"
-#include "psapi.h"
+#ifdef MEMORY_DEBUG
+	#include "psapi.h"
+#endif
 
 static std::string k4a_most_recent_warning;
 char **cwipc_k4a_warning_store;
@@ -21,6 +24,7 @@ void cwipc_k4a_log_warning(std::string warning)
     }
 }
 
+#ifdef MEMORY_DEBUG
 void print_stats(std::string header) { 
 	//This function can help debugging memory problems. Code taken from: https://stackoverflow.com/questions/63166/how-to-determine-cpu-and-memory-consumption-from-inside-a-process
 	//More info here: https://docs.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-memorystatusex
@@ -53,6 +57,7 @@ void print_stats(std::string header) {
 	std::cout << "\t## RAM(MB): Total:" << totalPhysMem / 1000000 << " | Used:" << physMemUsed / 1000000 << "| UsedByMe:" << physMemUsedByMe / 1000000 << std::endl;
 	std::cout << "\t## VRAM(MB): Total:" << totalVirtualMem / 1000000 << " | Used:" << virtualMemUsed / 1000000 << "| UsedByMe:" << virtualMemUsedByMe / 1000000 << std::endl;
 }
+#endif // MEMORY_DEBUG
 
 // read and restore the camera transformation setting as stored in the configuration document
 bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
