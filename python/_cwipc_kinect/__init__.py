@@ -29,6 +29,9 @@ def _cwipc_kinect_dll(libname=None):
     
     _cwipc_kinect_dll_reference.cwipc_kinect.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_char_p), ctypes.c_ulong]
     _cwipc_kinect_dll_reference.cwipc_kinect.restype = cwipc_tiledsource_p
+    
+    _cwipc_kinect_dll_reference.cwipc_k4aoffline.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_char_p), ctypes.c_ulong]
+    _cwipc_kinect_dll_reference.cwipc_k4aoffline.restype = cwipc_tiledsource_p
 
     return _cwipc_kinect_dll_reference
         
