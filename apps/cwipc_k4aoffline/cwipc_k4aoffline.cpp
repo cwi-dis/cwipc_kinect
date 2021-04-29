@@ -12,6 +12,8 @@
 #include "cwipc_util/api.h"
 #include "cwipc_kinect/api.h"
 
+#define DEBUG_AUXDATA
+
 int main(int argc, char** argv)
 {
     if (argc < 3) {
@@ -41,6 +43,12 @@ int main(int argc, char** argv)
         std::cerr << argv[0] << ": warning while creating kinect grabber: " << error << std::endl;
     }
 
+#ifdef DEBUG_AUXDATA
+    generator->request_auxiliary_data("rgb");
+    generator->request_auxiliary_data("depth");
+    generator->request_auxiliary_data("skeletons");
+#endif
+
     int ok = 0;
     int framenum = 0;
     while (!generator->eof()) {
@@ -54,9 +62,21 @@ int main(int argc, char** argv)
         if (pc->count() <= 0) {
             std::cerr << argv[0] << ": warning: empty pointcloud, grabbing again" << std::endl;
             pc->free();
-            pc->free();
             continue;
         }
+#ifdef DEBUG_AUXDATA
+        cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
+        if (ap == nullptr) {
+            std::cerr << argv[0] << ": access_auxiliary_data: returned null pointer" << std::endl;
+        }
+        else {
+            std::cerr << argv[0] << ": auxdata: " << ap->count() << " items:" << std::endl;
+            for (int i = 0; i < ap->count(); i++) {
+                void* ptr = ap->pointer(i);
+                std::cerr << argv[0] << "auxdata: item " << i << " name=" << ap->name(i) << ", size=" << (int)ap->size(i) << ", descr=" << ap->description(i) << ", pointer=0x" << std::hex << (uint64_t)ptr << std::dec << std::endl;
+            }
+        }
+#endif
         framenum++;
         //Good, write the pointcloud
         std::ostringstream ts;

@@ -7,7 +7,7 @@
 #include "cwipc_util/api.h"
 #include "cwipc_kinect/api.h"
 
-#undef DEBUG_AUXDATA
+#define DEBUG_AUXDATA
 
 int main(int argc, char** argv)
 {
@@ -39,6 +39,7 @@ int main(int argc, char** argv)
 #ifdef DEBUG_AUXDATA
     generator->request_auxiliary_data("rgb");
     generator->request_auxiliary_data("depth");
+    generator->request_auxiliary_data("skeletons");
 #endif
 
 	int ok = 0;
@@ -68,7 +69,8 @@ int main(int argc, char** argv)
         else {
             std::cerr << argv[0] << ": auxdata: " << ap->count() << " items:" << std::endl;
             for (int i = 0; i < ap->count(); i++) {
-                std::cerr << argv[0] << "auxdata: item " << i << " name=" << ap->name(i) << ", size=" << (int)ap->size(i) << ", descr=" << ap->description(i) << std::endl;
+                void* ptr = ap->pointer(i);
+                std::cerr << argv[0] << "auxdata: item " << i << " name=" << ap->name(i) << ", size=" << (int)ap->size(i) << ", descr=" << ap->description(i) << ", pointer=0x" << std::hex << (uint64_t)ptr << std::dec << std::endl;
             }
         }
 #endif
