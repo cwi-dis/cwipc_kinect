@@ -309,7 +309,7 @@ void K4AOfflineCapture::_control_thread_main()
 				}
 			}
 			else {
-				if (!cameras[master_id]->capture_frameset(NULL)) {
+				if (!cameras[master_id]->capture_frameset(0)) {
 					all_captures_ok = false;
 					break;
 				}
