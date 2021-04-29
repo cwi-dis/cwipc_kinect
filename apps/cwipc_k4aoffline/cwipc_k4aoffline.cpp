@@ -85,8 +85,10 @@ int main(int argc, char** argv)
         std::cout << "-> Writing frame " << framenum << " => "<< outputfile << std::endl;
         ok = cwipc_write_debugdump(outputfile.c_str(), pc, &error); //FASTER WRITE
         //ok = cwipc_write(filename, pc, &error);
-        if (ok == -1)
+        if (ok == -1) {
             std::cerr << "cwipc_k4aoffline: Error writing: " << error << std::endl;
+            break;
+        }
         pc->free();
         std::cout << "--------------------------------------------------------" << std::endl;
     }
