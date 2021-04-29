@@ -404,10 +404,10 @@ void K4ACamera::_processing_thread_main()
 
 		cwipc_pcl_pointcloud new_pointcloud = nullptr;
 		if (camSettings.map_color_to_depth) {
-			new_pointcloud = generate_point_cloud_color_to_depth(transformation_handle, depth_image, color_image);
+			new_pointcloud = generate_point_cloud_color_to_depth(depth_image, color_image);
 		}
 		else {
-			new_pointcloud = generate_point_cloud_depth_to_color(transformation_handle, depth_image, color_image);
+			new_pointcloud = generate_point_cloud_depth_to_color(depth_image, color_image);
 		}
 		if (new_pointcloud != nullptr) {
 			current_pointcloud = new_pointcloud;
@@ -429,7 +429,7 @@ void K4ACamera::_processing_thread_main()
 #endif
 }
 
-cwipc_pcl_pointcloud K4ACamera::generate_point_cloud_color_to_depth(k4a_transformation_t transformation_handle,
+cwipc_pcl_pointcloud K4ACamera::generate_point_cloud_color_to_depth(
 	const k4a_image_t depth_image,
 	const k4a_image_t color_image)
 {
@@ -488,7 +488,7 @@ cwipc_pcl_pointcloud K4ACamera::generate_point_cloud_color_to_depth(k4a_transfor
 	return rv;
 }
 
-cwipc_pcl_pointcloud K4ACamera::generate_point_cloud_depth_to_color(k4a_transformation_t transformation_handle,
+cwipc_pcl_pointcloud K4ACamera::generate_point_cloud_depth_to_color(
 	const k4a_image_t depth_image,
 	const k4a_image_t color_image)
 {

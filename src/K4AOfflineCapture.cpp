@@ -104,7 +104,7 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 
 			if (files[i].record_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_MASTER)
 			{
-				std::cout << "cwipc_K4AOfflineCapture: Opened master recording file: " << files[i].filename << std::endl;
+				std::cerr << "cwipc_K4AOfflineCapture: Opened master recording file: " << files[i].filename << std::endl;
 				if (master_found)
 				{
 					std::cerr << "cwipc_K4AOfflineCapture: ERROR: Multiple master recordings listed!" << std::endl;

@@ -412,15 +412,15 @@ void K4AOfflineCamera::_processing_thread_main()
 
 		cwipc_pcl_pointcloud new_pointcloud = nullptr;
 		if (camSettings.map_color_to_depth) {
-			new_pointcloud = generate_point_cloud_color_to_depth(transformation_handle, depth_image, uncompressed_color_image);
+			new_pointcloud = generate_point_cloud_color_to_depth(depth_image, uncompressed_color_image);
 		}
 		else {
-			new_pointcloud = generate_point_cloud_depth_to_color(transformation_handle, depth_image, uncompressed_color_image);
+			new_pointcloud = generate_point_cloud_depth_to_color(depth_image, uncompressed_color_image);
 		}
 		if (new_pointcloud != nullptr) {
 			current_pointcloud = new_pointcloud;
 #ifdef CWIPC_DEBUG_THREAD
-			std::cerr << "cwipc_kinect: K4AOfflineCamera: camera " << serial << " produced " << camData.cloud->size() << " point" << std::endl;
+			std::cerr << "cwipc_kinect: K4AOfflineCamera: camera " << serial << " produced " << current_pointcloud->size() << " point" << std::endl;
 #endif
 			if (current_pointcloud->size() == 0) {
 				std::cerr << "cwipc_kinect: K4AOfflineCamera: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
@@ -437,7 +437,7 @@ void K4AOfflineCamera::_processing_thread_main()
 #endif
 }
 
-cwipc_pcl_pointcloud K4AOfflineCamera::generate_point_cloud_color_to_depth(k4a_transformation_t transformation_handle,
+cwipc_pcl_pointcloud K4AOfflineCamera::generate_point_cloud_color_to_depth(
 	const k4a_image_t depth_image,
 	const k4a_image_t color_image)
 {
@@ -496,7 +496,7 @@ cwipc_pcl_pointcloud K4AOfflineCamera::generate_point_cloud_color_to_depth(k4a_t
 	return rv;
 }
 
-cwipc_pcl_pointcloud K4AOfflineCamera::generate_point_cloud_depth_to_color(k4a_transformation_t transformation_handle,
+cwipc_pcl_pointcloud K4AOfflineCamera::generate_point_cloud_depth_to_color(
 	const k4a_image_t depth_image,
 	const k4a_image_t color_image)
 {
@@ -595,7 +595,7 @@ cwipc_pcl_pointcloud K4AOfflineCamera::generate_point_cloud(const k4a_image_t po
 			new_cloud->push_back(point);
 	}
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "cwipc_kinect: camera " << serial << " produced " << camData.cloud->size() << " point" << std::endl;
+	std::cerr << "cwipc_kinect: camera " << serial << " produced " << new_cloud->size() << " point" << std::endl;
 #endif
 	return new_cloud;
 }
