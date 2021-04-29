@@ -436,42 +436,47 @@ cwipc_pcl_pointcloud K4ACamera::generate_point_cloud_color_to_depth(k4a_transfor
 	int depth_image_width_pixels = k4a_image_get_width_pixels(depth_image);
 	int depth_image_height_pixels = k4a_image_get_height_pixels(depth_image);
 	k4a_image_t transformed_color_image = NULL;
-	if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
+	k4a_result_t status;
+	status = k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
 		depth_image_width_pixels,
 		depth_image_height_pixels,
 		depth_image_width_pixels * 4 * (int)sizeof(uint8_t),
-		&transformed_color_image))
+		&transformed_color_image);
+	if (status != K4A_RESULT_SUCCEEDED)
 	{
-		std::cerr << "cwipc_kinect: Failed to create transformed color image" << std::endl;
+		std::cerr << "cwipc_kinect: Failed to create transformed color image: " << status << std::endl;
 		return nullptr;
 	}
 
 	k4a_image_t point_cloud_image = NULL;
-	if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
+	status = k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
 		depth_image_width_pixels,
 		depth_image_height_pixels,
 		depth_image_width_pixels * 3 * (int)sizeof(int16_t),
-		&point_cloud_image))
+		&point_cloud_image);
+	if (status != K4A_RESULT_SUCCEEDED)
 	{
-		std::cerr << "cwipc_kinect: Failed to create point cloud image" << std::endl;
+		std::cerr << "cwipc_kinect: Failed to create point cloud image: " << status << std::endl;
 		return nullptr;
 	}
 
-	if (K4A_RESULT_SUCCEEDED != k4a_transformation_color_image_to_depth_camera(transformation_handle,
+	status = k4a_transformation_color_image_to_depth_camera(transformation_handle,
 		depth_image,
 		color_image,
-		transformed_color_image))
+		transformed_color_image);
+	if (status != K4A_RESULT_SUCCEEDED)
 	{
-		std::cerr << "cwipc_kinect: Failed to compute transformed color image" << std::endl;
+		std::cerr << "cwipc_kinect: Failed to compute transformed color image: " << status  << std::endl;
 		return nullptr;
 	}
 
-	if (K4A_RESULT_SUCCEEDED != k4a_transformation_depth_image_to_point_cloud(transformation_handle,
+	status = k4a_transformation_depth_image_to_point_cloud(transformation_handle,
 		depth_image,
 		K4A_CALIBRATION_TYPE_DEPTH,
-		point_cloud_image))
+		point_cloud_image);
+	if (status != K4A_RESULT_SUCCEEDED)
 	{
-		std::cerr << "cwipc_kinect: Failed to compute point cloud" << std::endl;
+		std::cerr << "cwipc_kinect: Failed to compute point cloud: " << status << std::endl;
 		return nullptr;
 	}
 
@@ -491,40 +496,44 @@ cwipc_pcl_pointcloud K4ACamera::generate_point_cloud_depth_to_color(k4a_transfor
 	int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
 	int color_image_height_pixels = k4a_image_get_height_pixels(color_image);
 	k4a_image_t transformed_depth_image = NULL;
-	if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16,
+	k4a_result_t status;
+	status = k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16,
 		color_image_width_pixels,
 		color_image_height_pixels,
 		color_image_width_pixels * (int)sizeof(uint16_t),
-		&transformed_depth_image))
+		&transformed_depth_image);
+	if (status != K4A_RESULT_SUCCEEDED)
 	{
-		std::cerr << "cwipc_kinect: Failed to create transformed depth image" << std::endl;
+		std::cerr << "cwipc_kinect: Failed to create transformed depth image: " << status << std::endl;
 		return nullptr;
 	}
 
 	k4a_image_t point_cloud_image = NULL;
-	if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
+	status = k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
 		color_image_width_pixels,
 		color_image_height_pixels,
 		color_image_width_pixels * 3 * (int)sizeof(int16_t),
-		&point_cloud_image))
+		&point_cloud_image);
+	if (status != K4A_RESULT_SUCCEEDED)
 	{
-		std::cerr << "cwipc_kinect: Failed to create point cloud image" << std::endl;
+		std::cerr << "cwipc_kinect: Failed to create point cloud image: " << status << std::endl;
 		return nullptr;
 	}
 
-	if (K4A_RESULT_SUCCEEDED !=
-		k4a_transformation_depth_image_to_color_camera(transformation_handle, depth_image, transformed_depth_image))
+	status = k4a_transformation_depth_image_to_color_camera(transformation_handle, depth_image, transformed_depth_image);
+	if (status != K4A_RESULT_SUCCEEDED)
 	{
-		std::cerr << "cwipc_kinect: Failed to compute transformed depth image" << std::endl;
+		std::cerr << "cwipc_kinect: Failed to compute transformed depth image: " << status << std::endl;
 		return nullptr;
 	}
 
-	if (K4A_RESULT_SUCCEEDED != k4a_transformation_depth_image_to_point_cloud(transformation_handle,
+	status = k4a_transformation_depth_image_to_point_cloud(transformation_handle,
 		transformed_depth_image,
 		K4A_CALIBRATION_TYPE_COLOR,
-		point_cloud_image))
+		point_cloud_image);
+	if (status != K4A_RESULT_SUCCEEDED)
 	{
-		std::cerr << "cwipc_kinect: Failed to compute point cloud" << std::endl;
+		std::cerr << "cwipc_kinect: Failed to compute point cloud: " << status << std::endl;
 		return nullptr;
 	}
 
