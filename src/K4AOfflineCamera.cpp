@@ -88,14 +88,19 @@ static bool isNotGreen(cwipc_pcl_point* p)
 K4AOfflineCamera::K4AOfflineCamera(recording_t _recording, K4ACaptureConfig& configuration, int _camera_index)
 	: pointSize(0), minx(0), minz(0), maxz(0),
 	playback_handle(_recording.handle),
+	capture_id(-1),
+	current_frameset_timestamp(0),
 	camera_index(_camera_index),
 	stopped(true),
 	camera_started(false),
 	capture_started(false),
+	processing_thread(nullptr),
 	camData(configuration.camera_data[camera_index]),
 	serial(configuration.camera_data[camera_index].serial),
 	filename(configuration.camera_data[camera_index].filename),
 	camSettings(configuration.camera_config),
+	current_pointcloud(nullptr),
+	transformation_handle(nullptr),
 	captured_frame_queue(1),
 	processing_frame_queue(1),
 	current_frameset(NULL),
@@ -107,7 +112,9 @@ K4AOfflineCamera::K4AOfflineCamera(recording_t _recording, K4ACaptureConfig& con
 	do_greenscreen_removal(configuration.greenscreen_removal),
 	do_height_filtering(configuration.height_min != configuration.height_max),
 	height_min(configuration.height_min),
-	height_max(configuration.height_max)
+	height_max(configuration.height_max),
+	max_delay(0),
+	processing_done(false)
 {
 #ifdef CWIPC_DEBUG
 	std::cout << "K4ACapture: creating camera " << serial << std::endl;
@@ -139,7 +146,6 @@ K4AOfflineCamera::~K4AOfflineCamera()
 
 void K4AOfflineCamera::_init_filters()
 {
-	if (!do_depth_filtering) return;
 }
 
 bool K4AOfflineCamera::prepare_next_valid_frame() {

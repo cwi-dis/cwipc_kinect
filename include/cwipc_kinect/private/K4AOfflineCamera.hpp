@@ -46,7 +46,7 @@ public:
 	double minz;
 	double maxz;
 	k4a_playback_t playback_handle;
-	k4a_record_configuration_t record_config;
+	// xxxjack unused? k4a_record_configuration_t record_config;
 	int capture_id = 0;
 	uint64_t current_frameset_timestamp;
 	int camera_index;
@@ -81,8 +81,8 @@ private:
 	int camera_fps;
 	bool camera_sync_ismaster;
 	bool camera_sync_inuse;
-	bool do_depth_filtering;
-	bool do_background_removal;
+	// xxxjack unused? bool do_depth_filtering;
+	// xxxjack unused? bool do_background_removal;
 	bool do_greenscreen_removal;
 	bool do_height_filtering;
 	double height_min;
