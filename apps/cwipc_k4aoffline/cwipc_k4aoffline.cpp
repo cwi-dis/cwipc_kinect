@@ -12,18 +12,6 @@
 #include "cwipc_util/api.h"
 #include "cwipc_kinect/api.h"
 
-bool dirExists(const std::string& dirName_in)
-{
-    DWORD ftyp = GetFileAttributesA(dirName_in.c_str());
-    if (ftyp == INVALID_FILE_ATTRIBUTES)
-        return false;  //something is wrong with your path!
-
-    if (ftyp & FILE_ATTRIBUTE_DIRECTORY)
-        return true;   // this is a directory!
-
-    return false;    // this is not a directory!
-}
-
 int main(int argc, char** argv)
 {
     if (argc < 3) {
@@ -39,10 +27,6 @@ int main(int argc, char** argv)
     char* inputdir = NULL;
     inputdir = argv[1];
     std::string outputdir(argv[2]);
-    if (!dirExists(outputdir)) {
-        std::cerr << "cwipc_k4aoffline: Selected output dir " << outputdir << " does not exist" << std::endl;
-        return -1;
-    }
 
     std::string configFile(inputdir);
     configFile += "/cameraconfig.xml";
