@@ -77,6 +77,7 @@ int main(int argc, char** argv)
             }
         }
 #endif
+        std::cerr << "xxxjack pointcloud has " << pc->count() << " points" << std::endl;
         framenum++;
         //Good, write the pointcloud
         std::ostringstream ts;
