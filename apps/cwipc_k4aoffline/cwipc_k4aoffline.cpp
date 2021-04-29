@@ -34,7 +34,7 @@ int main(int argc, char** argv)
     generator = cwipc_k4aoffline(configFile.c_str(), &error, CWIPC_API_VERSION);
     if (generator == NULL) {
         std::cerr << argv[0] << ": creating offlinekinect grabber failed: " << error << std::endl;
-        if (getenv("CWIPC_KINECT_TESTING") != NULL) return 0; // No failure while running tests, so we can at least test linking, etc.
+        //if (getenv("CWIPC_KINECT_TESTING") != NULL) return 0; // No failure while running tests, so we can at least test linking, etc.
         return 1;
     }
     if (error) {
