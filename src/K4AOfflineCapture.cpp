@@ -30,8 +30,16 @@ static int numberOfCapturersActive = 0;
 K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 	: numberOfPCsProduced(0),
 	no_cameras(false),
+	sync_inuse(false),
+	master_id(-1),
+	eof(false),
+	want_auxdata_rgb(false),
+	want_auxdata_depth(false),
+	stopped(false),
 	mergedPC_is_fresh(false),
-	mergedPC_want_new(false)
+	mergedPC_want_new(false),
+	current_ts(0),
+	file_count(0)
 {
 	// First check that no other K4AOfflineCapture is active within this process (trying to catch programmer errors)
 	numberOfCapturersActive++;
