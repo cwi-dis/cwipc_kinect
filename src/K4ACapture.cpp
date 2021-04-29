@@ -30,7 +30,9 @@ K4ACapture::K4ACapture(int dummy)
     no_cameras(true),
 	mergedPC(nullptr),
 	mergedPC_is_fresh(false),
-	mergedPC_want_new(false)
+	mergedPC_want_new(false),
+	stopped(false),
+	want_auxdata_skeleton(false)
 {
 	numberOfCapturersActive++;
 	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -40,6 +42,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 :	numberOfPCsProduced(0),
 	want_auxdata_rgb(false),
 	want_auxdata_depth(false),
+	want_auxdata_skeleton(false),
 	no_cameras(false),
 	mergedPC_is_fresh(false),
 	mergedPC_want_new(false)
@@ -214,7 +217,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	// Now we have all the configuration information. Open the cameras.
 	_create_cameras(camera_handles, serials, camera_count);
 	// We can now free camera_handles
-	delete camera_handles;
+	delete []camera_handles;
 
 	
 	// find camerapositions
@@ -407,8 +410,13 @@ void K4ACapture::_control_thread_main()
 
 		if (want_auxdata_rgb || want_auxdata_depth) {
 			for (auto cam : cameras) {
-				cam->save_auxdata(newPC, want_auxdata_rgb, want_auxdata_depth);
+				cam->save_auxdata_images(newPC, want_auxdata_rgb, want_auxdata_depth);
 			}
+		}
+
+		//Ensure to enable skeleton computation if wanted
+		for (auto cam : cameras) {
+			cam->request_skeleton_auxdata(want_auxdata_skeleton);
 		}
 
         // Step 3: start processing frames to pointclouds, for each camera
@@ -428,6 +436,13 @@ void K4ACapture::_control_thread_main()
         for(auto cam : cameras) {
             cam->wait_for_pc();
         }
+
+		if (want_auxdata_skeleton) {
+			for (auto cam : cameras) {
+				cam->save_auxdata_skeleton(newPC);
+			}
+		}
+
         // Step 5: merge views
         merge_views();
         if (mergedPC->access_pcl_pointcloud()->size() > 0) {
