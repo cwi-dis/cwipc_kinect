@@ -89,6 +89,7 @@ class TestApi(unittest.TestCase):
         finally:
             if grabber: grabber.free()
 
+    @unittest.skipIf(sys.platform=='linux' and not 'DISPLAY' in os.environ, "Test requires X server/OpenGL")
     def test_cwipc_k4aoffline(self):
         """Test that we can grab a kinect image from the offline grabber"""
         grabber = None

@@ -66,6 +66,12 @@ if(NOT WIN32)
 	list(APPEND DEPENDENCIES m ${LIBUSB1_LIBRARIES})
 endif()
 
+# If we are on Linux we should skip tests if we have no X11 server
+if(NOT WIN32 AND NOT APPLE)
+	if(NOT DEFINED ENV{DISPLAY})
+		set(BUILDING_ON_HEADLESS_UNIX on)
+	endif()
+endif()
 
 include_directories(include)
 

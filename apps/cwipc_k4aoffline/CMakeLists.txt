@@ -10,4 +10,6 @@ target_link_libraries(cwipc_k4aoffline cwipc_kinect cwipc_util ${PCL_LIBRARIES} 
 
 #install(TARGETS cwipc_k4aoffline RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-add_test(NAME cwipc_k4aoffline COMMAND cwipc_k4aoffline ${CMAKE_SOURCE_DIR}/tests/fixtures/input/recording . )
+if(NOT BUILDING_ON_HEADLESS_UNIX)
+	add_test(NAME cwipc_k4aoffline COMMAND cwipc_k4aoffline ${CMAKE_SOURCE_DIR}/tests/fixtures/input/recording . )
+endif()
