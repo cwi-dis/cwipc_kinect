@@ -17,12 +17,13 @@
 int main(int argc, char** argv)
 {
     if (argc < 3) {
-        std::cerr << "ERROR. Usage: " << argv[0] << " inputdirectory outputdirectory" << std::endl;
+        std::cerr << "ERROR. Usage: " << argv[0] << " inputdirectory outputdirectory [count]" << std::endl;
         std::cerr << "Generates pointclouds from kinect4a camera recordings using the cameraconfig.xml" << std::endl;
         std::cerr << "If no outputdirectory a subfolder is created in the current folder" << std::endl;
         return 2;
     }
-    //int count = atoi(argv[1]);
+    int countWanted = 0;
+    if (argc > 3) countWanted = atoi(argv[1]);
     char filename[500];
     char* error = NULL;
     cwipc_tiledsource* generator;
@@ -51,7 +52,9 @@ int main(int argc, char** argv)
 
     int ok = 0;
     int framenum = 0;
+    int nGrabbedSuccessfully = 0;
     while (!generator->eof()) {
+        if (countWanted != 0 && framenum >= countWanted) break;
         cwipc* pc = NULL;
         pc = generator->get();
         if (pc == NULL) {
@@ -92,12 +95,18 @@ int main(int argc, char** argv)
         }
         pc->free();
         std::cout << "--------------------------------------------------------" << std::endl;
+        nGrabbedSuccessfully++;
     }
     generator->free();
     if (ok < 0) {
         std::cerr << "cwipc_k4aoffline: Error: " << error << std::endl;
         return 1;
     }
+    if (countWanted != 0 && nGrabbedSuccessfully != countWanted) {
+        std::cerr << "cwipc_k4aoffline: Wanted " << countWanted << " pointclouds but got only " << nGrabbedSuccessfully << std::endl;
+        return 1;
+    }
+    std::cerr << "cwipc_k4aoffline: Saved " << nGrabbedSuccessfully << " pointclouds" << std::endl;
     return 0;
 }
 
