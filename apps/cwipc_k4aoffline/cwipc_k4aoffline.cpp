@@ -23,7 +23,7 @@ int main(int argc, char** argv)
         return 2;
     }
     int countWanted = 0;
-    if (argc > 3) countWanted = atoi(argv[1]);
+    if (argc > 3) countWanted = atoi(argv[3]);
     char filename[500];
     char* error = NULL;
     cwipc_tiledsource* generator;
