@@ -12,15 +12,8 @@
 #undef CWIPC_DEBUG_THREAD
 
 
-
-// This is the dll source, so define external symbols as dllexport on windows.
-
-#ifdef _WIN32
-#define _CWIPC_KINECT_EXPORT __declspec(dllexport)
-#define CWIPC_DLL_ENTRY __declspec(dllexport)
-#endif
-
 #include <chrono>
+
 #include "cwipc_kinect/private/K4AOfflineCapture.hpp"
 
 // Static variable used to print a warning message when we re-create an K4AOfflineCapture
