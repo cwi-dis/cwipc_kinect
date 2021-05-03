@@ -85,9 +85,9 @@ static bool isNotGreen(cwipc_pcl_point* p)
 	return true;
 }
 
-K4AOfflineCamera::K4AOfflineCamera(recording_t _recording, K4ACaptureConfig& configuration, int _camera_index)
+K4AOfflineCamera::K4AOfflineCamera(k4a_playback_t _handle, K4ACaptureConfig& configuration, int _camera_index)
 	: pointSize(0), minx(0), minz(0), maxz(0),
-	playback_handle(_recording.handle),
+	playback_handle(_handle),
 	capture_id(-1),
 	current_frameset_timestamp(0),
 	camera_index(_camera_index),

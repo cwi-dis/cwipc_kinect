@@ -12,19 +12,12 @@
 #include "cwipc_kinect/private/K4AConfig.hpp"
 #include "readerwriterqueue.h"
 
-typedef struct
-{
-	char* filename;
-	k4a_playback_t handle;
-	k4a_record_configuration_t record_config;
-} recording_t;
-
 class K4AOfflineCamera {
 private:
 	K4AOfflineCamera(const K4AOfflineCamera&);	// Disable copy constructor
 	K4AOfflineCamera& operator=(const K4AOfflineCamera&);	// Disable assignment
 public:
-	K4AOfflineCamera(recording_t _recording, K4ACaptureConfig& configuration, int _camera_index);
+	K4AOfflineCamera(k4a_playback_t _handle, K4ACaptureConfig& configuration, int _camera_index);
 	virtual ~K4AOfflineCamera();
 
 	//bool start(); playbacks do not need a start function

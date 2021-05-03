@@ -16,8 +16,8 @@ public:
 	K4AOfflineCapture(const char* configFilename = NULL);
 protected:
 	virtual bool _init_config_from_configfile(const char *configFilename); // Get configuration from configfile.
-	virtual void _create_cameras(recording_t* recordings, uint32_t camera_count);
-	virtual int _open_recording_files(); // Open the recordings
+	virtual void _create_cameras(k4a_playback_t *files, uint32_t camera_count);
+	virtual bool _open_recording_files(int file_count, k4a_playback_t* playback_handles); // Open the recordings
 	virtual void _init_camera_positions(); // Compute camera positions
 	virtual void _start_cameras(); // Start camera hardware and per-camera threads
 public:
@@ -55,7 +55,5 @@ private:
 	bool mergedPC_want_new;                                   // Set to true to request a new pointcloud
 	std::condition_variable mergedPC_want_new_cv;             // Condition variable for signalling we want a new pointcloud
 	uint64_t current_ts = 0; 
-	size_t file_count;
-	recording_t* files;
 };
 #endif // cwipc_realsense_RS2Offline_hpp
