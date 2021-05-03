@@ -15,7 +15,6 @@
 #endif
 
 
-#include "cwipc_kinect/private/K4AConfig.hpp"
 #include "cwipc_kinect/private/K4ACamera.hpp"
 
 typedef struct HsvColor
@@ -90,6 +89,7 @@ K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int 
 	camData(_camData),
 	camSettings(configuration.camera_config),
 	current_pointcloud(nullptr),
+	transformation_handle(nullptr),
 	captured_frame_queue(1),
 	processing_frame_queue(1),
 	current_frameset(NULL),
