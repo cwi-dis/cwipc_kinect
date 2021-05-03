@@ -14,12 +14,6 @@
 #include <vld.h>
 #endif
 
-// This is the dll source, so define external symbols as dllexport on windows.
-
-#if defined(WIN32) || defined(_WIN32)
-#define _CWIPC_KINECT_EXPORT __declspec(dllexport)
-#endif
-
 #include "cwipc_kinect/private/K4AOfflineCamera.hpp"
 #include "turbojpeg.h"
 
@@ -314,20 +308,30 @@ void K4AOfflineCamera::stop()
 	assert(!stopped);
 	stopped = true;
 	processing_frame_queue.try_enqueue(NULL);
-	if (capture_started) {
-		k4a_transformation_destroy(transformation_handle);
-		camera_started = false;
-	}
 	if (processing_thread) processing_thread->join();
 	delete processing_thread;
-	processing_done = true;
-	processing_done_cv.notify_one();
+	
+	if (camera_started) {
+#if 0
+		k4a_device_stop_cameras(playback_handle);
+#endif
+		camera_started = false;
+	}
+	// Delete objects
 	if (current_frameset != NULL) {
 		k4a_capture_release(current_frameset);
 		current_frameset = NULL;
 	}
-	k4a_playback_close(playback_handle);
-	playback_handle = NULL;
+	if (playback_handle) {
+		k4a_playback_close(playback_handle);
+		playback_handle = nullptr;
+	}
+	if (transformation_handle) {
+		k4a_transformation_destroy(transformation_handle);
+		transformation_handle = NULL;
+	}	
+	processing_done = true;
+	processing_done_cv.notify_one();
 }
 
 void K4AOfflineCamera::start_capturer()
