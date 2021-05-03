@@ -46,14 +46,14 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 	//
 	(void)_init_config_from_configfile(configFilename);
 	int camera_count =  configuration.camera_data.size();
-	k4a_playback_t* playback_handles = new k4a_playback_t[camera_count];
-	if (!_open_recording_files(camera_count, playback_handles)) {
+	std::vector<k4a_playback_t> playback_handles(camera_count, nullptr);
+	if (!_open_recording_files(playback_handles)) {
 		no_cameras = true;
 		return;
 	}
 	no_cameras = false;
 	_init_camera_positions();
-	_create_cameras(playback_handles, camera_count);
+	_create_cameras(playback_handles);
 	_start_cameras();
 	//
 	// start our run thread (which will drive the capturers and merge the pointclouds)
@@ -71,9 +71,9 @@ bool K4AOfflineCapture::_init_config_from_configfile(const char *configFilename)
 	return cwipc_k4a_file2config(configFilename, &configuration);
 }
 
-bool K4AOfflineCapture::_open_recording_files(int file_count, k4a_playback_t *playback_handles) {
+bool K4AOfflineCapture::_open_recording_files(std::vector<k4a_playback_t>& playback_handles) {
 	
-	if (file_count == 0) {
+	if (playback_handles.size() == 0) {
 		// no camera connected, so we'll return nothing
 		no_cameras = true;
 		return false;
@@ -82,7 +82,7 @@ bool K4AOfflineCapture::_open_recording_files(int file_count, k4a_playback_t *pl
 	k4a_result_t result;
 
 	// Open each recording file and validate they were recorded in master/subordinate mode.
-	for (size_t i = 0; i < file_count; i++)
+	for (size_t i = 0; i < playback_handles.size(); i++)
 	{
 		const char *filename = configuration.camera_data[i].filename.c_str();
 
@@ -137,9 +137,9 @@ bool K4AOfflineCapture::_open_recording_files(int file_count, k4a_playback_t *pl
 	return true;
 }
 
-void K4AOfflineCapture::_create_cameras(k4a_playback_t* handles, uint32_t camera_count) {
-	for (uint32_t i = 0; i < camera_count; i++) {
-		if (handles[i] == NULL) continue;
+void K4AOfflineCapture::_create_cameras(std::vector<k4a_playback_t>& playback_handles) {
+	for (uint32_t i = 0; i < playback_handles.size(); i++) {
+		assert (playback_handles[i] != nullptr);
 #ifdef CWIPC_DEBUG
 		std::cout << "K4AOfflineCapture: opening camera " << serials[i] << std::endl;
 #endif
@@ -148,7 +148,7 @@ void K4AOfflineCapture::_create_cameras(k4a_playback_t* handles, uint32_t camera
 		if (cd.type != "kinect") {
 			cwipc_k4a_log_warning("Camera " + cd.serial + " is type " + cd.type + " in stead of kinect");
 		}
-		auto cam = new K4AOfflineCamera(handles[i], configuration, i);
+		auto cam = new K4AOfflineCamera(playback_handles[i], configuration, i);
 		cameras.push_back(cam);
 	}
 }

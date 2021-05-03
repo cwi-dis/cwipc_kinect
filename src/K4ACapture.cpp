@@ -56,8 +56,8 @@ K4ACapture::K4ACapture(const char *configFilename)
 	// Check for attached cameras and create dummy configuration entries (basically only serial number)
 	//
 	std::vector<std::string> serials;
-	k4a_device_t* camera_handles = new k4a_device_t[camera_count];
-	if (!_init_config_from_devices(camera_count, serials, camera_handles)) return;
+	std::vector<k4a_device_t> camera_handles(camera_count, nullptr);
+	if (!_init_config_from_devices(camera_handles, serials)) return;
 	//
 	// Read the configuration. We do this only now because for historical reasons the configuration
 	// reader is also the code that checks whether the configuration file contents match the actual
@@ -74,12 +74,12 @@ K4ACapture::K4ACapture(const char *configFilename)
 	//
 	// Initialize hardware capture setting (for all cameras)
 	//
-	_init_hardware_settings(camera_count, camera_handles);
+	_init_hardware_settings(camera_handles);
 
 	// Now we have all the configuration information. Open the cameras.
-	_create_cameras(camera_handles, serials, camera_count);
+	_create_cameras(camera_handles, serials);
 	// We can now free camera_handles
-	delete camera_handles;
+	//delete camera_handles;
 
 	_init_camera_positions();
 	
@@ -92,10 +92,10 @@ K4ACapture::K4ACapture(const char *configFilename)
 	_cwipc_setThreadName(control_thread, L"cwipc_kinect::K4ACapture::control_thread");
 }
 
-bool K4ACapture::_init_config_from_devices(int camera_count, std::vector<std::string>& serials, k4a_device_t* camera_handles) {
+bool K4ACapture::_init_config_from_devices(std::vector<k4a_device_t>& camera_handles, std::vector<std::string>& serials) {
 	
 	bool any_failure = false;
-	for (uint32_t i = 0; i < camera_count; i++) {
+	for (uint32_t i = 0; i < camera_handles.size(); i++) {
 		if (k4a_device_open(i, &camera_handles[i]) != K4A_RESULT_SUCCEEDED) {
 			cwipc_k4a_log_warning("k4a_device_open failed");
 			any_failure = true;
@@ -154,10 +154,10 @@ void K4ACapture::_update_config_from_devices() {
 	configuration.camera_data = realcams;
 }
 
-void K4ACapture::_init_hardware_settings(int camera_count, k4a_device_t* camera_handles) {
+void K4ACapture::_init_hardware_settings(std::vector<k4a_device_t>& camera_handles) {
 	
 	// Set various camera hardware parameters (color)
-	for (int i = 0; i < camera_count; i++) {
+	for (int i = 0; i < camera_handles.size(); i++) {
 		//options for color sensor
 		if (configuration.camera_config.color_exposure_time >= 0) {	//MANUAL
 			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_exposure_time); // Exposure_time (in microseconds)
@@ -252,9 +252,9 @@ void K4ACapture::_init_hardware_settings(int camera_count, k4a_device_t* camera_
 #endif
 }
 
-void K4ACapture::_create_cameras(k4a_device_t *camera_handles, std::vector<std::string> serials, uint32_t camera_count) {
+void K4ACapture::_create_cameras(std::vector<k4a_device_t>& camera_handles, std::vector<std::string>& serials) {
 	int serial_index = 0;
-	for(uint32_t i=0; i<camera_count; i++) {
+	for(uint32_t i=0; i<camera_handles.size(); i++) {
 		if (camera_handles[i] == NULL) continue;
 #ifdef CWIPC_DEBUG
 		std::cout << "K4ACapture: opening camera " << serials[i] << std::endl;

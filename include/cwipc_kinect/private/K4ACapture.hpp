@@ -19,11 +19,11 @@ public:
 	// methods
 	K4ACapture(const char *configFilename=NULL);
 protected:
-	virtual bool _init_config_from_devices(int camera_count, std::vector<std::string>& serials, k4a_device_t* camera_handles); // Get initial configuration from attached hardware devices.
+	virtual bool _init_config_from_devices(std::vector<k4a_device_t>& camera_handles, std::vector<std::string>& serials); // Get initial configuration from attached hardware devices.
 	virtual bool _init_config_from_configfile(const char *configFilename); // Get configuration from configfile.
 	virtual void _update_config_from_devices(); // update config to match attached hardware
-	virtual void _init_hardware_settings(int camera_count, k4a_device_t* camera_handles); // initialize hardware parameters from configuration
-	virtual void _create_cameras(k4a_device_t* cameras, std::vector<std::string> serials, uint32_t camera_count);
+	virtual void _init_hardware_settings(std::vector<k4a_device_t>& camera_handles); // initialize hardware parameters from configuration
+	virtual void _create_cameras(std::vector<k4a_device_t>& camera_handles, std::vector<std::string>& serials);
 	virtual void _init_camera_positions(); // Compute camera positions
 	virtual void _start_cameras(); // Start camera hardware and per-camera threads
 public:

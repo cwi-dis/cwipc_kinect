@@ -16,8 +16,8 @@ public:
 	K4AOfflineCapture(const char* configFilename = NULL);
 protected:
 	virtual bool _init_config_from_configfile(const char *configFilename); // Get configuration from configfile.
-	virtual void _create_cameras(k4a_playback_t *files, uint32_t camera_count);
-	virtual bool _open_recording_files(int file_count, k4a_playback_t* playback_handles); // Open the recordings
+	virtual void _create_cameras(std::vector<k4a_playback_t>& playback_handles);
+	virtual bool _open_recording_files(std::vector<k4a_playback_t>& playback_handles); // Open the recordings
 	virtual void _init_camera_positions(); // Compute camera positions
 	virtual void _start_cameras(); // Start camera hardware and per-camera threads
 public:

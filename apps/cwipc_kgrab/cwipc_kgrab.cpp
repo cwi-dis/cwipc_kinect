@@ -7,7 +7,7 @@
 #include "cwipc_util/api.h"
 #include "cwipc_kinect/api.h"
 
-#define DEBUG_AUXDATA
+#undef DEBUG_AUXDATA
 
 int main(int argc, char** argv)
 {
