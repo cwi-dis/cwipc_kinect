@@ -40,6 +40,7 @@ public:
 	k4a_device_t device_handle;
 	int camera_index;
 	std::string serial;
+	const bool eof = false;
 
 protected:
 	bool stopped;

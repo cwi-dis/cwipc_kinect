@@ -17,10 +17,10 @@ private:
 	K4AOfflineCamera(const K4AOfflineCamera&);	// Disable copy constructor
 	K4AOfflineCamera& operator=(const K4AOfflineCamera&);	// Disable assignment
 public:
-	K4AOfflineCamera(k4a_playback_t _handle, K4ACaptureConfig& configuration, int _camera_index);
+	K4AOfflineCamera(k4a_playback_t _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData);
 	virtual ~K4AOfflineCamera();
 
-	//bool start(); playbacks do not need a start function
+	bool start() { return true; } // playbacks do not need a start function
 	virtual void start_capturer();
 	void stop();
 	bool capture_frameset(uint64_t master_timestamp);
