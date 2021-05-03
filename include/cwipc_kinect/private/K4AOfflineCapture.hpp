@@ -14,6 +14,13 @@ class K4AOfflineCapture {
 public:
 	// methods
 	K4AOfflineCapture(const char* configFilename = NULL);
+protected:
+	virtual bool _init_config_from_configfile(const char *configFilename); // Get configuration from configfile.
+	virtual void _create_cameras(recording_t* recordings, uint32_t camera_count);
+	virtual int _open_recording_files(); // Open the recordings
+	virtual void _init_camera_positions(); // Compute camera positions
+	virtual void _start_cameras(); // Start camera hardware and per-camera threads
+public:
 	virtual ~K4AOfflineCapture();
 	cwipc* get_pointcloud(); // API function that returns the merged pointcloud and timestamp
 	bool pointcloud_available(bool wait);					  // Returns true if a pointcloud is available
@@ -33,7 +40,6 @@ public:
 protected:
 	bool want_auxdata_rgb;
 	bool want_auxdata_depth;
-	virtual void _create_cameras(recording_t* recordings, uint32_t camera_count);
 	std::vector<K4AOfflineCamera*> cameras;   // Storage of camera specifics
 	void _control_thread_main();              // Internal: main thread that controls per-camera grabbing and processing and combines pointclouds.
 	bool stopped;
