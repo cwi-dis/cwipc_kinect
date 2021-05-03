@@ -12,11 +12,13 @@
 #include "cwipc_kinect/private/readerwriterqueue.h"
 
 class K4ACamera {
+	typedef k4a_device_t Type_api_camera;
+	const std::string CLASSNAME = "cwipc_kinect: K4ACamera";
 private:
 	K4ACamera(const K4ACamera&);	// Disable copy constructor
 	K4ACamera& operator=(const K4ACamera&);	// Disable assignment
 public:
-	K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData);
+	K4ACamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData);
 	virtual ~K4ACamera();
 
 	bool start();
@@ -26,10 +28,9 @@ public:
 	void create_pc_from_frames();
 	void wait_for_pc();
 	void save_auxdata(cwipc* pc, bool rgb, bool depth);
-	void dump_color_frame(const std::string& filename);
 	uint64_t get_capture_timestamp();
 	cwipc_pcl_pointcloud get_current_pointcloud() { return current_pointcloud; }
-	bool is_sync_master() { return camera_sync_ismaster;  }
+	bool is_sync_master() { return camera_sync_ismaster; }
 public:
 	float pointSize;
 public:
@@ -37,7 +38,7 @@ public:
 	double minx;
 	double minz;
 	double maxz;
-	k4a_device_t device_handle;
+	Type_api_camera camera_handle;
 	int camera_index;
 	std::string serial;
 	const bool eof = false;
@@ -55,6 +56,8 @@ protected:
 	virtual void _start_capture_thread();
 	virtual void _capture_thread_main();
 	void transformPoint(cwipc_pcl_point& pt);
+	bool prepare_next_valid_frame();
+	bool prepare_cond_next_valid_frame(uint64_t master_timestamp);
 private:
 	K4ACameraData& camData;
 	K4ACameraConfig& camSettings;
@@ -68,8 +71,6 @@ private:
 	int camera_fps;
 	bool camera_sync_ismaster;
 	bool camera_sync_inuse;
-	bool do_depth_filtering;
-	bool do_background_removal;
 	bool do_greenscreen_removal;
 	bool do_height_filtering;
 	double height_min;

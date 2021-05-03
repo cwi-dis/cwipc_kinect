@@ -22,7 +22,8 @@
 static int numberOfCapturersActive = 0;
 
 K4ACapture::K4ACapture(const char *configFilename)
-:	numberOfPCsProduced(0),
+:	starttime(0),
+	numberOfPCsProduced(0),
 	want_auxdata_rgb(false),
 	want_auxdata_depth(false),
     no_cameras(true),
