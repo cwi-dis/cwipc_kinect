@@ -15,6 +15,7 @@
 #include <chrono>
 
 #include "cwipc_kinect/private/K4ACapture.hpp"
+#include "cwipc_kinect/private/K4ACamera.hpp"
 
 
 // Static variable used to print a warning message when we re-create an K4ACapture
@@ -35,12 +36,7 @@ K4ACapture::K4ACapture(int dummy)
 }
 
 K4ACapture::K4ACapture(const char *configFilename)
-:	numberOfPCsProduced(0),
-	want_auxdata_rgb(false),
-	want_auxdata_depth(false),
-	no_cameras(false),
-	mergedPC_is_fresh(false),
-	mergedPC_want_new(false)
+:	K4ACapture(0)
 {
 	// First check that no other K4ACapture is active within this process (trying to catch programmer errors)
 	numberOfCapturersActive++;
@@ -54,8 +50,50 @@ K4ACapture::K4ACapture(const char *configFilename)
 		no_cameras = true;
 		return;
 	}
+	no_cameras = false;
+	
+	//
+	// Check for attached cameras and create dummy configuration entries (basically only serial number)
+	//
 	std::vector<std::string> serials;
 	k4a_device_t* camera_handles = new k4a_device_t[camera_count];
+	if (!_init_config_from_devices(camera_count, serials, camera_handles)) return;
+	//
+	// Read the configuration. We do this only now because for historical reasons the configuration
+	// reader is also the code that checks whether the configuration file contents match the actual
+	// current hardware setup. To be fixed at some point.
+	//
+	if (!_init_config_from_configfile(configFilename)) {
+		//
+		// If the attached devices don't match the config file we update our configuration to
+		// match the hardware situation.
+		//
+		_update_config_from_devices();
+	}
+
+	//
+	// Initialize hardware capture setting (for all cameras)
+	//
+	_init_hardware_settings(camera_count, camera_handles);
+
+	// Now we have all the configuration information. Open the cameras.
+	_create_cameras(camera_handles, serials, camera_count);
+	// We can now free camera_handles
+	delete camera_handles;
+
+	_init_camera_positions();
+	
+	_start_cameras();
+	//
+	// start our run thread (which will drive the capturers and merge the pointclouds)
+	//
+	stopped = false;
+	control_thread = new std::thread(&K4ACapture::_control_thread_main, this);
+	_cwipc_setThreadName(control_thread, L"cwipc_kinect::K4ACapture::control_thread");
+}
+
+bool K4ACapture::_init_config_from_devices(int camera_count, std::vector<std::string>& serials, k4a_device_t* camera_handles) {
+	
 	bool any_failure = false;
 	for (uint32_t i = 0; i < camera_count; i++) {
 		if (k4a_device_open(i, &camera_handles[i]) != K4A_RESULT_SUCCEEDED) {
@@ -82,39 +120,42 @@ K4ACapture::K4ACapture(const char *configFilename)
 	}
 	if (any_failure) {
 		no_cameras = true;
-		return;
+		return false;
 	}
+	return true;
+}
 
-	//
-	// Read the configuration. We do this only now because for historical reasons the configuration
-	// reader is also the code that checks whether the configuration file contents match the actual
-	// current hardware setup. To be fixed at some point.
-	//
+bool K4ACapture::_init_config_from_configfile(const char *configFilename) {
 	if (configFilename == NULL) {
 		configFilename = "cameraconfig.xml";
 	}
-	if (!cwipc_k4a_file2config(configFilename, &configuration)) {
+	return cwipc_k4a_file2config(configFilename, &configuration);
+}
 
-		// the configuration file did not fully match the current situation so we have to update the admin
-		std::vector<std::string> serials;
-		std::vector<K4ACameraData> realcams;
+void K4ACapture::_update_config_from_devices() {
+
+	// the configuration file did not fully match the current situation so we have to update the admin
+	std::vector<std::string> serials;
+	std::vector<K4ACameraData> realcams;
 
 
-		// collect all camera's in the config that are connected
-		for (K4ACameraData cd : configuration.camera_data) {
+	// collect all camera's in the config that are connected
+	for (K4ACameraData cd : configuration.camera_data) {
 #if 1 // xxxjack find() doesn't work??!?
-			realcams.push_back(cd);
+		realcams.push_back(cd);
 #else
-			if ((find(serials.begin(), serials.end(), cd.serial) != serials.end()))
-				realcams.push_back(cd);
-			else
-				cwipc_k4a_log_warning("Camera " + cd.serial + " is not connected");
+		if ((find(serials.begin(), serials.end(), cd.serial) != serials.end()))
+			realcams.push_back(cd);
+		else
+			cwipc_k4a_log_warning("Camera " + cd.serial + " is not connected");
 #endif
-		}
-		// Reduce the active configuration to cameras that are connected
-		configuration.camera_data = realcams;
 	}
+	// Reduce the active configuration to cameras that are connected
+	configuration.camera_data = realcams;
+}
 
+void K4ACapture::_init_hardware_settings(int camera_count, k4a_device_t* camera_handles) {
+	
 	// Set various camera hardware parameters (color)
 	for (int i = 0; i < camera_count; i++) {
 		//options for color sensor
@@ -209,12 +250,29 @@ K4ACapture::K4ACapture(const char *configFilename)
 	std::cout << "#########################################\n" << std::endl;
 	//END PRINTING CURRENT COLOR CONFIG
 #endif
-	// Now we have all the configuration information. Open the cameras.
-	_create_cameras(camera_handles, serials, camera_count);
-	// We can now free camera_handles
-	delete camera_handles;
+}
 
-	
+void K4ACapture::_create_cameras(k4a_device_t *camera_handles, std::vector<std::string> serials, uint32_t camera_count) {
+	int serial_index = 0;
+	for(uint32_t i=0; i<camera_count; i++) {
+		if (camera_handles[i] == NULL) continue;
+#ifdef CWIPC_DEBUG
+		std::cout << "K4ACapture: opening camera " << serials[i] << std::endl;
+#endif
+		// Found a realsense camera. Create a default data entry for it.
+		std::string serial(serials[serial_index++]);
+
+		K4ACameraData& cd = get_camera_data(serial);
+		if (cd.type != "kinect") {
+			cwipc_k4a_log_warning("Camera " + serial + " is type " + cd.type + " in stead of kinect");
+		}
+		int camera_index = cameras.size();
+		auto cam = new K4ACamera(camera_handles[i], configuration, camera_index, cd);
+		cameras.push_back(cam);
+	}
+}
+
+void K4ACapture::_init_camera_positions() {
 	// find camerapositions
 	for (int i = 0; i < configuration.camera_data.size(); i++) {
 		cwipc_pcl_pointcloud pcptr(new_cwipc_pcl_pointcloud());
@@ -229,7 +287,9 @@ K4ACapture::K4ACapture(const char *configFilename)
 		configuration.camera_data[i].cameraposition.y = pnt.y;
 		configuration.camera_data[i].cameraposition.z = pnt.z;
 	}
+}
 
+void K4ACapture::_start_cameras() {
 	//
 	// start the cameras. First start all non-sync-master cameras, then start the sync-master camera.
 	//
@@ -261,32 +321,6 @@ K4ACapture::K4ACapture(const char *configFilename)
 	for (auto cam : cameras) {
 		if (!cam->is_sync_master()) continue;
 		cam->start_capturer();
-	}
-	//
-	// start our run thread (which will drive the capturers and merge the pointclouds)
-	//
-	stopped = false;
-	control_thread = new std::thread(&K4ACapture::_control_thread_main, this);
-	_cwipc_setThreadName(control_thread, L"cwipc_kinect::K4ACapture::control_thread");
-}
-
-void K4ACapture::_create_cameras(k4a_device_t *camera_handles, std::vector<std::string> serials, uint32_t camera_count) {
-	int serial_index = 0;
-	for(uint32_t i=0; i<camera_count; i++) {
-		if (camera_handles[i] == NULL) continue;
-#ifdef CWIPC_DEBUG
-		std::cout << "K4ACapture: opening camera " << serials[i] << std::endl;
-#endif
-		// Found a realsense camera. Create a default data entry for it.
-		std::string serial(serials[serial_index++]);
-
-		K4ACameraData& cd = get_camera_data(serial);
-		if (cd.type != "kinect") {
-			cwipc_k4a_log_warning("Camera " + serial + " is type " + cd.type + " in stead of kinect");
-		}
-		int camera_index = cameras.size();
-		auto cam = new K4ACamera(camera_handles[i], configuration, camera_index, cd);
-		cameras.push_back(cam);
 	}
 }
 

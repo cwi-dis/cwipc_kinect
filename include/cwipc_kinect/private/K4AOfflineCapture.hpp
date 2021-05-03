@@ -9,15 +9,8 @@
 
 #include "cwipc_kinect/private/K4AOfflineCamera.hpp"
 
-#ifndef CWIPC_DLL_ENTRY
-#if defined(WIN32) || defined(_WIN32)
-#define CWIPC_DLL_ENTRY __declspec(dllimport)
-#else
-#define CWIPC_DLL_ENTRY 
-#endif
-#endif
 
-class CWIPC_DLL_ENTRY K4AOfflineCapture {
+class K4AOfflineCapture {
 public:
 	// methods
 	K4AOfflineCapture(const char* configFilename = NULL);
