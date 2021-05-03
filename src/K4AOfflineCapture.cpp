@@ -432,7 +432,7 @@ void K4AOfflineCapture::merge_views()
 	for (auto cam : cameras) {
 		cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
 		if (cam_cld == nullptr) {
-			cwipc_k4a_log_warning("Camera " + cam->serial + " has NULL cloud");
+			cwipc_k4a_log_warning("Camera " + cam->serial + " returned NULL cloud, ignoring");
 			continue;
 		}
 		nPoints += cam_cld->size();
@@ -443,6 +443,9 @@ void K4AOfflineCapture::merge_views()
 		cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
 		if (cam_cld == nullptr) continue;
 		*aligned_cld += *cam_cld;
+	}
+	if (aligned_cld->size() != nPoints) {
+		cwipc_k4a_log_warning("Combined pointcloud has different number of points than expected");
 	}
 }
 

@@ -39,7 +39,6 @@ K4ACapture::K4ACapture(const char *configFilename)
 :	K4ACapture(0)
 {
 	// First check that no other K4ACapture is active within this process (trying to catch programmer errors)
-	numberOfCapturersActive++;
 	if (numberOfCapturersActive > 1) {
 		cwipc_k4a_log_warning("Attempting to create capturer while one is already active.");
 	}
@@ -367,6 +366,7 @@ cwipc* K4ACapture::get_pointcloud()
 		mergedPC_is_fresh = false;
 		numberOfPCsProduced++;
 		rv = mergedPC;
+		mergedPC = nullptr;
 	}
 	_request_new_pointcloud();
 	return rv;
@@ -523,7 +523,7 @@ void K4ACapture::merge_views()
 	for (auto cam : cameras) {
 		cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
 		if (cam_cld == nullptr) {
-			cwipc_k4a_log_warning("Camera " + cam->serial + " has NULL cloud");
+			cwipc_k4a_log_warning("Camera " + cam->serial + " returned NULL cloud, ignoring");
 			continue;
 		}
 		nPoints += cam_cld->size();
@@ -534,6 +534,9 @@ void K4ACapture::merge_views()
 		cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
 		if (cam_cld == nullptr) continue;
 		*aligned_cld += *cam_cld;
+	}
+	if (aligned_cld->size() != nPoints) {
+		cwipc_k4a_log_warning("Combined pointcloud has different number of points than expected");
 	}
 }
 

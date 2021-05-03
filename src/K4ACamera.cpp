@@ -87,7 +87,6 @@ K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int 
 	serial(_camData.serial),
 	stopped(true),
 	camera_started(false),
-	capture_started(false),
 	camData(_camData),
 	camSettings(configuration.camera_config),
 	current_pointcloud(nullptr),
@@ -286,21 +285,32 @@ void K4ACamera::stop()
 	assert(!stopped);
 	stopped = true;
 	processing_frame_queue.try_enqueue(NULL);
-	if (capture_started) {
-		if (current_frameset != NULL)
-			k4a_capture_release(current_frameset);
-		k4a_device_stop_cameras(device_handle);
-		k4a_transformation_destroy(transformation_handle);
-		camera_started = false;
-	}
-	capture_started = false;
+	// Stop threads
 	if (grabber_thread) grabber_thread->join();
 	delete grabber_thread;
 	if (processing_thread) processing_thread->join();
 	delete processing_thread;
+	// Stop camera
+	if (camera_started) {
+		k4a_device_stop_cameras(device_handle);
+		camera_started = false;
+	}
+	// Delete objects
+	if (current_frameset != NULL) {
+		k4a_capture_release(current_frameset);
+		current_frameset = NULL;
+	}
+	if (device_handle) {
+		k4a_device_close(device_handle);
+		device_handle = nullptr;
+	}
+	if (transformation_handle) {
+		k4a_transformation_destroy(transformation_handle);
+		transformation_handle = NULL;
+	}	
 	processing_done = true;
 	processing_done_cv.notify_one();
-	k4a_device_close(device_handle);
+	
 }
 
 void K4ACamera::start_capturer()
@@ -308,7 +318,6 @@ void K4ACamera::start_capturer()
 	if (!camera_started) return;
 	assert(stopped);
 	stopped = false;
-	capture_started = true;
 	_start_capture_thread();
 	processing_thread = new std::thread(&K4ACamera::_processing_thread_main, this);
 	_cwipc_setThreadName(processing_thread, L"cwipc_kinect::K4ACamera::processing_thread");

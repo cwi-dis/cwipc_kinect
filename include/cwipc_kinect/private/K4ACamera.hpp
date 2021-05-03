@@ -44,7 +44,6 @@ public:
 protected:
 	bool stopped;
 	bool camera_started;
-	bool capture_started;
 	std::thread *processing_thread;
 	void _filter_depth_data(int16_t* depth_values, int width, int height); // Internal: depth data processing
 	void _computePointSize();
