@@ -1,18 +1,13 @@
 #include <iostream>
-#include <istream>
 #include <fstream>
 #include "string.h"
+#include <stdlib.h>
+#include <inttypes.h>
 
-#include <stdio.h>
-#include <malloc.h>
-#include <k4a/k4a.h>
-#include <k4arecord/playback.h>
-
-#include "cwipc_kinect/private/K4AConfig.hpp"
 #include "cwipc_util/api.h"
 #include "cwipc_kinect/api.h"
 
-#define DEBUG_AUXDATA
+#undef DEBUG_AUXDATA
 
 int main(int argc, char** argv)
 {
@@ -29,7 +24,7 @@ int main(int argc, char** argv)
     cwipc_tiledsource* generator;
     char* inputdir = NULL;
     inputdir = argv[1];
-    std::string outputdir(argv[2]);
+    char *outputdir = argv[2];
 
     std::string configFile(inputdir);
     configFile += "/cameraconfig.xml";
@@ -80,21 +75,15 @@ int main(int argc, char** argv)
             }
         }
 #endif
-        std::cerr << "xxxjack pointcloud has " << pc->count() << " points" << std::endl;
         framenum++;
-        //Good, write the pointcloud
-        std::ostringstream ts;
-        ts << pc->timestamp();
-        std::string outputfile = outputdir + "/pointcloud-" + ts.str() + ".cwipcdump";
-        std::cout << "-> Writing frame " << framenum << " => "<< outputfile << std::endl;
-        ok = cwipc_write_debugdump(outputfile.c_str(), pc, &error); //FASTER WRITE
-        //ok = cwipc_write(filename, pc, &error);
-        if (ok == -1) {
-            std::cerr << "cwipc_k4aoffline: Error writing: " << error << std::endl;
-            break;
-        }
+		if (strcmp(outputdir, "-") != 0) {
+			snprintf(filename, sizeof(filename), "%s/pointcloud-%" PRIu64 ".ply", outputdir, pc->timestamp());
+	        std::cout << "-> Writing frame " << framenum << " with " << pc->count() << " points to "<< filename << std::endl;
+			ok = cwipc_write(filename, pc, &error);
+		} else {
+	        std::cout << "-> Dropping frame " << framenum << " with " << pc->count() << " points" << std::endl;
+		}
         pc->free();
-        std::cout << "--------------------------------------------------------" << std::endl;
         nGrabbedSuccessfully++;
     }
     generator->free();
