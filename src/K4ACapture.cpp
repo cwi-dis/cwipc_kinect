@@ -434,7 +434,12 @@ void K4ACapture::_control_thread_main()
 		}
 		// Step 2 - Create pointcloud, and save rgb/depth images if wanted
 		cwipc_pcl_pointcloud pcl_pointcloud = new_cwipc_pcl_pointcloud();
-		cwipc *newPC = cwipc_from_pcl(pcl_pointcloud, timestamp, NULL, CWIPC_API_VERSION);
+		char* error_str = NULL;
+		cwipc *newPC = cwipc_from_pcl(pcl_pointcloud, timestamp, &error_str, CWIPC_API_VERSION);
+		if (newPC == nullptr) {
+			std::cerr << "cwipc_kinect: K4ACapturer: cwipc_from_pcl returned error: " << error_str << std::endl;
+			break;
+		}
 
 		if (want_auxdata_rgb || want_auxdata_depth) {
 			for (auto cam : cameras) {
