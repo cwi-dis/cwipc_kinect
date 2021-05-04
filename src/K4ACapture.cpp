@@ -14,55 +14,85 @@
 
 #include <chrono>
 
-#include "cwipc_kinect/private/K4AConfig.hpp"
 #include "cwipc_kinect/private/K4ACapture.hpp"
-#include "cwipc_kinect/private/K4ACamera.hpp"
 
 
 // Static variable used to print a warning message when we re-create an K4ACapture
 // if there is another one open.
 static int numberOfCapturersActive = 0;
 
-K4ACapture::K4ACapture(int dummy)
-:	numberOfPCsProduced(0),
+K4ACapture::K4ACapture(const char *configFilename)
+:	starttime(0),
+	numberOfPCsProduced(0),
 	want_auxdata_rgb(false),
 	want_auxdata_depth(false),
+ 	want_auxdata_skeleton(false),
     no_cameras(true),
 	mergedPC(nullptr),
+	stopped(false),
 	mergedPC_is_fresh(false),
 	mergedPC_want_new(false),
-	stopped(false),
-	want_auxdata_skeleton(false)
+	stopped(false)
 {
-	numberOfCapturersActive++;
-	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-}
 
-K4ACapture::K4ACapture(const char *configFilename)
-:	numberOfPCsProduced(0),
-	want_auxdata_rgb(false),
-	want_auxdata_depth(false),
-	want_auxdata_skeleton(false),
-	no_cameras(false),
-	mergedPC_is_fresh(false),
-	mergedPC_want_new(false)
-{
-	// First check that no other K4ACapture is active within this process (trying to catch programmer errors)
+	// First check that no other K4AOfflineCapture is active within this process (trying to catch programmer errors)
 	numberOfCapturersActive++;
 	if (numberOfCapturersActive > 1) {
 		cwipc_k4a_log_warning("Attempting to create capturer while one is already active.");
 	}
 
+	//
+	// Check for attached cameras and create dummy configuration entries (basically only serial number)
+	//
 	int camera_count = k4a_device_get_installed_count();
 	if (camera_count == 0) {
 		// no camera connected, so we'll return nothing
 		no_cameras = true;
 		return;
 	}
+	
 	std::vector<std::string> serials;
-	k4a_device_t* camera_handles = new k4a_device_t[camera_count];
+	std::vector<Type_api_camera> camera_handles(camera_count, nullptr);
+	if (!_init_config_from_devices(camera_handles, serials)) return;
+	//
+	// Read the configuration. We do this only now because for historical reasons the configuration
+	// reader is also the code that checks whether the configuration file contents match the actual
+	// current hardware setup. To be fixed at some point.
+	//
+	if (!_init_config_from_configfile(configFilename)) {
+		//
+		// If the attached devices don't match the config file we update our configuration to
+		// match the hardware situation.
+		//
+		_update_config_from_devices();
+	}
+
+	//
+	// Initialize hardware capture setting (for all cameras)
+	//
+	_init_hardware_settings(camera_handles);
+
+	// Now we have all the configuration information. Create our K4ACamera objects.
+	_create_cameras(camera_handles, serials);
+
+	// delete camera_handles;
+	no_cameras = false;
+
+	_init_camera_positions();
+
+	_start_cameras();
+	//
+	// start our run thread (which will drive the capturers and merge the pointclouds)
+	//
+	stopped = false;
+	control_thread = new std::thread(&K4ACapture::_control_thread_main, this);
+	_cwipc_setThreadName(control_thread, L"cwipc_kinect::K4ACapture::control_thread");
+}
+
+bool K4ACapture::_init_config_from_devices(std::vector<Type_api_camera>& camera_handles, std::vector<std::string>& serials) {
+	
 	bool any_failure = false;
-	for (uint32_t i = 0; i < camera_count; i++) {
+	for (uint32_t i = 0; i < camera_handles.size(); i++) {
 		if (k4a_device_open(i, &camera_handles[i]) != K4A_RESULT_SUCCEEDED) {
 			cwipc_k4a_log_warning("k4a_device_open failed");
 			any_failure = true;
@@ -87,41 +117,44 @@ K4ACapture::K4ACapture(const char *configFilename)
 	}
 	if (any_failure) {
 		no_cameras = true;
-		return;
+		return false;
 	}
+	return true;
+}
 
-	//
-	// Read the configuration. We do this only now because for historical reasons the configuration
-	// reader is also the code that checks whether the configuration file contents match the actual
-	// current hardware setup. To be fixed at some point.
-	//
+bool K4ACapture::_init_config_from_configfile(const char *configFilename) {
 	if (configFilename == NULL) {
 		configFilename = "cameraconfig.xml";
 	}
-	if (!cwipc_k4a_file2config(configFilename, &configuration)) {
+	return cwipc_k4a_file2config(configFilename, &configuration);
+}
 
-		// the configuration file did not fully match the current situation so we have to update the admin
-		std::vector<std::string> serials;
-		std::vector<K4ACameraData> realcams;
+void K4ACapture::_update_config_from_devices() {
+
+	// the configuration file did not fully match the current situation so we have to update the admin
+	std::vector<std::string> serials;
+	std::vector<K4ACameraData> realcams;
 
 
-		// collect all camera's in the config that are connected
-		for (K4ACameraData cd : configuration.camera_data) {
+	// collect all camera's in the config that are connected
+	for (K4ACameraData cd : configuration.camera_data) {
 #if 1 // xxxjack find() doesn't work??!?
-			realcams.push_back(cd);
+		realcams.push_back(cd);
 #else
-			if ((find(serials.begin(), serials.end(), cd.serial) != serials.end()))
-				realcams.push_back(cd);
-			else
-				cwipc_k4a_log_warning("Camera " + cd.serial + " is not connected");
+		if ((find(serials.begin(), serials.end(), cd.serial) != serials.end()))
+			realcams.push_back(cd);
+		else
+			cwipc_k4a_log_warning("Camera " + cd.serial + " is not connected");
 #endif
-		}
-		// Reduce the active configuration to cameras that are connected
-		configuration.camera_data = realcams;
 	}
+	// Reduce the active configuration to cameras that are connected
+	configuration.camera_data = realcams;
+}
 
+void K4ACapture::_init_hardware_settings(std::vector<Type_api_camera>& camera_handles) {
+	
 	// Set various camera hardware parameters (color)
-	for (int i = 0; i < camera_count; i++) {
+	for (int i = 0; i < camera_handles.size(); i++) {
 		//options for color sensor
 		if (configuration.camera_config.color_exposure_time >= 0) {	//MANUAL
 			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_exposure_time); // Exposure_time (in microseconds)
@@ -214,12 +247,30 @@ K4ACapture::K4ACapture(const char *configFilename)
 	std::cout << "#########################################\n" << std::endl;
 	//END PRINTING CURRENT COLOR CONFIG
 #endif
-	// Now we have all the configuration information. Open the cameras.
-	_create_cameras(camera_handles, serials, camera_count);
-	// We can now free camera_handles
-	delete []camera_handles;
 
-	
+}
+
+void K4ACapture::_create_cameras(std::vector<Type_api_camera>& camera_handles, std::vector<std::string>& serials) {
+	int serial_index = 0;
+	for(uint32_t i=0; i<camera_handles.size(); i++) {
+		assert (camera_handles[i] != nullptr);
+#ifdef CWIPC_DEBUG
+		std::cout << CLASSNAME << ": opening camera " << serials[i] << std::endl;
+#endif
+		// Found a Kinect camera. Create a default data entry for it.
+		std::string serial(serials[serial_index++]);
+
+		K4ACameraData& cd = get_camera_data(serial);
+		if (cd.type != "kinect") {
+			cwipc_k4a_log_warning("Camera " + cd.serial + " is type " + cd.type + " in stead of kinect");
+		}
+		int camera_index = cameras.size();
+		auto cam = new Type_our_camera(camera_handles[i], configuration, camera_index, cd);
+		cameras.push_back(cam);
+	}
+}
+
+void K4ACapture::_init_camera_positions() {
 	// find camerapositions
 	for (int i = 0; i < configuration.camera_data.size(); i++) {
 		cwipc_pcl_pointcloud pcptr(new_cwipc_pcl_pointcloud());
@@ -234,7 +285,9 @@ K4ACapture::K4ACapture(const char *configFilename)
 		configuration.camera_data[i].cameraposition.y = pnt.y;
 		configuration.camera_data[i].cameraposition.z = pnt.z;
 	}
+}
 
+void K4ACapture::_start_cameras() {
 	//
 	// start the cameras. First start all non-sync-master cameras, then start the sync-master camera.
 	//
@@ -267,77 +320,54 @@ K4ACapture::K4ACapture(const char *configFilename)
 		if (!cam->is_sync_master()) continue;
 		cam->start_capturer();
 	}
-	//
-	// start our run thread (which will drive the capturers and merge the pointclouds)
-	//
-	stopped = false;
-	control_thread = new std::thread(&K4ACapture::_control_thread_main, this);
-	_cwipc_setThreadName(control_thread, L"cwipc_kinect::K4ACapture::control_thread");
-}
-
-void K4ACapture::_create_cameras(k4a_device_t *camera_handles, std::vector<std::string> serials, uint32_t camera_count) {
-	int serial_index = 0;
-	for(uint32_t i=0; i<camera_count; i++) {
-		if (camera_handles[i] == NULL) continue;
-#ifdef CWIPC_DEBUG
-		std::cout << "K4ACapture: opening camera " << serials[i] << std::endl;
-#endif
-		// Found a realsense camera. Create a default data entry for it.
-		std::string serial(serials[serial_index++]);
-
-		K4ACameraData& cd = get_camera_data(serial);
-		if (cd.type != "kinect") {
-			cwipc_k4a_log_warning("Camera " + serial + " is type " + cd.type + " in stead of kinect");
-		}
-		int camera_index = cameras.size();
-		auto cam = new K4ACamera(camera_handles[i], configuration, camera_index, cd);
-		cameras.push_back(cam);
-	}
 }
 
 K4ACapture::~K4ACapture() {
-    if (no_cameras) {
-        numberOfCapturersActive--;
-        return;
-    }
+	if (no_cameras) {
+		numberOfCapturersActive--;
+		return;
+	}
 	uint64_t stopTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-	stopped = true;
 	// Stop all cameras
 	for (auto cam : cameras)
 		cam->stop();
-    mergedPC_is_fresh = true;
-    mergedPC_want_new = false;
-    mergedPC_is_fresh_cv.notify_all();
-    mergedPC_want_new = true;
-    mergedPC_want_new_cv.notify_all();
+	stopped = true;
+	mergedPC_is_fresh = true;
+	mergedPC_want_new = false;
+	mergedPC_is_fresh_cv.notify_all();
+	mergedPC_want_new = true;
+	mergedPC_want_new_cv.notify_all();
 	control_thread->join();
 	delete control_thread;
-	std::cerr << "cwipc_kinect: stopped all cameras\n";
+	std::cerr << CLASSNAME << ": stopped all cameras\n";
+
 	// Delete all cameras (which will stop their threads as well)
 	for (auto cam : cameras)
 		delete cam;
 	cameras.clear();
-	std::cerr << "cwipc_kinect: deleted all cameras\n";
+	std::cerr << CLASSNAME << ": deleted all cameras\n";
+
 	// Print some minimal statistics of this run
 	float deltaT = (stopTime - starttime) / 1000.0;
-	std::cerr << "cwipc_kinect: ran for " << deltaT << " seconds, produced " << numberOfPCsProduced << " pointclouds at " << numberOfPCsProduced / deltaT << " fps." << std::endl;
+	std::cerr << CLASSNAME << ": ran for " << deltaT << " seconds, produced " << numberOfPCsProduced << " pointclouds at " << numberOfPCsProduced / deltaT << " fps." << std::endl;
 	numberOfCapturersActive--;
 }
 
 // API function that triggers the capture and returns the merged pointcloud and timestamp
 cwipc* K4ACapture::get_pointcloud()
 {
-    if (no_cameras) return nullptr;
+	if (no_cameras) return nullptr;
 	_request_new_pointcloud();
 	// Wait for a fresh mergedPC to become available.
 	// Note we keep the return value while holding the lock, so we can start the next grab/process/merge cycle before returning.
 	cwipc* rv;
 	{
 		std::unique_lock<std::mutex> mylock(mergedPC_mutex);
-		mergedPC_is_fresh_cv.wait(mylock, [this]{return mergedPC_is_fresh; });
+		mergedPC_is_fresh_cv.wait(mylock, [this] {return mergedPC_is_fresh; });
 		mergedPC_is_fresh = false;
 		numberOfPCsProduced++;
 		rv = mergedPC;
+		mergedPC = nullptr;
 	}
 	_request_new_pointcloud();
 	return rv;
@@ -345,7 +375,7 @@ cwipc* K4ACapture::get_pointcloud()
 
 float K4ACapture::get_pointSize()
 {
-    if (no_cameras) return 0;
+	if (no_cameras) return 0;
 	float rv = 99999;
 	return 0.005;
 	/*for (auto cam : cameras) {
@@ -357,56 +387,56 @@ float K4ACapture::get_pointSize()
 
 bool K4ACapture::pointcloud_available(bool wait)
 {
-    if (no_cameras) return false;
+	if (no_cameras) return false;
 	_request_new_pointcloud();
 	std::this_thread::yield();
 	std::unique_lock<std::mutex> mylock(mergedPC_mutex);
-	auto duration = std::chrono::seconds(wait?1:0);
-	mergedPC_is_fresh_cv.wait_for(mylock, duration, [this]{return mergedPC_is_fresh; });
+	auto duration = std::chrono::seconds(wait ? 1 : 0);
+	mergedPC_is_fresh_cv.wait_for(mylock, duration, [this] {return mergedPC_is_fresh; });
 	return mergedPC_is_fresh;
 }
 
 void K4ACapture::_control_thread_main()
 {
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "cwipc_kinect: K4ACapture: processing thread started" << std::endl;
+	std::cerr << CLASSNAME << ": processing thread started" << std::endl;
 #endif
-	while(!stopped) {
+	while (!stopped) {
 		{
 			std::unique_lock<std::mutex> mylock(mergedPC_mutex);
-			mergedPC_want_new_cv.wait(mylock, [this]{ return mergedPC_want_new;});
+			mergedPC_want_new_cv.wait(mylock, [this] { return mergedPC_want_new; });
+		}
+		//check EOF:
+		for (auto cam : cameras) {
+			if (cam->eof) {
+				eof = true;
+				stopped = true;
+				break;
+			}
 		}
 		if (stopped) {
 			break;
 		}
-        assert (cameras.size() > 0);
-        // Step one: grab frames from all cameras. This should happen as close together in time as possible,
-        // because that gives use he biggest chance we have the same frame (or at most off-by-one) for each
-        // camera.
-		bool all_captures_ok = true;
-        for(auto cam : cameras) {
-			if (!cam->capture_frameset()) {
-				all_captures_ok = false;
-				continue;
-			}
-        }
+		assert(cameras.size() > 0);
+		// Step one: grab frames from all cameras. This should happen as close together in time as possible,
+		// because that gives use he biggest chance we have the same frame (or at most off-by-one) for each
+		// camera.
+		bool all_captures_ok = _capture_all_cameras();
 		if (!all_captures_ok) {
-			//std::cerr << "cwipc_kinect: K4ACapture: xxxjack not all captures succeeded. Retrying." << std::endl;
+			//std::cerr << CLASSNAME << ": xxxjack not all captures succeeded. Retrying." << std::endl;
 			std::this_thread::yield();
 			continue;
 		}
         // And get the best timestamp
-        uint64_t timestamp = 0;
-        for(auto cam: cameras) {
-            uint64_t camts = cam->get_capture_timestamp();
-            if (camts > timestamp) timestamp = camts;
-        }
-		if (timestamp <= 0) {
-			timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-		}
+        uint64_t timestamp = _get_best_timestamp();
 		// Step 2 - Create pointcloud, and save rgb/depth images if wanted
 		cwipc_pcl_pointcloud pcl_pointcloud = new_cwipc_pcl_pointcloud();
-		cwipc *newPC = cwipc_from_pcl(pcl_pointcloud, timestamp, NULL, CWIPC_API_VERSION);
+		char* error_str = NULL;
+		cwipc* newPC = cwipc_from_pcl(pcl_pointcloud, timestamp, &error_str, CWIPC_API_VERSION);
+		if (newPC == nullptr) {
+			std::cerr << CLASSNAME << ": cwipc_from_pcl returned error: " << error_str << std::endl;
+			break;
+		}
 
 		if (want_auxdata_rgb || want_auxdata_depth) {
 			for (auto cam : cameras) {
@@ -448,36 +478,59 @@ void K4ACapture::_control_thread_main()
         merge_views();
         if (mergedPC->access_pcl_pointcloud()->size() > 0) {
 #ifdef CWIPC_DEBUG
-            std::cerr << "cwipc_kinect: capturer produced a merged cloud of " << mergedPC->size() << " points" << std::endl;
+			std::cerr << CLASSNAME << ": capturer produced a merged cloud of " << mergedPC->size() << " points" << std::endl;
 #endif
         } else {
 #ifdef CWIPC_DEBUG
-            std::cerr << "cwipc_kinect: Warning: capturer got an empty pointcloud\n";
+			std::cerr << CLASSNAME << ": Warning: capturer got an empty pointcloud\n";
 #endif
 #if 0
-            // HACK to make sure the encoder does not get an empty pointcloud
-            cwipc_pcl_point point;
-            point.x = 1.0;
-            point.y = 1.0;
-            point.z = 1.0;
-            point.rgb = 0.0;
-            mergedPC->points.push_back(point);
+			// HACK to make sure the encoder does not get an empty pointcloud
+			cwipc_pcl_point point;
+			point.x = 1.0;
+			point.y = 1.0;
+			point.z = 1.0;
+			point.rgb = 0.0;
+			mergedPC->points.push_back(point);
 #endif
-        }
-        // Signal that a new mergedPC is available. (Note that we acquired the mutex earlier)
-        mergedPC_is_fresh = true;
-        mergedPC_want_new = false;
-        mergedPC_is_fresh_cv.notify_all();
+		}
+		// Signal that a new mergedPC is available. (Note that we acquired the mutex earlier)
+		mergedPC_is_fresh = true;
+		mergedPC_want_new = false;
+		mergedPC_is_fresh_cv.notify_all();
 	}
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "cwipc_kinect: K4ACapture: processing thread stopped" << std::endl;
+	std::cerr << CLASSNAME << ": processing thread stopped" << std::endl;
 #endif
+}
+
+bool K4ACapture::_capture_all_cameras() {
+	bool all_captures_ok = true;
+	for(auto cam : cameras) {
+		if (!cam->capture_frameset()) {
+			all_captures_ok = false;
+			continue;
+		}
+	}
+	return all_captures_ok;
+}
+
+uint64_t K4ACapture::_get_best_timestamp() {
+	uint64_t timestamp = 0;
+	for(auto cam: cameras) {
+		uint64_t camts = cam->get_capture_timestamp();
+		if (camts > timestamp) timestamp = camts;
+	}
+	if (timestamp <= 0) {
+		timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	}
+	return timestamp;
 }
 
 // return the merged cloud 
 cwipc* K4ACapture::get_mostRecentPointCloud()
 {
-    if (no_cameras) return nullptr;
+	if (no_cameras) return nullptr;
 	// This call doesn't need a fresh pointcloud (Jack thinks), but it does need one that is
 	// consistent. So we lock, but don't wait on the condition.
 	std::unique_lock<std::mutex> mylock(mergedPC_mutex);
@@ -503,7 +556,7 @@ void K4ACapture::merge_views()
 	for (auto cam : cameras) {
 		cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
 		if (cam_cld == nullptr) {
-			cwipc_k4a_log_warning("Camera " + cam->serial + " has NULL cloud");
+			cwipc_k4a_log_warning("Camera " + cam->serial + " returned NULL cloud, ignoring");
 			continue;
 		}
 		nPoints += cam_cld->size();
@@ -579,6 +632,9 @@ void K4ACapture::merge_views()
 	*mergedPC += *skl;
 
 #endif // xxNacho_skeleton_DEBUG
+	if (aligned_cld->size() != nPoints) {
+		cwipc_k4a_log_warning("Combined pointcloud has different number of points than expected");
+	}
 }
 
 K4ACameraData& K4ACapture::get_camera_data(std::string serial) {
@@ -589,7 +645,7 @@ K4ACameraData& K4ACapture::get_camera_data(std::string serial) {
 	abort();
 }
 
-K4ACamera* K4ACapture::get_camera(std::string serial) {
+K4ACapture::Type_our_camera* K4ACapture::get_camera(std::string serial) {
 	for (auto cam : cameras)
 		if (cam->serial == serial)
 			return cam;

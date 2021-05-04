@@ -7,7 +7,7 @@
 #include "cwipc_util/api.h"
 #include "cwipc_kinect/api.h"
 
-#define DEBUG_AUXDATA
+#undef DEBUG_AUXDATA
 
 int main(int argc, char** argv)
 {
@@ -17,11 +17,11 @@ int main(int argc, char** argv)
 		std::cerr << "If directory is - then drop the pointclouds on the floor" << std::endl;
 		return 2;
     }
-    int count = atoi(argv[1]);
+    int countWanted = atoi(argv[1]);
     char filename[500];
     char *error = NULL;
-    
 	cwipc_tiledsource *generator;
+    char *outputdir = argv[2];
 	char *configFile = NULL;
 	if (argc == 4) {
 		configFile = argv[3];
@@ -42,25 +42,23 @@ int main(int argc, char** argv)
     generator->request_auxiliary_data("skeletons");
 #endif
 
-	int ok = 0;
-    while (count-- > 0 && ok == 0) {
-        cwipc *pc = NULL;
-        while(1) {
-            pc = generator->get();
-            if (pc == NULL) {
-                error = (char *)"grabber returned NULL";
-                ok = -1;
-                break;
-            }
-            int count = pc->count();
-            if (count > 0) break;
-            std::cerr << argv[0] << ": warning: empty pointcloud, grabbing again" << std::endl;
+    int ok = 0;
+    int framenum = 0;
+    int nGrabbedSuccessfully = 0;
+    while (!generator->eof()) {
+        if (countWanted != 0 && framenum >= countWanted) break;
+        cwipc* pc = NULL;
+        pc = generator->get();
+        if (pc == NULL) {
+            error = (char*)"grabber returned NULL pointcloud";
+            ok = -1;
+            break;
         }
-		if (strcmp(argv[2], "-") != 0) {
-			snprintf(filename, sizeof(filename), "%s/pointcloud-%" PRIu64 ".ply", argv[2], pc->timestamp());
-            std::cout << "-> Writing " << filename << std::endl;
-			ok = cwipc_write(filename, pc, &error);
-		}
+        if (pc->count() <= 0) {
+            std::cerr << argv[0] << ": warning: empty pointcloud, grabbing again" << std::endl;
+            pc->free();
+            continue;
+        }
 #ifdef DEBUG_AUXDATA
         cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
         if (ap == nullptr) {
@@ -74,12 +72,25 @@ int main(int argc, char** argv)
             }
         }
 #endif
+        framenum++;
+		if (strcmp(outputdir, "-") != 0) {
+			snprintf(filename, sizeof(filename), "%s/pointcloud-%" PRIu64 ".ply", outputdir, pc->timestamp());
+	        std::cout << "-> Writing frame " << framenum << " with " << pc->count() << " points to "<< filename << std::endl;
+			ok = cwipc_write(filename, pc, &error);
+		} else {
+	        std::cout << "-> Dropping frame " << framenum << " with " << pc->count() << " points" << std::endl;
+		}
         pc->free();
+        nGrabbedSuccessfully++;
     }
     generator->free();
     if (ok < 0) {
     	std::cerr << "Error: " << error << std::endl;
     	return 1;
+    }
+    if (countWanted != 0 && nGrabbedSuccessfully != countWanted) {
+        std::cerr << "cwipc_k4aoffline: Wanted " << countWanted << " pointclouds but got only " << nGrabbedSuccessfully << std::endl;
+        return 1;
     }
     return 0;
 }

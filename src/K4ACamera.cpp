@@ -15,7 +15,6 @@
 #endif
 
 
-#include "cwipc_kinect/private/K4AConfig.hpp"
 #include "cwipc_kinect/private/K4ACamera.hpp"
 
 #define VERIFY(result, error)                                                                            \
@@ -88,17 +87,18 @@ static bool isNotGreen(cwipc_pcl_point* p)
 	return true;
 }
 
-K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData)
+K4ACamera::K4ACamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData)
 :	pointSize(0), minx(0), minz(0), maxz(0),
-	device_handle(_handle),
+	camera_handle(_handle),
 	camera_index(_camera_index),
-	serial(_camData.serial),
 	stopped(true),
 	camera_started(false),
-	capture_started(false),
+	processing_thread(nullptr),
 	camData(_camData),
+	serial(_camData.serial),
 	camSettings(configuration.camera_config),
 	current_pointcloud(nullptr),
+	transformation_handle(nullptr),
 	captured_frame_queue(1),
 	processing_frame_queue(1),
 	current_frameset(NULL),
@@ -115,7 +115,7 @@ K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int 
 	want_auxdata_skeleton(false)
 {
 #ifdef CWIPC_DEBUG
-		std::cout << "K4ACapture: creating camera " << serial << std::endl;
+	std::cout << CLASSNAME << "creating camera " << serial << std::endl;
 #endif
 	_init_filters();
 }
@@ -123,14 +123,13 @@ K4ACamera::K4ACamera(k4a_device_t _handle, K4ACaptureConfig& configuration, int 
 K4ACamera::~K4ACamera()
 {
 #ifdef CWIPC_DEBUG
-	std::cout << "K4ACamera: destroying " << serial << std::endl;
+	std::cout << CLASSNAME << ": destroying " << serial << std::endl;
 #endif
 	assert(stopped);
 }
 
 void K4ACamera::_init_filters()
 {
-	if (!do_depth_filtering) return;
 }
 
 bool K4ACamera::capture_frameset()
@@ -138,25 +137,24 @@ bool K4ACamera::capture_frameset()
 	if (stopped) return false;
 	k4a_capture_t new_frameset = NULL;
 	bool rv = captured_frame_queue.wait_dequeue_timed(new_frameset, 5000000);
-	if (rv) {
-		if (current_frameset) {
-			k4a_capture_release(current_frameset);
-		}
-		current_frameset = new_frameset;
-#ifdef CWIPC_DEBUG_THREAD
-		if (current_frameset == NULL) {
-			std::cerr << "cwipc_kinect: K4ACamera: " << camera_index <<" forward NULL frame"  << std::endl;
-		} else {
-			k4a_image_t color = k4a_capture_get_color_image(current_frameset);
-			uint64_t tsRGB = k4a_image_get_device_timestamp_usec(color);
-			k4a_image_release(color);
-			k4a_image_t depth = k4a_capture_get_depth_image(current_frameset);
-			uint64_t tsD = k4a_image_get_device_timestamp_usec(depth);
-			k4a_image_release(depth);
-			std::cerr << "cwipc_kinect: K4ACamera: forward frame: cam=" << serial << ", rgbseq=" << tsRGB << ", dseq=" << tsD << std::endl;
-		}
-#endif
+	if (!rv) return rv;
+	if (current_frameset) {
+		k4a_capture_release(current_frameset);
 	}
+	current_frameset = new_frameset;
+#ifdef CWIPC_DEBUG_THREAD
+	if (current_frameset == NULL) {
+		std::cerr << CLASSNAME << ": " << camera_index <<" forward NULL frame"  << std::endl;
+	} else {
+		k4a_image_t color = k4a_capture_get_color_image(current_frameset);
+		uint64_t tsRGB = k4a_image_get_device_timestamp_usec(color);
+		k4a_image_release(color);
+		k4a_image_t depth = k4a_capture_get_depth_image(current_frameset);
+		uint64_t tsD = k4a_image_get_device_timestamp_usec(depth);
+		k4a_image_release(depth);
+		std::cerr << CLASSNAME << ": forward frame: cam=" << serial << ", rgbseq=" << tsRGB << ", dseq=" << tsD << std::endl;
+	}
+#endif
 
 	return rv;
 }
@@ -166,6 +164,30 @@ bool K4ACamera::start()
 {
 	assert(stopped);
 	k4a_device_configuration_t device_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+	if (!_setup_device(device_config)) return false;
+
+
+	k4a_calibration_t calibration;
+	if (K4A_RESULT_SUCCEEDED != k4a_device_get_calibration(camera_handle, device_config.depth_mode, device_config.color_resolution, &calibration))
+	{
+		std::cerr << CLASSNAME << ": Failed to k4a_device_get_calibration" << std::endl;
+		camera_started = false;
+		return false;
+	}
+	transformation_handle = k4a_transformation_create(&calibration);
+
+	k4a_result_t res = k4a_device_start_cameras(camera_handle, &device_config);
+	if (res != K4A_RESULT_SUCCEEDED) {
+		std::cerr << "cwipc_kinect: failed to start camera " << serial << std::endl;
+		return false;
+	}
+	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". color_height=" << color_height << ", depth_height=" << depth_height << " map_color_to_depth=" << camSettings.map_color_to_depth << " @" << camera_fps << "fps as " << (camera_sync_inuse ? (camera_sync_ismaster? "Master" : "Subordinate") : "Standalone") << std::endl;
+	
+	camera_started = true;
+	return true;
+}
+
+bool K4ACamera::_setup_device(k4a_device_configuration_t& device_config) {
 	device_config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
 	switch (color_height) {
 	case 720:
@@ -234,6 +256,7 @@ bool K4ACamera::start()
 	} else {
 		// standalone mode, nothing to set
 	}
+#ifdef xxxjackunsure
 
 	k4a_calibration_t sensor_calibration;
 	if (K4A_RESULT_SUCCEEDED != k4a_device_get_calibration(device_handle, device_config.depth_mode, device_config.color_resolution, &sensor_calibration))
@@ -257,6 +280,7 @@ bool K4ACamera::start()
 	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". color_height=" << color_height << ", depth_height=" << depth_height << " map_color_to_depth=" << camSettings.map_color_to_depth << " @" << camera_fps << "fps as " << (camera_sync_inuse ? (camera_sync_ismaster? "Master" : "Subordinate") : "Standalone") << std::endl;
 	
 	camera_started = true;
+#endif
 	return true;
 }
 
@@ -279,13 +303,8 @@ void K4ACamera::_computePointSize(rs2::pipeline_profile profile)
 	float pixel0[2], pixel1[2];
 	pixel0[0] = camera_width / 2;
 	pixel0[1] = camera_height / 2;
-	if (do_depth_filtering && camSettings.do_decimation) {
-		pixel1[0] = pixel0[0] + camSettings.decimation_value;
-		pixel1[1] = pixel0[1] + camSettings.decimation_value;
-	} else {
-		pixel1[0] = pixel0[0] + 1;
-		pixel1[1] = pixel0[1] + 1;
-	}
+	pixel1[0] = pixel0[0] + 1;
+	pixel1[1] = pixel0[1] + 1;
 
 	// Deproject to get 3D distance
 	float point0[3], point1[3];
@@ -301,18 +320,30 @@ void K4ACamera::stop()
 	assert(!stopped);
 	stopped = true;
 	processing_frame_queue.try_enqueue(NULL);
-	if (capture_started) {
-		if (current_frameset != NULL)
-			k4a_capture_release(current_frameset);
-		k4a_device_stop_cameras(device_handle);
-		k4a_transformation_destroy(transformation_handle);
-		camera_started = false;
-	}
-	capture_started = false;
+	// Stop threads
 	if (grabber_thread) grabber_thread->join();
 	delete grabber_thread;
 	if (processing_thread) processing_thread->join();
 	delete processing_thread;
+
+	if (camera_started) {
+		// Stop camera
+		k4a_device_stop_cameras(camera_handle);
+		camera_started = false;
+	}
+	// Delete objects
+	if (current_frameset != NULL) {
+		k4a_capture_release(current_frameset);
+		current_frameset = NULL;
+	}
+	if (camera_handle) {
+		k4a_device_close(camera_handle);
+		camera_handle = nullptr;
+	}
+	if (transformation_handle) {
+		k4a_transformation_destroy(transformation_handle);
+		transformation_handle = NULL;
+	}	
 	processing_done = true;
 	processing_done_cv.notify_one();
 	k4abt_tracker_destroy(tracker);
@@ -324,7 +355,6 @@ void K4ACamera::start_capturer()
 	if (!camera_started) return;
 	assert(stopped);
 	stopped = false;
-	capture_started = true;
 	_start_capture_thread();
 	processing_thread = new std::thread(&K4ACamera::_processing_thread_main, this);
 	_cwipc_setThreadName(processing_thread, L"cwipc_kinect::K4ACamera::processing_thread");
@@ -339,7 +369,7 @@ void K4ACamera::_start_capture_thread()
 void K4ACamera::_capture_thread_main()
 {
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "cwipc_kinect: K4ACamera: cam=" << serial << " thread started" << std::endl;
+	std::cerr << CLASSNAME << ": cam=" << serial << " thread started" << std::endl;
 #endif
 	while(!stopped) {
 		k4a_capture_t capture_handle;
@@ -348,7 +378,7 @@ void K4ACamera::_capture_thread_main()
 			cwipc_k4a_log_warning("k4a_capture_create failed");
 			break;
 		}
-		k4a_wait_result_t ok = k4a_device_get_capture(device_handle, &capture_handle, 5000);
+		k4a_wait_result_t ok = k4a_device_get_capture(camera_handle, &capture_handle, 5000);
 		if (ok != K4A_WAIT_RESULT_SUCCEEDED) {
 			std::cerr << "cwipc_kinect: camera " << serial << ": error " << ok << std::endl;
 			cwipc_k4a_log_warning("k4a_device_get_capture failed");
@@ -364,7 +394,7 @@ void K4ACamera::_capture_thread_main()
 		k4a_image_t depth = k4a_capture_get_depth_image(capture_handle);
 		uint64_t tsD = k4a_image_get_device_timestamp_usec(depth);
 		k4a_image_release(depth);
-		std::cerr << "cwipc_kinect: K4ACamera: capture: cam=" << serial << ", rgbseq=" << tsRGB << ", dseq=" << tsD << std::endl;
+		std::cerr << CLASSNAME << ": capture: cam=" << serial << ", rgbseq=" << tsRGB << ", dseq=" << tsD << std::endl;
 #endif
 		if (!captured_frame_queue.try_enqueue(capture_handle)) {
 			// Queue is full. discard.
@@ -375,7 +405,7 @@ void K4ACamera::_capture_thread_main()
 			k4a_image_t depth = k4a_capture_get_depth_image(capture_handle);
 			uint64_t tsD = k4a_image_get_device_timestamp_usec(depth);
 			k4a_image_release(depth);
-			std::cerr << "cwipc_kinect: K4ACamera: drop frame " << tsRGB << "/" << tsD <<" from camera "<< serial << std::endl;
+			std::cerr << CLASSNAME << ": drop frame " << tsRGB << "/" << tsD <<" from camera "<< serial << std::endl;
 #endif
 			k4a_capture_release(capture_handle);
 			std::this_thread::sleep_for(std::chrono::milliseconds(25));
@@ -386,14 +416,14 @@ void K4ACamera::_capture_thread_main()
 		}
 	}
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "cwipc_kinect: K4ACamera: cam=" << serial << " thread stopped" << std::endl;
+	std::cerr << CLASSNAME << ": cam=" << serial << " thread stopped" << std::endl;
 #endif
 }
 
 void K4ACamera::_processing_thread_main()
 {
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "cwipc_kinect: K4ACamera: processing: cam=" << serial << " thread started" << std::endl;
+	std::cerr << CLASSNAME << ": processing: cam=" << serial << " thread started" << std::endl;
 #endif
 	while (!stopped) {
 		k4a_capture_t processing_frameset = NULL;
@@ -403,16 +433,16 @@ void K4ACamera::_processing_thread_main()
 		bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(10000));
 		if (processing_frameset == NULL) {
 #ifdef CWIPC_DEBUG_THREAD
-			std::cerr << "cwipc_kinect: processing thread: null frameset" << std::endl;
+			std::cerr << CLASSNAME << ": processing thread: null frameset" << std::endl;
 #endif
 			continue;
 		}
 		if (!ok) {
-			std::cerr << "cwipc_kinect: no frameset for 10 seconds, camera " << serial << std::endl;
+			std::cerr << CLASSNAME << ": no frameset for 10 seconds, camera " << serial << std::endl;
 			continue;
 		}
 #ifdef CWIPC_DEBUG_THREAD
-		std::cerr << "cwipc_kinect: processing: got frame for camera " << serial << std::endl;
+		std::cerr << CLASSNAME << ": processing: got frame for camera " << serial << std::endl;
 #endif
 		assert(processing_frameset);
 		std::lock_guard<std::mutex> lock(processing_mutex);
@@ -492,7 +522,7 @@ void K4ACamera::_processing_thread_main()
 		if (new_pointcloud != nullptr) {
 			current_pointcloud = new_pointcloud;
 #ifdef CWIPC_DEBUG_THREAD
-			std::cerr << "cwipc_kinect: camera " << serial << " produced " << camData.cloud->size() << " point" << std::endl;
+			std::cerr << "cwipc_kinect: camera " << serial << " produced " << current_pointcloud->size() << " point" << std::endl;
 #endif
 			if (current_pointcloud->size() == 0) {
 				std::cerr << "cwipc_kinect: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
@@ -505,7 +535,7 @@ void K4ACamera::_processing_thread_main()
 		if (processing_frameset != NULL) k4a_capture_release(processing_frameset);
 	}
 #ifdef CWIPC_DEBUG_THREAD
-	std::cerr << "cwipc_kinect: K4ACamera: processing: cam=" << serial << " thread stopped" << std::endl;
+	std::cerr << CLASSNAME << ": processing: cam=" << serial << " thread stopped" << std::endl;
 #endif
 }
 
@@ -855,30 +885,5 @@ K4ACamera::save_auxdata_skeleton(cwipc* pc) {
 		cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
 		ap->_add(name, "", (void*)skl, size_str, ::free);
 	}
-}
-
-void
-K4ACamera::dump_color_frame(const std::string& filename)
-{
-#ifdef WITH_DUMP_VIDEO_FRAMES
-	k4a_image_t color = k4a_capture_get_color_image(current_frameset);
-	if(color != NULL){
-		int color_image_width_pixels = k4a_image_get_width_pixels(color);
-		int color_image_height_pixels = k4a_image_get_height_pixels(color);
-		int bytes_per_pixel = 4;
-		uint8_t* color_data = k4a_image_get_buffer(color);
-		int color_stride_bytes = k4a_image_get_stride_bytes(color);
-		long timestamp = k4a_image_get_device_timestamp_usec(color);
-
-		stbi_write_png(filename.c_str(), color_image_width_pixels, color_image_height_pixels,
-			bytes_per_pixel, color_data, color_stride_bytes);
-
-		std::cout << "cwipc_kinect: dumped image. Camera: " << camera_index << " t=" << timestamp << std::endl;
-		k4a_image_release(color);
-	}
-	else {
-		std::cerr << "cwipc_kinect: error: dumping image. serial: " << camData.serial << std::endl;
-	}
-#endif
 }
 
