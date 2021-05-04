@@ -58,6 +58,7 @@ protected:
 	void transformPoint(cwipc_pcl_point& pt);
 	bool prepare_next_valid_frame();
 	bool prepare_cond_next_valid_frame(uint64_t master_timestamp);
+	bool _setup_device(k4a_device_configuration_t& device_config);
 private:
 	K4ACameraData& camData;
 	K4ACameraConfig& camSettings;

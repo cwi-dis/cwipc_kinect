@@ -22,7 +22,7 @@ public:
 	K4AOfflineCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData);
 	virtual ~K4AOfflineCamera();
 
-	bool start() { return true; } // playbacks do not need a start function
+	bool start();
 	virtual void start_capturer();
 	void stop();
 	bool capture_frameset(uint64_t master_timestamp);
@@ -63,6 +63,7 @@ protected:
 	void transformPoint(cwipc_pcl_point& pt);
 	bool _prepare_next_valid_frame();
 	bool _prepare_cond_next_valid_frame(uint64_t master_timestamp);
+	k4a_image_t _uncompress_color_image(k4a_image_t color_image);
 private:
 	K4ACameraData& camData;
 	K4ACameraConfig& camSettings;

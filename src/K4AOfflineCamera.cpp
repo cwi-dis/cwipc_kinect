@@ -111,19 +111,6 @@ K4AOfflineCamera::K4AOfflineCamera(Type_api_camera _handle, K4ACaptureConfig& co
 #ifdef CWIPC_DEBUG
 	std::cout << CLASSNAME << "creating camera " << serial << std::endl;
 #endif
-	k4a_calibration_t calibration;
-	if (K4A_RESULT_SUCCEEDED != k4a_playback_get_calibration(camera_handle, &calibration))
-	{
-		std::cerr << CLASSNAME << ":  Failed to k4a_device_get_calibration" << std::endl;
-		camera_started = false;
-		return;
-	}
-	else {
-		transformation_handle = k4a_transformation_create(&calibration);
-		camera_started = true;
-	}
-
-	max_delay = 10 * 160; //we set a 160us delay between cameras to avoid laser interference. It is enough for 10x cameras
 	_init_filters();
 }
 
@@ -143,18 +130,13 @@ bool K4AOfflineCamera::capture_frameset(uint64_t master_timestamp)
 {
 	if (stopped) return false;
 	bool rv;
-	if (camera_sync_inuse) {
-		if (camera_sync_ismaster) {
-			rv = _prepare_next_valid_frame(); //TODO: use return value?
-		}
-		else {
-			rv = _prepare_cond_next_valid_frame(master_timestamp);
-		}
+	bool use_timestamp = camera_sync_inuse && !camera_sync_ismaster;
+	if (use_timestamp) {
+		rv = _prepare_cond_next_valid_frame(master_timestamp);
+	} else {
+		rv = _prepare_next_valid_frame();
 	}
-	else {
-		rv = _prepare_next_valid_frame(); //TODO: use return value?
-	}
-
+	if (!rv) return rv;
 
 #ifdef CWIPC_DEBUG_THREAD
 	if (current_frameset == NULL) {
@@ -182,44 +164,40 @@ bool K4AOfflineCamera::_prepare_next_valid_frame() {
 	while (!succeeded) {
 		if (stopped) return false;
 		assert(camera_handle);
-		if (current_frameset != NULL)
+		if (current_frameset != NULL) {
 			k4a_capture_release(current_frameset);
+			current_frameset = nullptr;
+		}
 		stream_result = k4a_playback_get_next_capture(camera_handle, &current_frameset);
 		if (stream_result == K4A_STREAM_RESULT_EOF)
 		{
+			eof = true;
+#ifdef CWIPC_DEBUG
 			if (current_frameset_timestamp == 0) {
-				std::cerr << CLASSNAME << ": ERROR: Recording file is empty: " << camData.filename << std::endl;
-				result = K4A_RESULT_FAILED;
+				std::cerr << CLASSNAME << ": Recording file is empty: " << camData.filename << std::endl;
 			}
 			else {
 				std::cout << CLASSNAME << ": Recording file " << camData.filename << " reached EOF" << std::endl;
-				eof = true;
 			}
-			break;
+#endif
+			return false;
 		}
-		else if (stream_result == K4A_STREAM_RESULT_FAILED)
+		if (stream_result == K4A_STREAM_RESULT_FAILED)
 		{
 			std::cerr << CLASSNAME << ": ERROR: Failed to read first capture from file: " << camData.filename << std::endl;
-			result = K4A_RESULT_FAILED;
-			break;
+			return false;
 		}
 		capture_id++;
 		k4a_image_t color = k4a_capture_get_color_image(current_frameset);
+		k4a_image_t depth = k4a_capture_get_depth_image(current_frameset);
 		if (color == NULL) {
 			std::cerr << CLASSNAME << ": Color is missing in capture " << capture_id << " from " << camData.filename << std::endl;
-			continue;
-		}
-
-		k4a_image_t depth = k4a_capture_get_depth_image(current_frameset);
-		if (depth == NULL) {
+		} else if (depth == NULL) {
 			std::cerr << CLASSNAME << ": Depth is missing in capture " << capture_id << " from " << camData.filename << std::endl;
-			//color was not null so we have to release it
-			k4a_image_release(color);
-			continue;
+		} else {
+			succeeded = true;
 		}
 		current_frameset_timestamp = k4a_image_get_device_timestamp_usec(color);
-		succeeded = true;
-
 		k4a_image_release(color);
 		k4a_image_release(depth);
 	}
@@ -227,40 +205,41 @@ bool K4AOfflineCamera::_prepare_next_valid_frame() {
 }
 
 bool K4AOfflineCamera::_prepare_cond_next_valid_frame(uint64_t master_timestamp) {
-	/// <summary>
-	/// returns -1 if there was a problem, 1 if satisfied condition, 2 if we need to update master frame
-	/// </summary>
-	/// <param name="file"></param>
-	/// <param name="master_timestamp"></param>
-	/// <param name="max_delay"></param>
-	/// <returns></returns>
-	bool satisfies_condition = false;
 	//check if current frame already satisfies the condition
 	if (current_frameset != NULL && (current_frameset_timestamp > master_timestamp)) {
-		if (current_frameset_timestamp < (master_timestamp + max_delay)) //satisfies
-		{
-			return 1;
-		}
-		else { //update master
-			return 2;
-		}
-
+		// Even if the current frame is too far in the future we use it.
+		// Jack is unsure why this is (unlike in the next test)
+		return true;
 	}
 	//otherwise start process to find a frame that satisfies the condition.
-	while (!satisfies_condition)
+	while (true)
 	{
-		bool ok = _prepare_next_valid_frame();
-		if (!ok) break;
+		if (!_prepare_next_valid_frame()) return false;
 		if (current_frameset_timestamp > master_timestamp) {
 			if (current_frameset_timestamp < (master_timestamp + max_delay)) {
-				satisfies_condition = true;
+				return true;
 			}
 			else {  //it is a future frame, we need to update master frame
 				return false;
 			}
 		}
 	}
-	return satisfies_condition;
+}
+
+bool K4AOfflineCamera::start() {
+	// We don't have to start anything (opening the file did that) but
+	// we do have to get the RGB<->D transformation.
+	k4a_calibration_t calibration;
+	if (K4A_RESULT_SUCCEEDED != k4a_playback_get_calibration(camera_handle, &calibration))
+	{
+		std::cerr << CLASSNAME << ":  Failed to k4a_device_get_calibration" << std::endl;
+		camera_started = false;
+		return false;
+	}
+	transformation_handle = k4a_transformation_create(&calibration);
+	camera_started = true;
+	max_delay = 10 * 160; //we set a 160us delay between cameras to avoid laser interference. It is enough for 10x cameras
+	return true;
 }
 
 #ifdef notrs2
@@ -299,13 +278,12 @@ void K4AOfflineCamera::stop()
 	assert(!stopped);
 	stopped = true;
 	processing_frame_queue.try_enqueue(NULL);
+	// Stop threads
 	if (processing_thread) processing_thread->join();
 	delete processing_thread;
-	
+
 	if (camera_started) {
-#if 0
-		k4a_device_stop_cameras(playback_handle);
-#endif
+		// Nothing to stop for reading from file
 		camera_started = false;
 	}
 	// Delete objects
@@ -325,6 +303,16 @@ void K4AOfflineCamera::stop()
 	processing_done_cv.notify_one();
 }
 
+void K4AOfflineCamera::start_capturer()
+{
+	if (!camera_started) return;
+	assert(stopped);
+	stopped = false;
+	processing_thread = new std::thread(&K4AOfflineCamera::_processing_thread_main, this);
+	_cwipc_setThreadName(processing_thread, L"cwipc_kinect::K4AOfflineCamera::processing_thread");
+}
+
+
 void K4AOfflineCamera::_start_capture_thread()
 {
 	// Not needed for offline camera
@@ -333,15 +321,6 @@ void K4AOfflineCamera::_start_capture_thread()
 void K4AOfflineCamera::_capture_thread_main()
 {
 	// Not needed for offline camera
-}
-
-void K4AOfflineCamera::start_capturer()
-{
-	if (!camera_started) return;
-	assert(stopped);
-	stopped = false;
-	processing_thread = new std::thread(&K4AOfflineCamera::_processing_thread_main, this);
-	_cwipc_setThreadName(processing_thread, L"cwipc_kinect::K4AOfflineCamera::processing_thread");
 }
 
 void K4AOfflineCamera::_processing_thread_main()
@@ -372,54 +351,15 @@ void K4AOfflineCamera::_processing_thread_main()
 		std::lock_guard<std::mutex> lock(processing_mutex);
 		depth_image = k4a_capture_get_depth_image(processing_frameset);
 		color_image = k4a_capture_get_color_image(processing_frameset);
+		color_image = _uncompress_color_image(color_image);
 
-		k4a_image_t uncompressed_color_image = NULL;
-		int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
-		int color_image_height_pixels = k4a_image_get_height_pixels(color_image);
-		if (k4a_image_get_format(color_image) == K4A_IMAGE_FORMAT_COLOR_MJPG) {
-			//COLOR image is JPEG compressed. we need to convert the image to BGRA format.
-
-			if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
-				color_image_width_pixels,
-				color_image_height_pixels,
-				color_image_width_pixels * 4 * (int)sizeof(uint8_t),
-				&uncompressed_color_image))
-			{
-				std::cerr << "Failed to create image buffer" << std::endl;
-				return;
-			}
-
-			tjhandle tjHandle;
-			tjHandle = tjInitDecompress();
-			if (tjDecompress2(tjHandle,
-				k4a_image_get_buffer(color_image),
-				static_cast<unsigned long>(k4a_image_get_size(color_image)),
-				k4a_image_get_buffer(uncompressed_color_image),
-				color_image_width_pixels,
-				0, // pitch
-				color_image_height_pixels,
-				TJPF_BGRA,
-				TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE) != 0)
-			{
-				std::cerr << "Failed to decompress color frame" << std::endl;
-				if (tjDestroy(tjHandle))
-				{
-					std::cerr << "Failed to destroy turboJPEG handle" << std::endl;
-				}
-				return;
-			}
-			if (tjDestroy(tjHandle))
-			{
-				std::cerr << "Failed to destroy turboJPEG handle" << std::endl;
-			}
-		}
 
 		cwipc_pcl_pointcloud new_pointcloud = nullptr;
 		if (camSettings.map_color_to_depth) {
-			new_pointcloud = generate_point_cloud_color_to_depth(depth_image, uncompressed_color_image);
+			new_pointcloud = generate_point_cloud_color_to_depth(depth_image, color_image);
 		}
 		else {
-			new_pointcloud = generate_point_cloud_depth_to_color(depth_image, uncompressed_color_image);
+			new_pointcloud = generate_point_cloud_depth_to_color(depth_image, color_image);
 		}
 		if (new_pointcloud != nullptr) {
 			current_pointcloud = new_pointcloud;
@@ -439,6 +379,47 @@ void K4AOfflineCamera::_processing_thread_main()
 #ifdef CWIPC_DEBUG_THREAD
 	std::cerr << CLASSNAME << ": processing: cam=" << serial << " thread stopped" << std::endl;
 #endif
+}
+
+k4a_image_t K4AOfflineCamera::_uncompress_color_image(k4a_image_t color_image) {
+	k4a_image_t uncompressed_color_image = NULL;
+	int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
+	int color_image_height_pixels = k4a_image_get_height_pixels(color_image);
+	if (k4a_image_get_format(color_image) != K4A_IMAGE_FORMAT_COLOR_MJPG) {
+		// Not the format we expect. Return as-is.
+		return color_image;
+	}
+	//COLOR image is JPEG compressed. we need to convert the image to BGRA format.
+
+	if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
+		color_image_width_pixels,
+		color_image_height_pixels,
+		color_image_width_pixels * 4 * (int)sizeof(uint8_t),
+		&uncompressed_color_image))
+	{
+		std::cerr << CLASSNAME << ": Failed to create image buffer for image decompression" << std::endl;
+		return color_image;
+	}
+
+	tjhandle tjHandle = tjInitDecompress();
+	if (tjDecompress2(tjHandle,
+		k4a_image_get_buffer(color_image),
+		static_cast<unsigned long>(k4a_image_get_size(color_image)),
+		k4a_image_get_buffer(uncompressed_color_image),
+		color_image_width_pixels,
+		0, // pitch
+		color_image_height_pixels,
+		TJPF_BGRA,
+		TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE) != 0)
+	{
+		std::cerr << CLASSNAME << ": Failed to decompress color frame" << std::endl;
+	}
+	if (tjDestroy(tjHandle))
+	{
+		std::cerr << CLASSNAME << ": Failed to destroy turboJPEG handle" << std::endl;
+	}
+	k4a_image_release(color_image);
+	return uncompressed_color_image;
 }
 
 cwipc_pcl_pointcloud K4AOfflineCamera::generate_point_cloud_color_to_depth(
