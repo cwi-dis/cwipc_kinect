@@ -62,8 +62,6 @@ protected:
 	virtual void _capture_thread_main();
 	void transformPoint(cwipc_pcl_point& pt);
 	void transformDepthToColorPoint(cwipc_pcl_point& pt);
-	bool prepare_next_valid_frame();
-	bool prepare_cond_next_valid_frame(uint64_t master_timestamp);
 	bool _setup_device(k4a_device_configuration_t& device_config);
 private:
 	K4ACameraData& camData;
@@ -91,10 +89,11 @@ private:
 	bool processing_done;
 
 
-	k4abt_tracker_t tracker;
+	k4abt_tracker_t tracker_handle;
+	k4a_calibration_t sensor_calibration;
 	k4a_calibration_extrinsics_t depth_to_color_extrinsics;
 
 	void _init_filters();
-
+	void _init_tracker();
 };
 #endif // cwipc_realsense_K4ACamera_hpp

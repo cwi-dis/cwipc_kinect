@@ -17,6 +17,13 @@
 #include "cwipc_kinect/private/K4AOfflineCamera.hpp"
 #include "turbojpeg.h"
 
+#define VERIFY(result, error)                                                                            \
+    if(result != K4A_RESULT_SUCCEEDED)                                                                   \
+    {                                                                                                    \
+        printf("%s \n - (File: %s, Function: %s, Line: %d)\n", error, __FILE__, __FUNCTION__, __LINE__); \
+        exit(1);                                                                                         \
+    } 
+
 typedef struct HsvColor
 {
 	unsigned char h;
@@ -106,12 +113,14 @@ K4AOfflineCamera::K4AOfflineCamera(Type_api_camera _handle, K4ACaptureConfig& co
 	height_min(configuration.height_min),
 	height_max(configuration.height_max),
 	max_delay(0),
-	processing_done(false)
+	processing_done(false),
+	want_auxdata_skeleton(false)	
 {
 #ifdef CWIPC_DEBUG
 	std::cout << CLASSNAME << "creating camera " << serial << std::endl;
 #endif
 	_init_filters();
+	_init_tracker();
 }
 
 K4AOfflineCamera::~K4AOfflineCamera()
@@ -124,6 +133,13 @@ K4AOfflineCamera::~K4AOfflineCamera()
 
 void K4AOfflineCamera::_init_filters()
 {
+}
+
+void K4AOfflineCamera::_init_tracker()
+{
+	tracker_handle = NULL;
+	k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
+	VERIFY(k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle), "Body tracker initialization failed!");
 }
 
 bool K4AOfflineCamera::capture_frameset(uint64_t master_timestamp)
@@ -301,6 +317,10 @@ void K4AOfflineCamera::stop()
 	}	
 	processing_done = true;
 	processing_done_cv.notify_one();
+	if (tracker_handle) {
+		k4abt_tracker_destroy(tracker_handle);
+		tracker_handle = nullptr;
+	}
 }
 
 void K4AOfflineCamera::start_capturer()
@@ -352,6 +372,66 @@ void K4AOfflineCamera::_processing_thread_main()
 		depth_image = k4a_capture_get_depth_image(processing_frameset);
 		color_image = k4a_capture_get_color_image(processing_frameset);
 		color_image = _uncompress_color_image(color_image);
+
+		if (want_auxdata_skeleton) { // BODY TRACKING
+			k4a_wait_result_t queue_capture_result = k4abt_tracker_enqueue_capture(tracker_handle, processing_frameset, K4A_WAIT_INFINITE);
+			if (queue_capture_result == K4A_WAIT_RESULT_TIMEOUT)
+			{
+				// It should never hit timeout when K4A_WAIT_INFINITE is set.
+				printf("Error! Add capture to tracker process queue timeout!\n");
+			}
+			else if (queue_capture_result == K4A_WAIT_RESULT_FAILED)
+			{
+				printf("Error! Add capture to tracker process queue failed!\n");
+			}
+
+			k4abt_frame_t body_frame = NULL;
+			k4a_wait_result_t pop_frame_result = k4abt_tracker_pop_result(tracker_handle, &body_frame, K4A_WAIT_INFINITE);
+			if (pop_frame_result == K4A_WAIT_RESULT_SUCCEEDED)
+			{
+				skeletons.clear();
+				uint32_t num_bodies = k4abt_frame_get_num_bodies(body_frame);
+				if (num_bodies > 0) {
+					//printf("\n%u bodies are detected in Camera %i\n", num_bodies, camera_index);
+
+					// Transform each 3d joints from 3d depth space to 2d color image space
+					for (uint32_t i = 0; i < num_bodies; i++)
+					{
+						//printf("- Person[%u]:\n", i);
+						k4abt_skeleton_t skeleton;
+						VERIFY(k4abt_frame_get_body_skeleton(body_frame, i, &skeleton), "Get body from body frame failed!");
+						for (int joint_id = 0; joint_id < (int)K4ABT_JOINT_COUNT; joint_id++)
+						{
+							k4a_float3_t::_xyz pos = skeleton.joints[joint_id].position.xyz; //millimiters
+							cwipc_pcl_point point;
+							point.x = pos.x;
+							point.y = pos.y;
+							point.z = pos.z;
+							if (!camSettings.map_color_to_depth)
+								transformDepthToColorPoint(point);
+							transformPoint(point);
+							pos.x = point.x;
+							pos.y = point.y;
+							pos.z = point.z;
+							skeleton.joints[joint_id].position.xyz = pos;
+							//k4abt_joint_confidence_level_t confidence = skeleton.joints[joint_id].confidence_level;
+							//k4a_quaternion_t orientation = skeleton.joints[joint_id].orientation;
+							//std::cout << "\tJoint " << joint_id << " : \t(" << pos.x << "," << pos.y << "," << pos.z << ")\t\tconfidence_level = " << confidence << "\t orientation_wxyz: (" << orientation.wxyz.w << "," << orientation.wxyz.x << "," << orientation.wxyz.y << "," << orientation.wxyz.z << ")" << std::endl;
+						}
+						skeletons.push_back(skeleton);
+					}
+				}
+			}
+			else if (pop_frame_result == K4A_WAIT_RESULT_TIMEOUT)
+			{
+				//  It should never hit timeout when K4A_WAIT_INFINITE is set.
+				printf("Error! Pop body frame result timeout! Camera %i\n", camera_index);
+			}
+			else
+			{
+				printf("Pop body frame result failed! Camera %i\n", camera_index);
+			}
+		}///END_BODY TRACKING
 
 
 		cwipc_pcl_pointcloud new_pointcloud = nullptr;
@@ -640,6 +720,18 @@ void K4AOfflineCamera::transformPoint(cwipc_pcl_point& pt)
 	pt.z = (*camData.trafo)(2, 0) * x + (*camData.trafo)(2, 1) * y + (*camData.trafo)(2, 2) * z + (*camData.trafo)(2, 3);
 }
 
+void K4AOfflineCamera::transformDepthToColorPoint(cwipc_pcl_point& pt)
+{
+	float x = pt.x;
+	float y = pt.y;
+	float z = pt.z;
+	float *rotation = depth_to_color_extrinsics.rotation;
+	float *translation = depth_to_color_extrinsics.rotation;
+	pt.x = rotation[0] * x + rotation[1] * y + rotation[2] * z + translation[0];
+	pt.y = rotation[3] * x + rotation[4] * y + rotation[5] * z + translation[1];
+	pt.z = rotation[6] * x + rotation[7] * y + rotation[8] * z + translation[2];
+}
+
 void K4AOfflineCamera::create_pc_from_frames()
 {
 	assert(current_frameset);
@@ -663,7 +755,7 @@ uint64_t K4AOfflineCamera::get_capture_timestamp()
 }
 
 void
-K4AOfflineCamera::save_auxdata(cwipc* pc, bool rgb, bool depth)
+K4AOfflineCamera::save_auxdata_images(cwipc* pc, bool rgb, bool depth)
 {
 	if (rgb) {
 		std::string name = "rgb." + serial;
@@ -710,6 +802,51 @@ K4AOfflineCamera::save_auxdata(cwipc* pc, bool rgb, bool depth)
 				ap->_add(name, description, pointer, size, ::free);
 			}
 		}
+	}
+}
+
+struct cwipc_skeleton_joint {
+	uint32_t confidence;
+	float x;
+	float y;
+	float z;
+	float q_w;
+	float q_x;
+	float q_y;
+	float q_z;
+};
+
+struct cwipc_skeleton_collection {
+	uint32_t n_skeletons;
+	uint32_t n_joints;
+	struct cwipc_skeleton_joint joints[0];
+};
+
+void
+K4AOfflineCamera::save_auxdata_skeleton(cwipc* pc) {
+	int n_skeletons = skeletons.size();
+	size_t size_str = sizeof(cwipc_skeleton_collection) + n_skeletons * (int)K4ABT_JOINT_COUNT * sizeof(cwipc_skeleton_joint);
+	cwipc_skeleton_collection* skl = (cwipc_skeleton_collection*)malloc(size_str);
+	if (skl != NULL) {
+		skl->n_skeletons = n_skeletons;
+		skl->n_joints = (int)K4ABT_JOINT_COUNT;
+		cwipc_skeleton_joint* p = skl->joints;
+		for (auto s : skeletons) {
+			for (auto j : s.joints) {
+				p->confidence = (int)j.confidence_level;
+				p->x = j.position.xyz.x;
+				p->y = j.position.xyz.y;
+				p->z = j.position.xyz.z;
+				p->q_w = j.orientation.wxyz.w;
+				p->q_x = j.orientation.wxyz.x;
+				p->q_y = j.orientation.wxyz.y;
+				p->q_z = j.orientation.wxyz.z;
+				p++;
+			}
+		}
+		std::string name = "skeletons." + serial;
+		cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
+		ap->_add(name, "", (void*)skl, size_str, ::free);
 	}
 }
 

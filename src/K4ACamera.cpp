@@ -118,6 +118,7 @@ K4ACamera::K4ACamera(Type_api_camera _handle, K4ACaptureConfig& configuration, i
 	std::cout << CLASSNAME << "creating camera " << serial << std::endl;
 #endif
 	_init_filters();
+	_init_tracker();
 }
 
 K4ACamera::~K4ACamera()
@@ -130,6 +131,13 @@ K4ACamera::~K4ACamera()
 
 void K4ACamera::_init_filters()
 {
+}
+
+void K4ACamera::_init_tracker()
+{
+	tracker_handle = NULL;
+	k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
+	VERIFY(k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle), "Body tracker initialization failed!");
 }
 
 bool K4ACamera::capture_frameset()
@@ -167,14 +175,13 @@ bool K4ACamera::start()
 	if (!_setup_device(device_config)) return false;
 
 
-	k4a_calibration_t calibration;
-	if (K4A_RESULT_SUCCEEDED != k4a_device_get_calibration(camera_handle, device_config.depth_mode, device_config.color_resolution, &calibration))
+	if (K4A_RESULT_SUCCEEDED != k4a_device_get_calibration(camera_handle, device_config.depth_mode, device_config.color_resolution, &sensor_calibration))
 	{
 		std::cerr << CLASSNAME << ": Failed to k4a_device_get_calibration" << std::endl;
 		camera_started = false;
 		return false;
 	}
-	transformation_handle = k4a_transformation_create(&calibration);
+	transformation_handle = k4a_transformation_create(&sensor_calibration);
 
 	k4a_result_t res = k4a_device_start_cameras(camera_handle, &device_config);
 	if (res != K4A_RESULT_SUCCEEDED) {
@@ -268,9 +275,9 @@ bool K4ACamera::_setup_device(k4a_device_configuration_t& device_config) {
 	transformation_handle = k4a_transformation_create(&sensor_calibration);
 
 	/// INITIALIZING BODY TRACKER ///
-	tracker = NULL;
+	tracker_handle = NULL;
 	k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
-	VERIFY(k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker), "Body tracker initialization failed!");
+	VERIFY(k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle), "Body trackertracker initialization failed!");
 
 	k4a_result_t res = k4a_device_start_cameras(device_handle, &device_config);
 	if (res != K4A_RESULT_SUCCEEDED) {
@@ -346,9 +353,9 @@ void K4ACamera::stop()
 	}	
 	processing_done = true;
 	processing_done_cv.notify_one();
-	if (tracker) {
-		k4abt_tracker_destroy(tracker);
-		tracker = nullptr;
+	if (tracker_handle) {
+		k4abt_tracker_destroy(tracker_handle);
+		tracker_handle = nullptr;
 	}
 }
 
@@ -454,7 +461,7 @@ void K4ACamera::_processing_thread_main()
 
 
 		if (want_auxdata_skeleton) { // BODY TRACKING
-			k4a_wait_result_t queue_capture_result = k4abt_tracker_enqueue_capture(tracker, processing_frameset, K4A_WAIT_INFINITE);
+			k4a_wait_result_t queue_capture_result = k4abt_tracker_enqueue_capture(tracker_handle, processing_frameset, K4A_WAIT_INFINITE);
 			if (queue_capture_result == K4A_WAIT_RESULT_TIMEOUT)
 			{
 				// It should never hit timeout when K4A_WAIT_INFINITE is set.
@@ -466,7 +473,7 @@ void K4ACamera::_processing_thread_main()
 			}
 
 			k4abt_frame_t body_frame = NULL;
-			k4a_wait_result_t pop_frame_result = k4abt_tracker_pop_result(tracker, &body_frame, K4A_WAIT_INFINITE);
+			k4a_wait_result_t pop_frame_result = k4abt_tracker_pop_result(tracker_handle, &body_frame, K4A_WAIT_INFINITE);
 			if (pop_frame_result == K4A_WAIT_RESULT_SUCCEEDED)
 			{
 				skeletons.clear();
@@ -524,10 +531,10 @@ void K4ACamera::_processing_thread_main()
 		if (new_pointcloud != nullptr) {
 			current_pointcloud = new_pointcloud;
 #ifdef CWIPC_DEBUG_THREAD
-			std::cerr << "cwipc_kinect: camera " << serial << " produced " << current_pointcloud->size() << " point" << std::endl;
+			std::cerr << CLASSNAME << ": camera " << serial << " produced " << current_pointcloud->size() << " point" << std::endl;
 #endif
 			if (current_pointcloud->size() == 0) {
-				std::cerr << "cwipc_kinect: warning: captured empty pointcloud from camera " << camData.serial << std::endl;
+				std::cerr << CLASSNAME << ": warning: captured empty pointcloud from camera " << camData.serial << std::endl;
 				//continue;
 			}
 			// Notify wait_for_pc that we're done.
@@ -774,7 +781,7 @@ void K4ACamera::create_pc_from_frames()
 {
 	assert(current_frameset);
 	if (!processing_frame_queue.try_enqueue(current_frameset)) {
-		std::cerr << "cwipc_kinect: camera " << serial << ": drop frame before processing" << std::endl;
+		std::cerr << CLASSNAME << ":  camera " << serial << ": drop frame before processing" << std::endl;
 		k4a_capture_release(current_frameset);
 	}
 	current_frameset = NULL;
@@ -791,7 +798,6 @@ uint64_t K4ACamera::get_capture_timestamp()
 {
 	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
-
 
 void
 K4ACamera::save_auxdata_images(cwipc* pc, bool rgb, bool depth)

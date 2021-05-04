@@ -8,6 +8,7 @@
 
 #include <k4a/k4a.h>
 #include <k4arecord/playback.h>
+#include <k4abt.h>
 
 #include "cwipc_kinect/private/K4AConfig.hpp"
 #include "cwipc_kinect/private/readerwriterqueue.h"
@@ -28,7 +29,8 @@ public:
 	bool capture_frameset(uint64_t master_timestamp);
 	void create_pc_from_frames();
 	void wait_for_pc();
-	void save_auxdata(cwipc* pc, bool rgb, bool depth);
+	void save_auxdata_images(cwipc* pc, bool rgb, bool depth);
+	void save_auxdata_skeleton(cwipc* pc);
 	uint64_t get_capture_timestamp();
 	cwipc_pcl_pointcloud get_current_pointcloud() { return current_pointcloud; }
 	bool is_sync_master() { return camera_sync_ismaster; }
@@ -44,6 +46,9 @@ public:
 	uint64_t current_frameset_timestamp;
 	int camera_index;
 	std::string serial;
+	void request_skeleton_auxdata(bool _skl) {
+		want_auxdata_skeleton = _skl;
+	}
 	// xxxjack unused? std::string filename;
 	bool eof = false;
 
@@ -61,11 +66,14 @@ protected:
 	virtual void _start_capture_thread();
 	virtual void _capture_thread_main();
 	void transformPoint(cwipc_pcl_point& pt);
+	void transformDepthToColorPoint(cwipc_pcl_point& pt);
 	bool _prepare_next_valid_frame();
 	bool _prepare_cond_next_valid_frame(uint64_t master_timestamp);
 	k4a_image_t _uncompress_color_image(k4a_image_t color_image);
 private:
 	K4ACameraData& camData;
+	bool want_auxdata_skeleton;
+	std::vector<k4abt_skeleton_t> skeletons; // Skeletons extracted using the body tracking sdk
 	K4ACameraConfig& camSettings;
 	cwipc_pcl_pointcloud current_pointcloud;
 	k4a_transformation_t transformation_handle;
@@ -87,7 +95,11 @@ private:
 	std::condition_variable processing_done_cv;
 	bool processing_done;
 
-	void _init_filters();
+	k4abt_tracker_t tracker_handle;
+	k4a_calibration_t sensor_calibration;
+	k4a_calibration_extrinsics_t depth_to_color_extrinsics;
 
+	void _init_filters();
+	void _init_tracker();
 };
 #endif // cwipc_realsense_K4AOfflineCamera_hpp

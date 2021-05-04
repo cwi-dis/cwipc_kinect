@@ -330,7 +330,7 @@ void K4AOfflineCapture::_control_thread_main()
 
 		if (want_auxdata_rgb || want_auxdata_depth) {
 			for (auto cam : cameras) {
-				cam->save_auxdata(newPC, want_auxdata_rgb, want_auxdata_depth);
+				cam->save_auxdata_images(newPC, want_auxdata_rgb, want_auxdata_depth);
 			}
 		}
 
