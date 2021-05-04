@@ -21,13 +21,13 @@ endif()
 # Find Kinect for Azure SDK
 # xxxjack manual hardcoded pathname for now.
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-	set(KINECT_LIBRARY_DIRS "C:/Program Files/Azure Kinect SDK v1.4.1/sdk/windows-desktop/amd64/release/lib")
-	set(KINECT_INCLUDE_DIRS "C:/Program Files/Azure Kinect SDK v1.4.1/sdk/include")
-	set(KINECT_LIBRARIES "k4a")
+	set(KINECT_LIBRARY_DIRS "C:/Program Files/Azure Kinect SDK v1.4.1/sdk/windows-desktop/amd64/release/lib" "C:/Program Files/Azure Kinect Body Tracking SDK/sdk/windows-desktop/amd64/release/lib")
+	set(KINECT_INCLUDE_DIRS "C:/Program Files/Azure Kinect SDK v1.4.1/sdk/include" "C:/Program Files/Azure Kinect Body Tracking SDK/sdk/include")
+	set(KINECT_LIBRARIES "k4a" "k4abt")
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 	set(KINECT_LIBRARY_DIRS "/usr/lib/x86_64-linux-gnu")
 	set(KINECT_INCLUDE_DIRS "/usr/include")
-	set(KINECT_LIBRARIES "k4a")
+	set(KINECT_LIBRARIES "k4a" "k4abt")
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	MESSAGE(FATAL_ERROR "Kinect grabber not supported on OSX, SDK not available")
 else()
@@ -35,8 +35,8 @@ else()
 endif()
 
 
-find_path(KINECT_INC k4a/k4a.h PATHS ${KINECT_INCLUDE_DIRS})
-find_library(KINECT_LIB NAMES k4a PATHS ${KINECT_LIBRARY_DIRS})
+find_path(KINECT_INC k4a/k4a.h ka4bt.h PATHS ${KINECT_INCLUDE_DIRS})
+find_library(KINECT_LIB NAMES k4a k4abt PATHS ${KINECT_LIBRARY_DIRS})
 
 if(KINECT_LIB AND KINECT_INC)
   set(KINECT_FOUND TRUE)
