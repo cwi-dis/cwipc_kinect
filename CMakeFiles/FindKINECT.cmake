@@ -35,13 +35,8 @@ else()
 endif()
 
 
-<<<<<<< HEAD
-find_path(KINECT_INC k4a/k4a.h k4arecord/playback.h PATHS ${KINECT_INCLUDE_DIRS})
-find_library(KINECT_LIB NAMES k4a k4arecord PATHS ${KINECT_LIBRARY_DIRS})
-=======
-find_path(KINECT_INC k4a/k4a.h ka4bt.h PATHS ${KINECT_INCLUDE_DIRS})
-find_library(KINECT_LIB NAMES k4a k4abt PATHS ${KINECT_LIBRARY_DIRS})
->>>>>>> master
+find_path(KINECT_INC k4a/k4a.h k4arecord/playback.h ka4bt.h PATHS ${KINECT_INCLUDE_DIRS})
+find_library(KINECT_LIB NAMES k4a k4arecord k4abt PATHS ${KINECT_LIBRARY_DIRS})
 
 if(KINECT_LIB AND KINECT_INC)
   set(KINECT_FOUND TRUE)
