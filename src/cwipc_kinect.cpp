@@ -178,6 +178,7 @@ public:
 		m_grabber->request_image_auxdata(
 			auxiliary_data_requested("rgb"),
 			auxiliary_data_requested("depth"));
+		m_grabber->request_skeleton_auxdata(auxiliary_data_requested("skeletons"));
 	}
 };
 

@@ -30,7 +30,9 @@ K4ACapture::K4ACapture(int dummy)
     no_cameras(true),
 	mergedPC(nullptr),
 	mergedPC_is_fresh(false),
-	mergedPC_want_new(false)
+	mergedPC_want_new(false),
+	stopped(false),
+	want_auxdata_skeleton(false)
 {
 	numberOfCapturersActive++;
 	starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -40,6 +42,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 :	numberOfPCsProduced(0),
 	want_auxdata_rgb(false),
 	want_auxdata_depth(false),
+	want_auxdata_skeleton(false),
 	no_cameras(false),
 	mergedPC_is_fresh(false),
 	mergedPC_want_new(false)
@@ -214,7 +217,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	// Now we have all the configuration information. Open the cameras.
 	_create_cameras(camera_handles, serials, camera_count);
 	// We can now free camera_handles
-	delete camera_handles;
+	delete []camera_handles;
 
 	
 	// find camerapositions
@@ -344,11 +347,12 @@ float K4ACapture::get_pointSize()
 {
     if (no_cameras) return 0;
 	float rv = 99999;
-	for (auto cam : cameras) {
+	return 0.005;
+	/*for (auto cam : cameras) {
 		if (cam->pointSize < rv) rv = cam->pointSize;
 	}
 	if (rv > 9999) rv = 0;
-	return rv;
+	return rv;*/
 }
 
 bool K4ACapture::pointcloud_available(bool wait)
@@ -406,8 +410,13 @@ void K4ACapture::_control_thread_main()
 
 		if (want_auxdata_rgb || want_auxdata_depth) {
 			for (auto cam : cameras) {
-				cam->save_auxdata(newPC, want_auxdata_rgb, want_auxdata_depth);
+				cam->save_auxdata_images(newPC, want_auxdata_rgb, want_auxdata_depth);
 			}
+		}
+
+		//Ensure to enable skeleton computation if wanted
+		for (auto cam : cameras) {
+			cam->request_skeleton_auxdata(want_auxdata_skeleton);
 		}
 
         // Step 3: start processing frames to pointclouds, for each camera
@@ -428,6 +437,13 @@ void K4ACapture::_control_thread_main()
         for(auto cam : cameras) {
             cam->wait_for_pc();
         }
+
+		if (want_auxdata_skeleton) {
+			for (auto cam : cameras) {
+				cam->save_auxdata_skeleton(newPC);
+			}
+		}
+
         // Step 5: merge views
         merge_views();
         if (mergedPC->access_pcl_pointcloud()->size() > 0) {
@@ -481,6 +497,7 @@ void K4ACapture::merge_views()
 {
 	cwipc_pcl_pointcloud aligned_cld(mergedPC->access_pcl_pointcloud());
 	aligned_cld->clear();
+
 	// Pre-allocate space in the merged pointcloud
 	size_t nPoints = 0;
 	for (auto cam : cameras) {
@@ -492,12 +509,76 @@ void K4ACapture::merge_views()
 		nPoints += cam_cld->size();
 	}
 	aligned_cld->reserve(nPoints);
+
 	// Now merge all pointclouds
 	for (auto cam : cameras) {
 		cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
 		if (cam_cld == nullptr) continue;
 		*aligned_cld += *cam_cld;
 	}
+
+#ifdef xxNacho_skeleton_DEBUG
+
+	cwipc_pcl_pointcloud skl = new_cwipc_pcl_pointcloud();
+	size_t sk_points = 32;
+	skl->reserve(sk_points);
+	//merge skeletons using average
+	if (configuration.cameraData[0].skeletons.size() > 0) {
+		//printf("skeletons merge:\n");
+		for (int joint_id = 0; joint_id < 32; joint_id++) {
+			cwipc_pcl_point joint_pos;
+			//printf("Joint %i:\n", joint_id);
+			int numsk = 0;
+			for (K4ACameraData cd : configuration.cameraData) {
+				if (cd.skeletons.size() > 0) {
+					numsk++;
+					joint_pos.x += cd.skeletons[0].joints[joint_id].position.xyz.x;
+					joint_pos.y += cd.skeletons[0].joints[joint_id].position.xyz.y;
+					joint_pos.z += cd.skeletons[0].joints[joint_id].position.xyz.z;
+					int color[3] = {0, 0, 0};
+					if (cd.skeletons[0].joints[joint_id].confidence_level == K4ABT_JOINT_CONFIDENCE_HIGH) {
+						color[1] = 255;
+					}
+					else if (cd.skeletons[0].joints[joint_id].confidence_level == K4ABT_JOINT_CONFIDENCE_MEDIUM) {
+						color[0] = 255;
+						color[1] = 165;
+					}
+					else {
+						color[0] = 255;
+					}
+					joint_pos.r = color[0];
+					joint_pos.g = color[1];
+					joint_pos.b = color[2];
+					joint_pos.a = 8;
+					//printf("\tCam %s (%f,%f,%f)\n", cd.serial,cd.skeletons[0].joints[joint_id].position.xyz.x, cd.skeletons[0].joints[joint_id].position.xyz.y, cd.skeletons[0].joints[joint_id].position.xyz.z);
+				}
+			}
+			joint_pos.x /= numsk; //configuration.cameraData.size();
+			joint_pos.y /= numsk; //configuration.cameraData.size();
+			joint_pos.z /= numsk; //configuration.cameraData.size();
+			skl->push_back(joint_pos);
+			//printf("Fusion (%f,%f,%f)\n", joint_pos.x, joint_pos.y, joint_pos.z);
+			//printf("%f %f %f\n", joint_pos.x, joint_pos.y, joint_pos.z);
+		}
+		uint64_t t = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		std::string fn = "skeleton_" + std::to_string(t) + ".ply";
+		cwipc* rv = cwipc_from_pcl(skl, t, NULL, CWIPC_API_VERSION);
+		char* error = NULL;
+		int ok = cwipc_write(fn.c_str(), rv, &error);
+		if (ok==0)
+			std::cout << "Writed skeleton = " << fn << std::endl;
+	}
+	else {
+		std::cout << "No skeleton found" << std::endl;
+		for (int i = 0; i < 32; i++) {
+			cwipc_pcl_point joint_pos;
+			joint_pos.a = 4;
+			skl->push_back(joint_pos);
+		}
+	}
+	*mergedPC += *skl;
+
+#endif // xxNacho_skeleton_DEBUG
 }
 
 K4ACameraData& K4ACapture::get_camera_data(std::string serial) {

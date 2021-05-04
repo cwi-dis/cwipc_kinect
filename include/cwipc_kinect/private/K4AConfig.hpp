@@ -19,6 +19,7 @@
 // Definitions of types used across cwipc_kinect, cwipc_codec and cwipc_util.
 //
 #include "cwipc_util/api_pcl.h"
+#include <k4abt.h>
 
 struct K4ACameraConfig {
 	bool do_threshold = true;

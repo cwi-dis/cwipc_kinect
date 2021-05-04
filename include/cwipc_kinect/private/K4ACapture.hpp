@@ -36,9 +36,13 @@ public:
 		want_auxdata_rgb = _rgb;
 		want_auxdata_depth = _depth;
 	}
+	void request_skeleton_auxdata(bool _skl) {
+		want_auxdata_skeleton = _skl;
+	}
 protected:
 	bool want_auxdata_rgb;
-	bool want_auxdata_depth;
+	bool want_auxdata_depth; 
+	bool want_auxdata_skeleton;
 	virtual void _create_cameras(k4a_device_t* cameras, std::vector<std::string> serials, uint32_t camera_count);
 	std::vector<K4ACamera*> cameras;                // Storage of camera specifics
 	void _control_thread_main();              // Internal: main thread that controls per-camera grabbing and processing and combines pointclouds.
@@ -54,5 +58,6 @@ private:
 	std::condition_variable mergedPC_is_fresh_cv;             // Condition variable for signalling freshly-created pointcloud
 	bool mergedPC_want_new;                                   // Set to true to request a new pointcloud
 	std::condition_variable mergedPC_want_new_cv;             // Condition variable for signalling we want a new pointcloud
+	k4abt_skeleton_t skeleton;
 };
 #endif // cwipc_realsense_MFCapture_hpp
