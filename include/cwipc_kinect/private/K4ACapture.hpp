@@ -56,7 +56,6 @@ protected:
 	bool want_auxdata_rgb;
 	bool want_auxdata_depth; 
 	bool want_auxdata_skeleton;
-	virtual void _create_cameras(k4a_device_t* cameras, std::vector<std::string> serials, uint32_t camera_count);
 	std::vector<Type_our_camera*> cameras;                // Storage of camera specifics
 	void _control_thread_main();              // Internal: main thread that controls per-camera grabbing and processing and combines pointclouds.
 	bool stopped;

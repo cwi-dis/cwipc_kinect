@@ -31,8 +31,7 @@ K4ACapture::K4ACapture(const char *configFilename)
 	mergedPC(nullptr),
 	stopped(false),
 	mergedPC_is_fresh(false),
-	mergedPC_want_new(false),
-	stopped(false)
+	mergedPC_want_new(false)
 {
 
 	// First check that no other K4AOfflineCapture is active within this process (trying to catch programmer errors)

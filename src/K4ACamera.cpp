@@ -346,8 +346,10 @@ void K4ACamera::stop()
 	}	
 	processing_done = true;
 	processing_done_cv.notify_one();
-	k4abt_tracker_destroy(tracker);
-	k4a_device_close(device_handle);
+	if (tracker) {
+		k4abt_tracker_destroy(tracker);
+		tracker = nullptr;
+	}
 }
 
 void K4ACamera::start_capturer()
