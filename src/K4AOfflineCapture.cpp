@@ -22,19 +22,9 @@ static int numberOfCapturersActive = 0;
 
 K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 :	K4ABaseCapture("cwipc_kinect: K4AOfflineCapture"),
-	numberOfPCsProduced(0),
 	sync_inuse(false),
-	master_id(-1),
-	eof(false),
-	want_auxdata_rgb(false),
-	want_auxdata_depth(false),
-    no_cameras(true),
-	mergedPC(nullptr),
-	stopped(false),
-	mergedPC_is_fresh(false),
-	mergedPC_want_new(false),
-	current_ts(0)
-{
+	master_id(-1)
+	{
 	// First check that no other K4AOfflineCapture is active within this process (trying to catch programmer errors)
 	numberOfCapturersActive++;
 	if (numberOfCapturersActive > 1) {
@@ -318,7 +308,7 @@ void K4AOfflineCapture::_control_thread_main()
 		}
 		// And get the best timestamp
 		uint64_t timestamp = _get_best_timestamp();
-		current_ts = timestamp;
+		// xxxjack current_ts = timestamp;
 		
 		// Step 2 - Create pointcloud, and save rgb/depth images if wanted
 		cwipc_pcl_pointcloud pcl_pointcloud = new_cwipc_pcl_pointcloud();

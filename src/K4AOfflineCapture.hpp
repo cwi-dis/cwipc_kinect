@@ -34,30 +34,14 @@ public:
 	float get_pointSize();
 
 	// variables
-	K4ACaptureConfig configuration;
-	uint64_t starttime;
-	int numberOfPCsProduced;
-	bool no_cameras;                        // True of no cameras attached
 	bool sync_inuse = false;
 	int master_id = -1;
-	bool eof = false;
 protected:
-	bool want_auxdata_rgb;
-	bool want_auxdata_depth;
-	std::vector<Type_our_camera*> cameras;   // Storage of camera specifics
 	void _control_thread_main();              // Internal: main thread that controls per-camera grabbing and processing and combines pointclouds.
-	bool stopped;
 	std::thread* control_thread;
 
 private:
 	void merge_views();                       // Internal: merge all camera's pointclouds into one
 	void _request_new_pointcloud();           // Internal: request a new pointcloud to be grabbed and processed
-	cwipc* mergedPC;                             // Merged pointcloud
-	std::mutex mergedPC_mutex;                                // Lock for all mergedPC-related dta structures
-	bool mergedPC_is_fresh;                                   // True if mergedPC contains a freshly-created pointcloud
-	std::condition_variable mergedPC_is_fresh_cv;             // Condition variable for signalling freshly-created pointcloud
-	bool mergedPC_want_new;                                   // Set to true to request a new pointcloud
-	std::condition_variable mergedPC_want_new_cv;             // Condition variable for signalling we want a new pointcloud
-	uint64_t current_ts = 0; 
 };
 #endif // cwipc_realsense_RS2Offline_hpp

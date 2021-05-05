@@ -22,17 +22,7 @@
 static int numberOfCapturersActive = 0;
 
 K4ACapture::K4ACapture(const char *configFilename)
-:	K4ABaseCapture("cwipc_kinect: K4ACapture"),
-	starttime(0),
-	numberOfPCsProduced(0),
-	want_auxdata_rgb(false),
-	want_auxdata_depth(false),
- 	want_auxdata_skeleton(false),
-    no_cameras(true),
-	mergedPC(nullptr),
-	stopped(false),
-	mergedPC_is_fresh(false),
-	mergedPC_want_new(false)
+:	K4ABaseCapture("cwipc_kinect: K4ACapture")
 {
 
 	// First check that no other K4AOfflineCapture is active within this process (trying to catch programmer errors)
