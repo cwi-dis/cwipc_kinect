@@ -17,13 +17,6 @@
 #include "K4AOfflineCamera.hpp"
 #include "turbojpeg.h"
 
-#define VERIFY(result, error)                                                                            \
-    if(result != K4A_RESULT_SUCCEEDED)                                                                   \
-    {                                                                                                    \
-        printf("%s \n - (File: %s, Function: %s, Line: %d)\n", error, __FILE__, __FUNCTION__, __LINE__); \
-        exit(1);                                                                                         \
-    } 
-
 typedef struct HsvColor
 {
 	unsigned char h;
@@ -139,7 +132,10 @@ void K4AOfflineCamera::_init_tracker()
 {
 	tracker_handle = NULL;
 	k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
-	VERIFY(k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle), "Body tracker initialization failed!");
+	auto sts = k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle);
+	if (sts != K4A_RESULT_SUCCEEDED) {
+		cwipc_k4a_log_warning("Body tracker initialization failed");
+	}
 }
 
 bool K4AOfflineCamera::capture_frameset(uint64_t master_timestamp)
@@ -399,7 +395,11 @@ void K4AOfflineCamera::_processing_thread_main()
 					{
 						//printf("- Person[%u]:\n", i);
 						k4abt_skeleton_t skeleton;
-						VERIFY(k4abt_frame_get_body_skeleton(body_frame, i, &skeleton), "Get body from body frame failed!");
+						auto sts = k4abt_frame_get_body_skeleton(body_frame, i, &skeleton);
+						if (sts != K4A_RESULT_SUCCEEDED) {
+							cwipc_k4a_log_warning("Get body from body frame failed");
+							break;
+						}
 						for (int joint_id = 0; joint_id < (int)K4ABT_JOINT_COUNT; joint_id++)
 						{
 							k4a_float3_t::_xyz pos = skeleton.joints[joint_id].position.xyz; //millimiters
