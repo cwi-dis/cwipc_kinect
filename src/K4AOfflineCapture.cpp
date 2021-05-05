@@ -21,7 +21,8 @@
 static int numberOfCapturersActive = 0;
 
 K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
-	: numberOfPCsProduced(0),
+:	K4ABaseCapture("cwipc_kinect: K4AOfflineCapture"),
+	numberOfPCsProduced(0),
 	sync_inuse(false),
 	master_id(-1),
 	eof(false),

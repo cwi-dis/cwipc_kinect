@@ -11,9 +11,10 @@
 #include <k4abt.h>
 
 #include "K4AConfig.hpp"
+#include "K4ABaseCamera.hpp"
 #include "readerwriterqueue.h"
 
-class K4AOfflineCamera {
+class K4AOfflineCamera : public K4ABaseCamera<k4a_playback_t> {
 	typedef k4a_playback_t Type_api_camera;
 	const std::string CLASSNAME = "cwipc_kinect: K4AOfflineCamera";
 private:
@@ -41,7 +42,6 @@ public:
 	double minx;
 	double minz;
 	double maxz;
-	Type_api_camera camera_handle;
 	int capture_id = 0;
 	uint64_t current_frameset_timestamp;
 	int camera_index;

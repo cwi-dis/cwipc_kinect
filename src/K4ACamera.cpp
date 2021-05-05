@@ -81,8 +81,8 @@ static bool isNotGreen(cwipc_pcl_point* p)
 }
 
 K4ACamera::K4ACamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData)
-:	pointSize(0), minx(0), minz(0), maxz(0),
-	camera_handle(_handle),
+:	K4ABaseCamera("cwipc_kinect: K4ACamera", _handle),
+	pointSize(0), minx(0), minz(0), maxz(0),
 	camera_index(_camera_index),
 	stopped(true),
 	camera_started(false),

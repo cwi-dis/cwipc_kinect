@@ -11,10 +11,11 @@
 
 #include "K4AConfig.hpp"
 #include "readerwriterqueue.h"
+#include "K4ABaseCamera.hpp"
 
-class K4ACamera {
+class K4ACamera : public K4ABaseCamera<k4a_device_t> {
 	typedef k4a_device_t Type_api_camera;
-	const std::string CLASSNAME = "cwipc_kinect: K4ACamera";
+	//const std::string CLASSNAME = "cwipc_kinect: K4ACamera";
 private:
 	K4ACamera(const K4ACamera&);	// Disable copy constructor
 	K4ACamera& operator=(const K4ACamera&);	// Disable assignment
@@ -40,7 +41,6 @@ public:
 	double minx;
 	double minz;
 	double maxz;
-	Type_api_camera camera_handle;
 	int camera_index;
 	std::string serial; 
 	void request_skeleton_auxdata(bool _skl) {

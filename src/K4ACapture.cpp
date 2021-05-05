@@ -22,7 +22,8 @@
 static int numberOfCapturersActive = 0;
 
 K4ACapture::K4ACapture(const char *configFilename)
-:	starttime(0),
+:	K4ABaseCapture("cwipc_kinect: K4ACapture"),
+	starttime(0),
 	numberOfPCsProduced(0),
 	want_auxdata_rgb(false),
 	want_auxdata_depth(false),

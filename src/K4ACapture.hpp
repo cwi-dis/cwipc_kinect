@@ -8,15 +8,13 @@
 #include <k4a/k4a.h>
 
 #include "K4AConfig.hpp"
+#include "K4ABaseCapture.hpp"
 #include "K4ACamera.hpp"
 
 
-class K4ACapture {
+class K4ACapture : public K4ABaseCapture<k4a_device_t, K4ACamera> {
 	typedef k4a_device_t Type_api_camera;
 	typedef K4ACamera Type_our_camera;
-	const std::string CLASSNAME = "cwipc_kinect: K4ACapture";
-protected:
-	K4ACapture(int dummy);
 public:
 	// methods
 	K4ACapture(const char *configFilename=NULL);

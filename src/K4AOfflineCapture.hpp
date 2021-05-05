@@ -7,12 +7,12 @@
 #include <condition_variable>
 #include <k4a/k4a.h>
 
+#include "K4ABaseCapture.hpp"
 #include "K4AOfflineCamera.hpp"
 
-class K4AOfflineCapture {
+class K4AOfflineCapture : public K4ABaseCapture<k4a_playback_t, K4AOfflineCamera> {
 	typedef k4a_playback_t Type_api_camera;
 	typedef K4AOfflineCamera Type_our_camera;
-	const std::string CLASSNAME = "cwipc_kinect: K4AOfflineCapture";
 public:
 	// methods
 	K4AOfflineCapture(const char* configFilename = NULL);
