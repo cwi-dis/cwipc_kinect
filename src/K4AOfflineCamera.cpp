@@ -14,6 +14,8 @@
 #include <vld.h>
 #endif
 
+#include "cwipc_util/api_pcl.h"
+#include "cwipc_kinect/api.h"
 #include "K4AOfflineCamera.hpp"
 #include "turbojpeg.h"
 
@@ -779,23 +781,6 @@ K4AOfflineCamera::save_auxdata_images(cwipc* pc, bool rgb, bool depth)
 		}
 	}
 }
-
-struct cwipc_skeleton_joint {
-	uint32_t confidence;
-	float x;
-	float y;
-	float z;
-	float q_w;
-	float q_x;
-	float q_y;
-	float q_z;
-};
-
-struct cwipc_skeleton_collection {
-	uint32_t n_skeletons;
-	uint32_t n_joints;
-	struct cwipc_skeleton_joint joints[1];
-};
 
 void
 K4AOfflineCamera::save_auxdata_skeleton(cwipc* pc) {
