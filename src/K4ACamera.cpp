@@ -26,7 +26,7 @@ typedef struct HsvColor
 } HsvColor;
 
 
-static HsvColor rgbToHsv(cwipc_pcl_point* pnt)
+inline HsvColor rgbToHsv(cwipc_pcl_point* pnt)
 {
 	HsvColor hsv;
 	unsigned char rgbMin, rgbMax;
@@ -59,7 +59,7 @@ static HsvColor rgbToHsv(cwipc_pcl_point* pnt)
 	return hsv;
 }
 
-static bool isNotGreen(cwipc_pcl_point* p)
+inline bool isNotGreen(cwipc_pcl_point* p)
 {
 	HsvColor hsv = rgbToHsv(p);
 
@@ -81,8 +81,7 @@ static bool isNotGreen(cwipc_pcl_point* p)
 }
 
 K4ACamera::K4ACamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData)
-:	K4ABaseCamera("cwipc_kinect: K4ACamera", _handle, configuration, _camera_index, _camData),
-	grabber_thread(nullptr)
+:	K4ABaseCamera("cwipc_kinect: K4ACamera", _handle, configuration, _camera_index, _camData)
 {
 #ifdef CWIPC_DEBUG
 	std::cout << CLASSNAME << "creating camera " << serial << std::endl;

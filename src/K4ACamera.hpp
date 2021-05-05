@@ -45,7 +45,6 @@ protected:
 	bool _setup_device(k4a_device_configuration_t& device_config);
 private:
 
-	std::thread *grabber_thread;
 
 	void _init_filters();
 	void _init_tracker();
