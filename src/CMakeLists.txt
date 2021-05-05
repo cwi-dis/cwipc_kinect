@@ -22,13 +22,13 @@ add_library(cwipc_kinect
 
 target_sources(cwipc_kinect
 	PRIVATE
-	"../include/cwipc_kinect/private/K4AConfig.hpp"
-	"../include/cwipc_kinect/private/K4ACapture.hpp"
-	"../include/cwipc_kinect/private/K4ACamera.hpp"
-	"../include/cwipc_kinect/private/K4AOfflineCapture.hpp"
-	"../include/cwipc_kinect/private/K4AOfflineCamera.hpp"
-	"../include/cwipc_kinect/private/readerwriterqueue.h"
-	"../include/cwipc_kinect/private/atomicops.h"
+	"K4AConfig.hpp"
+	"K4ACapture.hpp"
+	"K4ACamera.hpp"
+	"K4AOfflineCapture.hpp"
+	"K4AOfflineCamera.hpp"
+	"readerwriterqueue.h"
+	"atomicops.h"
 	"../include/cwipc_kinect/api.h"
 )
 

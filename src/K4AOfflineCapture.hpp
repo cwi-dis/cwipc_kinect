@@ -7,7 +7,7 @@
 #include <condition_variable>
 #include <k4a/k4a.h>
 
-#include "cwipc_kinect/private/K4AOfflineCamera.hpp"
+#include "K4AOfflineCamera.hpp"
 
 class K4AOfflineCapture {
 	typedef k4a_playback_t Type_api_camera;

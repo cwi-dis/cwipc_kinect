@@ -14,7 +14,7 @@
 #include <vld.h>
 #endif
 
-#include "cwipc_kinect/private/K4AOfflineCamera.hpp"
+#include "K4AOfflineCamera.hpp"
 #include "turbojpeg.h"
 
 #define VERIFY(result, error)                                                                            \

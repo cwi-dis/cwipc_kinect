@@ -7,8 +7,8 @@
 #include <condition_variable>
 #include <k4a/k4a.h>
 
-#include "cwipc_kinect/private/K4AConfig.hpp"
-#include "cwipc_kinect/private/K4ACamera.hpp"
+#include "K4AConfig.hpp"
+#include "K4ACamera.hpp"
 
 
 class K4ACapture {

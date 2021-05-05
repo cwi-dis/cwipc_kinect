@@ -10,8 +10,8 @@
 #include <k4arecord/playback.h>
 #include <k4abt.h>
 
-#include "cwipc_kinect/private/K4AConfig.hpp"
-#include "cwipc_kinect/private/readerwriterqueue.h"
+#include "K4AConfig.hpp"
+#include "readerwriterqueue.h"
 
 class K4AOfflineCamera {
 	typedef k4a_playback_t Type_api_camera;

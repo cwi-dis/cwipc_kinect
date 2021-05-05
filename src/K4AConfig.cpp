@@ -6,7 +6,7 @@
 
 //enable this to print memory statistics
 #undef MEMORY_DEBUG 
-#include "cwipc_kinect/private/K4AConfig.hpp"
+#include "K4AConfig.hpp"
 #include "tinyxml.h"
 #ifdef MEMORY_DEBUG
 	#include "psapi.h"

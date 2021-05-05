@@ -15,7 +15,7 @@
 #endif
 
 
-#include "cwipc_kinect/private/K4ACamera.hpp"
+#include "K4ACamera.hpp"
 
 #define VERIFY(result, error)                                                                            \
     if(result != K4A_RESULT_SUCCEEDED)                                                                   \

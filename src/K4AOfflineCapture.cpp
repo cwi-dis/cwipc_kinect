@@ -14,7 +14,7 @@
 
 #include <chrono>
 
-#include "cwipc_kinect/private/K4AOfflineCapture.hpp"
+#include "K4AOfflineCapture.hpp"
 
 // Static variable used to print a warning message when we re-create an K4AOfflineCapture
 // if there is another one open.

@@ -14,7 +14,7 @@
 
 #include <chrono>
 
-#include "cwipc_kinect/private/K4ACapture.hpp"
+#include "K4ACapture.hpp"
 
 
 // Static variable used to print a warning message when we re-create an K4ACapture
