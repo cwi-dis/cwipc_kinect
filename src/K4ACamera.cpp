@@ -845,7 +845,7 @@ struct cwipc_skeleton_joint {
 struct cwipc_skeleton_collection {
 	uint32_t n_skeletons;
 	uint32_t n_joints;
-	struct cwipc_skeleton_joint joints[0];
+	struct cwipc_skeleton_joint joints[1];
 };
 
 void

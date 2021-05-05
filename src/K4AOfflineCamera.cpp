@@ -145,7 +145,6 @@ bool K4AOfflineCamera::capture_frameset(uint64_t master_timestamp)
 }
 
 bool K4AOfflineCamera::_prepare_next_valid_frame() {
-	k4a_result_t result;
 	k4a_stream_result_t stream_result;
 	// Read the next capture into memory
 	bool succeeded = false;
@@ -795,7 +794,7 @@ struct cwipc_skeleton_joint {
 struct cwipc_skeleton_collection {
 	uint32_t n_skeletons;
 	uint32_t n_joints;
-	struct cwipc_skeleton_joint joints[0];
+	struct cwipc_skeleton_joint joints[1];
 };
 
 void
