@@ -80,34 +80,10 @@ static bool isNotGreen(cwipc_pcl_point* p)
 }
 
 K4AOfflineCamera::K4AOfflineCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData)
-:	K4ABaseCamera("cwipc_kinect: K4AOfflineCamera", _handle),
-	pointSize(0), minx(0), minz(0), maxz(0),
+:	K4ABaseCamera("cwipc_kinect: K4AOfflineCamera", _handle, configuration, _camera_index, _camData),
 	capture_id(-1),
 	current_frameset_timestamp(0),
-	camera_index(_camera_index),
-	stopped(true),
-	camera_started(false),
-	processing_thread(nullptr),
-	camData(_camData),
-	serial(_camData.serial),
-	camSettings(configuration.camera_config),
-	current_pointcloud(nullptr),
-	transformation_handle(nullptr),
-	captured_frame_queue(1),
-	processing_frame_queue(1),
-	current_frameset(NULL),
-	color_height(configuration.color_height),
-	depth_height(configuration.depth_height),
-	camera_fps(configuration.fps),
-	camera_sync_ismaster(serial == configuration.sync_master_serial),
-	camera_sync_inuse(configuration.sync_master_serial != ""),
-	do_greenscreen_removal(configuration.greenscreen_removal),
-	do_height_filtering(configuration.height_min != configuration.height_max),
-	height_min(configuration.height_min),
-	height_max(configuration.height_max),
-	max_delay(0),
-	processing_done(false),
-	want_auxdata_skeleton(false)	
+	max_delay(0)	
 {
 #ifdef CWIPC_DEBUG
 	std::cout << CLASSNAME << "creating camera " << serial << std::endl;
