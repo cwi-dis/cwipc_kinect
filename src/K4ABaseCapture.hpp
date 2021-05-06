@@ -52,13 +52,7 @@ public:
 		}
 		uint64_t stopTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		stop();
-		mergedPC_is_fresh = true;
-		mergedPC_want_new = false;
-		mergedPC_is_fresh_cv.notify_all();
-		mergedPC_want_new = true;
-		mergedPC_want_new_cv.notify_all();
-		std::cerr << CLASSNAME << ": stopped all cameras\n";
-
+		
 		// Delete all cameras (which will stop their threads as well)
 		for (auto cam : cameras)
 			delete cam;
@@ -72,6 +66,12 @@ public:
 
 	virtual void stop() final {
 		stopped = true;
+		mergedPC_is_fresh = true;
+		mergedPC_want_new = false;
+		mergedPC_is_fresh_cv.notify_all();
+		mergedPC_want_new = true;
+		mergedPC_want_new_cv.notify_all();
+		std::cerr << CLASSNAME << ": stopped all cameras\n";
 		if (control_thread) control_thread->join();
 		delete control_thread;
 		// Stop all cameras

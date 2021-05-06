@@ -230,6 +230,7 @@ public:
 					ap->_add(name, description, pointer, size, ::free);
 				}
 			}
+			k4a_image_release(image);
 		}
 		if (depth) {
 			std::string name = "depth." + serial;
@@ -359,7 +360,7 @@ protected:
 			std::lock_guard<std::mutex> lock(processing_mutex);
 			depth_image = k4a_capture_get_depth_image(processing_frameset);
 			color_image = k4a_capture_get_color_image(processing_frameset);
-			color_image = _uncompress_color_image(color_image);
+			color_image = _uncompress_color_image(processing_frameset, color_image);
 
 			if (want_auxdata_skeleton && tracker_handle) {
 				//
@@ -684,7 +685,7 @@ protected:
 		pt.z = rotation[6] * x + rotation[7] * y + rotation[8] * z + translation[2];
 	}
 	
-	virtual k4a_image_t _uncompress_color_image(k4a_image_t color_image) = 0;
+	virtual k4a_image_t _uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) = 0;
 
 
 };

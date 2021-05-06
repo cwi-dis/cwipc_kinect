@@ -189,8 +189,10 @@ void K4AOfflineCamera::_capture_thread_main()
 	// Not needed for offline camera
 }
 
-k4a_image_t K4AOfflineCamera::_uncompress_color_image(k4a_image_t color_image) {
-	k4a_image_t uncompressed_color_image = NULL;
+k4a_image_t K4AOfflineCamera::_uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) {
+	assert(capture);
+	assert(color_image);
+	k4a_image_t uncompressed_color_image = nullptr;
 	int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
 	int color_image_height_pixels = k4a_image_get_height_pixels(color_image);
 	if (k4a_image_get_format(color_image) != K4A_IMAGE_FORMAT_COLOR_MJPG) {
@@ -205,7 +207,7 @@ k4a_image_t K4AOfflineCamera::_uncompress_color_image(k4a_image_t color_image) {
 		color_image_width_pixels * 4 * (int)sizeof(uint8_t),
 		&uncompressed_color_image))
 	{
-		std::cerr << CLASSNAME << ": Failed to create image buffer for image decompression" << std::endl;
+		cwipc_k4a_log_warning("Failed to create image buffer for image decompression");
 		return color_image;
 	}
 
@@ -220,13 +222,15 @@ k4a_image_t K4AOfflineCamera::_uncompress_color_image(k4a_image_t color_image) {
 		TJPF_BGRA,
 		TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE) != 0)
 	{
-		std::cerr << CLASSNAME << ": Failed to decompress color frame" << std::endl;
+		cwipc_k4a_log_warning("Failed to decompress color frame");
 	}
 	if (tjDestroy(tjHandle))
 	{
-		std::cerr << CLASSNAME << ": Failed to destroy turboJPEG handle" << std::endl;
+		cwipc_k4a_log_warning("Failed to destroy turboJPEG handle");
 	}
+	assert(uncompressed_color_image);
 	k4a_image_release(color_image);
+	k4a_capture_set_color_image(capture, uncompressed_color_image);
 	return uncompressed_color_image;
 }
 

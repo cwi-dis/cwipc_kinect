@@ -148,34 +148,7 @@ bool K4ACamera::_setup_device(k4a_device_configuration_t& device_config) {
 	} else {
 		// standalone mode, nothing to set
 	}
-#ifdef xxxjackunsure
 
-	k4a_calibration_t sensor_calibration;
-	if (K4A_RESULT_SUCCEEDED != k4a_device_get_calibration(device_handle, device_config.depth_mode, device_config.color_resolution, &sensor_calibration))
-	{
-		std::cerr << "cwipc_kinect: Failed to k4a_device_get_calibration" << std::endl;
-		return false;
-	}
-	depth_to_color_extrinsics = sensor_calibration.extrinsics[0][1];
-	transformation_handle = k4a_transformation_create(&sensor_calibration);
-
-	/// INITIALIZING BODY TRACKER ///
-	tracker_handle = NULL;
-	k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
-	auto sts = k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle);
-	if (sts != K4A_RESULT_SUCCEEDED) {
-		cwipc_k4a_log_warning("Body tracker initialization failed");
-	}
-
-	k4a_result_t res = k4a_device_start_cameras(device_handle, &device_config);
-	if (res != K4A_RESULT_SUCCEEDED) {
-		std::cerr << "cwipc_kinect: failed to start camera " << serial << std::endl;
-		return false;
-	}
-	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". color_height=" << color_height << ", depth_height=" << depth_height << " map_color_to_depth=" << camSettings.map_color_to_depth << " @" << camera_fps << "fps as " << (camera_sync_inuse ? (camera_sync_ismaster? "Master" : "Subordinate") : "Standalone") << std::endl;
-	
-	camera_started = true;
-#endif
 	return true;
 }
 
@@ -287,7 +260,7 @@ void K4ACamera::_capture_thread_main()
 #endif
 }
 
-k4a_image_t K4ACamera::_uncompress_color_image(k4a_image_t color_image) {
+k4a_image_t K4ACamera::_uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) {
 	return color_image;
 }
 
