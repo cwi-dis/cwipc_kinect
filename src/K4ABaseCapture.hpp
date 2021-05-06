@@ -75,22 +75,22 @@ public:
 		std::cerr << CLASSNAME << ": ran for " << deltaT << " seconds, produced " << numberOfPCsProduced << " pointclouds at " << numberOfPCsProduced / deltaT << " fps." << std::endl;
 	}
 	
-	void request_image_auxdata(bool _rgb, bool _depth) {
+	virtual void request_image_auxdata(bool _rgb, bool _depth) final {
 		want_auxdata_rgb = _rgb;
 		want_auxdata_depth = _depth;
 	}
 	
-	void request_skeleton_auxdata(bool _skl) {
+	virtual void request_skeleton_auxdata(bool _skl) final {
 		want_auxdata_skeleton = _skl;
 	}
-	virtual Type_our_camera* get_camera(std::string serial) {
+	virtual Type_our_camera* get_camera(std::string serial) final {
 		for (auto cam : cameras)
 			if (cam->serial == serial)
 				return cam;
 		return NULL;
 	}
 
-	virtual float get_pointSize() {
+	virtual float get_pointSize() final {
 		if (no_cameras) return 0;
 		float rv = 99999;
 		for (auto cam : cameras) {
@@ -100,7 +100,7 @@ public:
 		return rv;
 	}
 	
-	virtual bool pointcloud_available(bool wait) {
+	virtual bool pointcloud_available(bool wait) final {
 		if (no_cameras) return false;
 		_request_new_pointcloud();
 		std::this_thread::yield();
@@ -110,7 +110,7 @@ public:
 		return mergedPC_is_fresh;
 	}
 	
-	virtual cwipc* get_pointcloud() {
+	virtual cwipc* get_pointcloud() final {
 		if (no_cameras) return nullptr;
 		_request_new_pointcloud();
 		// Wait for a fresh mergedPC to become available.
@@ -128,7 +128,7 @@ public:
 		return rv;
 	}
 	
-	virtual cwipc* get_mostRecentPointCloud() {
+	virtual cwipc* get_mostRecentPointCloud() final {
 		if (no_cameras) return nullptr;
 		// This call doesn't need a fresh pointcloud (Jack thinks), but it does need one that is
 		// consistent. So we lock, but don't wait on the condition.
@@ -136,7 +136,7 @@ public:
 		return mergedPC;
 	}
 	
-	virtual K4ACameraData& get_camera_data(std::string serial) {
+	virtual K4ACameraData& get_camera_data(std::string serial) final {
 		for (int i = 0; i < configuration.camera_data.size(); i++)
 			if (configuration.camera_data[i].serial == serial)
 				return configuration.camera_data[i];
@@ -145,14 +145,14 @@ public:
 	}
 
 protected:
-	virtual bool _init_config_from_configfile(const char *configFilename) {
+	virtual bool _init_config_from_configfile(const char *configFilename) final {
 		if (configFilename == NULL) {
 			configFilename = "cameraconfig.xml";
 		}
 		return cwipc_k4a_file2config(configFilename, &configuration);
 	}
 	
-	virtual void _init_camera_positions() {
+	virtual void _init_camera_positions() final {
 		// find camerapositions
 		for (int i = 0; i < configuration.camera_data.size(); i++) {
 			cwipc_pcl_pointcloud pcptr(new_cwipc_pcl_pointcloud());
@@ -169,7 +169,7 @@ protected:
 		}
 	}
 
-	virtual void _start_cameras() {
+	virtual void _start_cameras() final {
 		//
 		// start the cameras. First start all non-sync-master cameras, then start the sync-master camera.
 		//
@@ -208,7 +208,7 @@ protected:
 	
 	virtual uint64_t _get_best_timestamp() = 0;
 	
-	virtual void _control_thread_main() {
+	virtual void _control_thread_main() final {
 #ifdef CWIPC_DEBUG_THREAD
 		std::cerr << CLASSNAME << ": processing thread started" << std::endl;
 #endif
@@ -305,7 +305,7 @@ protected:
 #endif
 	}
 	
-	virtual void merge_views() {
+	virtual void merge_views() final {
 		cwipc_pcl_pointcloud aligned_cld(mergedPC->access_pcl_pointcloud());
 		aligned_cld->clear();
 
@@ -395,7 +395,7 @@ protected:
 		}
 	}
 	
-	virtual void _request_new_pointcloud() {
+	virtual void _request_new_pointcloud() final {
 		std::unique_lock<std::mutex> mylock(mergedPC_mutex);
 		if (!mergedPC_want_new && !mergedPC_is_fresh) {
 			mergedPC_want_new = true;

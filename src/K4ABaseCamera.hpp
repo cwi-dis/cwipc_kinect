@@ -164,18 +164,18 @@ public:
 
 public:
 public:
-	void request_skeleton_auxdata(bool _skl) {
+	virtual void request_skeleton_auxdata(bool _skl) final {
 		want_auxdata_skeleton = _skl;
 	}
 	virtual bool start() = 0;
 	virtual void start_capturer() = 0;
 	virtual void stop() = 0;
 
-	bool is_sync_master() { 
+	virtual bool is_sync_master() final { 
 		return camera_sync_ismaster;
 	}
 
-	void create_pc_from_frames() {
+	virtual void create_pc_from_frames() final {
 		assert(current_frameset);
 		if (!processing_frame_queue.try_enqueue(current_frameset)) {
 			std::cerr << CLASSNAME << ":  camera " << serial << ": drop frame before processing" << std::endl;
@@ -184,21 +184,21 @@ public:
 		current_frameset = NULL;
 	}
 	
-	void wait_for_pc() {
+	virtual void wait_for_pc() final {
 		std::unique_lock<std::mutex> lock(processing_mutex);
 		processing_done_cv.wait(lock, [this]{ return processing_done; });
 		processing_done = false;
 	}
 
-	uint64_t get_capture_timestamp() {
+	virtual uint64_t get_capture_timestamp() final {
 		return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	}
 	
-	cwipc_pcl_pointcloud get_current_pointcloud() {
+	virtual cwipc_pcl_pointcloud get_current_pointcloud() final {
 		return current_pointcloud;
 	}
 	
-	void save_auxdata_images(cwipc* pc, bool rgb, bool depth) {
+	virtual void save_auxdata_images(cwipc* pc, bool rgb, bool depth) final {
 		if (rgb) {
 			std::string name = "rgb." + serial;
 			k4a_image_t image = k4a_capture_get_color_image(current_frameset);
@@ -247,7 +247,7 @@ public:
 		}
 	}
 	
-	void save_auxdata_skeleton(cwipc* pc) {
+	virtual void save_auxdata_skeleton(cwipc* pc) final {
 		int n_skeletons = skeletons.size();
 		size_t size_str = sizeof(cwipc_skeleton_collection) + n_skeletons * (int)K4ABT_JOINT_COUNT * sizeof(cwipc_skeleton_joint);
 		cwipc_skeleton_collection* skl = (cwipc_skeleton_collection*)malloc(size_str);
@@ -275,10 +275,10 @@ public:
 	}
 
 protected:
-	void _init_filters() {
+	virtual void _init_filters() final {
 	}
 	
-	void _init_tracker() {
+	virtual void _init_tracker() final {
 		tracker_handle = NULL;
 		k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
 		auto sts = k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle);
@@ -288,7 +288,7 @@ protected:
 	}
 
 #ifdef notrs2
-	void _computePointSize(rs2::pipeline_profile profile) {
+	virtual void _computePointSize(rs2::pipeline_profile profile) final {
 
 		// Get the 3D distance between camera and (0,0,0) or use 1m if unreasonable
 		float tx = (*camData.trafo)(0, 3);
@@ -321,7 +321,7 @@ protected:
 	virtual void _capture_thread_main() = 0;
 
 
-	void _processing_thread_main() {
+	virtual void _processing_thread_main() final {
 #ifdef CWIPC_DEBUG_THREAD
 		std::cerr << CLASSNAME << ": processing: cam=" << serial << " thread started" << std::endl;
 #endif
@@ -442,7 +442,7 @@ protected:
 #endif
 	}
 
-	void _filter_depth_data(int16_t* depth_values, int width, int height) {
+	virtual void _filter_depth_data(int16_t* depth_values, int width, int height) final {
 		int16_t min_depth = (int16_t)(camSettings.threshold_near * 1000);
 		int16_t max_depth = (int16_t)(camSettings.threshold_far * 1000);
 		int16_t *z_values = (int16_t *)calloc(width * height, sizeof(int16_t));
@@ -487,7 +487,7 @@ protected:
 	}
 	
 	//virtual void _computePointSize() = 0;
-	cwipc_pcl_pointcloud generate_point_cloud_color_to_depth(const k4a_image_t depth_image, const k4a_image_t color_image) {
+	virtual cwipc_pcl_pointcloud generate_point_cloud_color_to_depth(const k4a_image_t depth_image, const k4a_image_t color_image) final {
 		int depth_image_width_pixels = k4a_image_get_width_pixels(depth_image);
 		int depth_image_height_pixels = k4a_image_get_height_pixels(depth_image);
 		k4a_image_t transformed_color_image = NULL;
@@ -543,7 +543,7 @@ protected:
 		return rv;
 	}
 	
-	cwipc_pcl_pointcloud generate_point_cloud_depth_to_color(const k4a_image_t depth_image, const k4a_image_t color_image) {
+	virtual cwipc_pcl_pointcloud generate_point_cloud_depth_to_color(const k4a_image_t depth_image, const k4a_image_t color_image) final {
 		// transform color image into depth camera geometry
 		int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
 		int color_image_height_pixels = k4a_image_get_height_pixels(color_image);
@@ -597,7 +597,7 @@ protected:
 		return rv;
 	}
 	
-	cwipc_pcl_pointcloud generate_point_cloud(const k4a_image_t point_cloud_image, const k4a_image_t color_image) {
+	virtual cwipc_pcl_pointcloud generate_point_cloud(const k4a_image_t point_cloud_image, const k4a_image_t color_image) final {
 		int width = k4a_image_get_width_pixels(point_cloud_image);
 		int height = k4a_image_get_height_pixels(color_image);
 
@@ -643,7 +643,7 @@ protected:
 		return new_cloud;
 	}
 	
-	void transformPoint(cwipc_pcl_point& pt) {
+	virtual void transformPoint(cwipc_pcl_point& pt) final {
 		float x = pt.x / 1000.0;
 		float y = pt.y / 1000.0;
 		float z = pt.z / 1000.0;
@@ -652,7 +652,7 @@ protected:
 		pt.z = (*camData.trafo)(2,0)*x + (*camData.trafo)(2,1)*y + (*camData.trafo)(2,2)*z + (*camData.trafo)(2,3);
 	}
 	
-	void transformDepthToColorPoint(cwipc_pcl_point& pt) {
+	virtual void transformDepthToColorPoint(cwipc_pcl_point& pt) final {
 		float x = pt.x;
 		float y = pt.y;
 		float z = pt.z;
