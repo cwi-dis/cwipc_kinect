@@ -18,7 +18,6 @@ K4AOfflineCamera::K4AOfflineCamera(Type_api_camera _handle, K4ACaptureConfig& co
 	std::cout << CLASSNAME << "creating camera " << serial << std::endl;
 #endif
 	_init_filters();
-	_init_tracker();
 }
 
 bool K4AOfflineCamera::capture_frameset(uint64_t master_timestamp)
@@ -138,7 +137,7 @@ bool K4AOfflineCamera::start() {
 
 void K4AOfflineCamera::stop()
 {
-	assert(!stopped);
+	if (stopped) return;
 	stopped = true;
 	processing_frame_queue.try_enqueue(NULL);
 	// Stop threads

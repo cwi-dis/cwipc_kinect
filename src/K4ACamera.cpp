@@ -23,7 +23,6 @@ K4ACamera::K4ACamera(Type_api_camera _handle, K4ACaptureConfig& configuration, i
 	std::cout << CLASSNAME << "creating camera " << serial << std::endl;
 #endif
 	_init_filters();
-	_init_tracker();
 }
 
 bool K4ACamera::capture_frameset()
@@ -183,7 +182,7 @@ bool K4ACamera::_setup_device(k4a_device_configuration_t& device_config) {
 
 void K4ACamera::stop()
 {
-	assert(!stopped);
+	if (stopped) return;
 	stopped = true;
 	processing_frame_queue.try_enqueue(NULL);
 	// Stop threads

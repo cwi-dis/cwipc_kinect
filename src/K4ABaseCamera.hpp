@@ -159,14 +159,23 @@ public:
 		std::cout << CLASSNAME << ": destroying " << serial << std::endl;
 #endif
 		assert(stopped);
+		if (tracker_handle) k4abt_tracker_destroy(tracker_handle);
+		tracker_handle = nullptr;
 	}
 
 
 public:
 public:
-	virtual void request_skeleton_auxdata(bool _skl) final {
+	virtual bool request_skeleton_auxdata(bool _skl) final {
 		want_auxdata_skeleton = _skl;
+		if (want_auxdata_skeleton) {
+			return _init_tracker();
+		}
+		else {
+			return false;
+		}
 	}
+
 	virtual bool start() = 0;
 	virtual void start_capturer() = 0;
 	virtual void stop() = 0;
@@ -278,13 +287,15 @@ protected:
 	virtual void _init_filters() final {
 	}
 	
-	virtual void _init_tracker() final {
-		tracker_handle = NULL;
+	virtual bool _init_tracker() final {
+		if (tracker_handle != NULL) return true;
 		k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
 		auto sts = k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle);
 		if (sts != K4A_RESULT_SUCCEEDED) {
 			cwipc_k4a_log_warning("Body tracker initialization failed");
+			return false;
 		}
+		return true;
 	}
 
 #ifdef notrs2
@@ -350,23 +361,28 @@ protected:
 			color_image = k4a_capture_get_color_image(processing_frameset);
 			color_image = _uncompress_color_image(color_image);
 
-			if (want_auxdata_skeleton) { // BODY TRACKING
+			if (want_auxdata_skeleton && tracker_handle) {
+				//
+				// Push frameset into the tracker. Wait indefinitely for the result.
+				//
 				k4a_wait_result_t queue_capture_result = k4abt_tracker_enqueue_capture(tracker_handle, processing_frameset, K4A_WAIT_INFINITE);
 				if (queue_capture_result == K4A_WAIT_RESULT_TIMEOUT)
 				{
 					// It should never hit timeout when K4A_WAIT_INFINITE is set.
-					printf("Error! Add capture to tracker process queue timeout!\n");
+					cwipc_k4a_log_warning("k4abt_tracker_enqueue_capture: timeout");
 				}
 				else if (queue_capture_result == K4A_WAIT_RESULT_FAILED)
 				{
-					printf("Error! Add capture to tracker process queue failed!\n");
+					cwipc_k4a_log_warning("k4abt_tracker_enqueue_capture: failed");
 				}
-
+				//
+				// Now pop the result. Again wait indefinitely.
+				//
 				k4abt_frame_t body_frame = NULL;
+				skeletons.clear();
 				k4a_wait_result_t pop_frame_result = k4abt_tracker_pop_result(tracker_handle, &body_frame, K4A_WAIT_INFINITE);
 				if (pop_frame_result == K4A_WAIT_RESULT_SUCCEEDED)
 				{
-					skeletons.clear();
 					uint32_t num_bodies = k4abt_frame_get_num_bodies(body_frame);
 					if (num_bodies > 0) {
 						//printf("\n%u bodies are detected in Camera %i\n", num_bodies, camera_index);
@@ -405,14 +421,14 @@ protected:
 				}
 				else if (pop_frame_result == K4A_WAIT_RESULT_TIMEOUT)
 				{
-					//  It should never hit timeout when K4A_WAIT_INFINITE is set.
-					printf("Error! Pop body frame result timeout! Camera %i\n", camera_index);
+					cwipc_k4a_log_warning("k4abt_tracker_pop_result: timeout");
 				}
 				else
 				{
-					printf("Pop body frame result failed! Camera %i\n", camera_index);
+					cwipc_k4a_log_warning("k4abt_tracker_pop_result: failed");
 				}
-			}///END_BODY TRACKING
+				if (body_frame != nullptr) k4abt_frame_release(body_frame);
+			}
 
 
 			cwipc_pcl_pointcloud new_pointcloud = nullptr;
@@ -435,7 +451,12 @@ protected:
 				processing_done = true;
 				processing_done_cv.notify_one();
 			}
-			if (processing_frameset != NULL) k4a_capture_release(processing_frameset);
+			if (depth_image) k4a_image_release(depth_image);
+			depth_image = nullptr;
+			if (color_image) k4a_image_release(color_image);
+			color_image = nullptr;
+			if (processing_frameset) k4a_capture_release(processing_frameset);
+			processing_frameset = nullptr;
 		}
 #ifdef CWIPC_DEBUG_THREAD
 		std::cerr << CLASSNAME << ": processing: cam=" << serial << " thread stopped" << std::endl;

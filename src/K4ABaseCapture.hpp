@@ -51,17 +51,12 @@ public:
 			return;
 		}
 		uint64_t stopTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-		// Stop all cameras
-		for (auto cam : cameras)
-			cam->stop();
-		stopped = true;
+		stop();
 		mergedPC_is_fresh = true;
 		mergedPC_want_new = false;
 		mergedPC_is_fresh_cv.notify_all();
 		mergedPC_want_new = true;
 		mergedPC_want_new_cv.notify_all();
-		control_thread->join();
-		delete control_thread;
 		std::cerr << CLASSNAME << ": stopped all cameras\n";
 
 		// Delete all cameras (which will stop their threads as well)
@@ -73,6 +68,15 @@ public:
 		// Print some minimal statistics of this run
 		float deltaT = (stopTime - starttime) / 1000.0;
 		std::cerr << CLASSNAME << ": ran for " << deltaT << " seconds, produced " << numberOfPCsProduced << " pointclouds at " << numberOfPCsProduced / deltaT << " fps." << std::endl;
+	}
+
+	virtual void stop() final {
+		stopped = true;
+		if (control_thread) control_thread->join();
+		delete control_thread;
+		// Stop all cameras
+		for (auto cam : cameras)
+			cam->stop();
 	}
 	
 	virtual void request_image_auxdata(bool _rgb, bool _depth) final {
