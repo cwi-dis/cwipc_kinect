@@ -23,6 +23,8 @@ add_library(cwipc_kinect
 target_sources(cwipc_kinect
 	PRIVATE
 	"K4AConfig.hpp"
+	"K4ABaseCapture.hpp"
+	"K4ABaseCamera.hpp"
 	"K4ACapture.hpp"
 	"K4ACamera.hpp"
 	"K4AOfflineCapture.hpp"
