@@ -236,9 +236,7 @@ protected:
 					break;
 				}
 			}
-			if (stopped) {
-				break;
-			}
+			if (stopped) break;
 			assert(cameras.size() > 0);
 			// Step one: grab frames from all cameras. This should happen as close together in time as possible,
 			// because that gives use he biggest chance we have the same frame (or at most off-by-one) for each
@@ -249,6 +247,7 @@ protected:
 				std::this_thread::yield();
 				continue;
 			}
+			if (stopped) break;
 			// And get the best timestamp
 			uint64_t timestamp = _get_best_timestamp();
 			// xxxjack current_ts = timestamp;
@@ -267,11 +266,13 @@ protected:
 					cam->save_auxdata_images(newPC, want_auxdata_rgb, want_auxdata_depth);
 				}
 			}
+			if (stopped) break;
 
 			// Step 3: start processing frames to pointclouds, for each camera
 			for (auto cam : cameras) {
 				cam->create_pc_from_frames();
 			}
+			if (stopped) break;
 			// Lock mergedPC already while we are waiting for the per-camera
 			// processing threads. This so the main thread doesn't go off and do
 			// useless things if it is calling available(true).
@@ -280,12 +281,14 @@ protected:
 				mergedPC->free();
 				mergedPC = nullptr;
 			}
+			if (stopped) break;
 			mergedPC = newPC;
 
 			// Step 4: wait for frame processing to complete.
 			for (auto cam : cameras) {
 				cam->wait_for_pc();
 			}
+			if (stopped) break;
 			// Step 5: merge views
 			merge_views();
 			if (mergedPC->access_pcl_pointcloud()->size() > 0) {
