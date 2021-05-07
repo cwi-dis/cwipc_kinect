@@ -32,9 +32,9 @@ protected:
 	
 	cwipc* mergedPC = nullptr;	//<! Merged pointcloud from all cameras
 	std::mutex mergedPC_mutex;	//<! Lock for all mergedPC-related data structures
-	bool mergedPC_is_fresh;	//<! True if mergedPC contains a freshly-created pointcloud
+	bool mergedPC_is_fresh = false;	//<! True if mergedPC contains a freshly-created pointcloud
 	std::condition_variable mergedPC_is_fresh_cv;	//<! Condition variable for signalling freshly-created pointcloud
-	bool mergedPC_want_new;	//<! Set to true to request a new pointcloud
+	bool mergedPC_want_new = false;	//<! Set to true to request a new pointcloud
 	std::condition_variable mergedPC_want_new_cv;	//<! Condition variable for signalling we want a new pointcloud
 
 	std::thread* control_thread = nullptr;
@@ -115,7 +115,10 @@ public:
 	}
 	
 	virtual cwipc* get_pointcloud() final {
-		if (no_cameras) return nullptr;
+		if (no_cameras) {
+			cwipc_k4a_log_warning("get_pointcloud: returning NULL, no cameras");
+			return nullptr;
+		}
 		_request_new_pointcloud();
 		// Wait for a fresh mergedPC to become available.
 		// Note we keep the return value while holding the lock, so we can start the next grab/process/merge cycle before returning.
@@ -123,10 +126,14 @@ public:
 		{
 			std::unique_lock<std::mutex> mylock(mergedPC_mutex);
 			mergedPC_is_fresh_cv.wait(mylock, [this] {return mergedPC_is_fresh; });
+			assert(mergedPC_is_fresh);
 			mergedPC_is_fresh = false;
 			numberOfPCsProduced++;
 			rv = mergedPC;
 			mergedPC = nullptr;
+			if (rv == nullptr) {
+				cwipc_k4a_log_warning("get_pointcloud: returning NULL, even though mergedPC_is_fresh");
+			}
 		}
 		_request_new_pointcloud();
 		return rv;
