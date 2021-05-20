@@ -123,6 +123,7 @@ protected:
 	bool do_height_filtering;	//<! Parameter from camData
 	double height_min;	//<! Parameter from camData
 	double height_max;	//<! Parameter from camData
+	double radius_filter;	//<! Parameter from camData
 	std::mutex processing_mutex;	//<! Exclusive lock for frame to pointcloud processing.
 	std::condition_variable processing_done_cv;	//<! Condition variable signalling pointcloud ready
 	bool processing_done = false;	//<! Boolean for processing_done_cv
@@ -148,7 +149,8 @@ public:
 		do_greenscreen_removal(configuration.greenscreen_removal),
 		do_height_filtering(configuration.height_min != configuration.height_max),
 		height_min(configuration.height_min),
-		height_max(configuration.height_max)
+		height_max(configuration.height_max),
+		radius_filter(configuration.radius_filter)
 	{
 
 	}
@@ -655,6 +657,9 @@ protected:
 			point.y = y;
 			point.z = z;
 			transformPoint(point);
+			if (radius_filter > 0.0) { // apply radius filter
+				if(!isPointInRadius(point)) continue;
+			}
 			if (do_height_filtering && (point.y < height_min || point.y > height_max)) continue;
 			if (!do_greenscreen_removal || isNotGreen(&point)) // chromakey removal
 				new_cloud->push_back(point);
@@ -672,6 +677,11 @@ protected:
 		pt.x = (*camData.trafo)(0,0)*x + (*camData.trafo)(0,1)*y + (*camData.trafo)(0,2)*z + (*camData.trafo)(0,3);
 		pt.y = (*camData.trafo)(1,0)*x + (*camData.trafo)(1,1)*y + (*camData.trafo)(1,2)*z + (*camData.trafo)(1,3);
 		pt.z = (*camData.trafo)(2,0)*x + (*camData.trafo)(2,1)*y + (*camData.trafo)(2,2)*z + (*camData.trafo)(2,3);
+	}
+
+	virtual boolean isPointInRadius(cwipc_pcl_point& pt) {
+		float distance = sqrt(pow(pt.x, 2) + pow(pt.z, 2));
+			return distance < radius_filter;
 	}
 	
 	virtual void transformDepthToColorPoint(cwipc_pcl_point& pt) final {

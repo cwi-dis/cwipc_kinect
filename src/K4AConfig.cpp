@@ -108,6 +108,7 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		postprocessingElement->QueryBoolAttribute("greenscreenremoval", &(config->greenscreen_removal));
 		postprocessingElement->QueryDoubleAttribute("height_min", &(config->height_min));
 		postprocessingElement->QueryDoubleAttribute("height_max", &(config->height_max));
+		postprocessingElement->QueryDoubleAttribute("radius_filter", &(config->radius_filter));
         TiXmlElement* parameterElement = postprocessingElement->FirstChildElement("depthfilterparameters");
         if (parameterElement) {
 			parameterElement->QueryBoolAttribute("do_threshold", &(config->camera_config.do_threshold));
