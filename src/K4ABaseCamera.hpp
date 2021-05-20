@@ -88,6 +88,11 @@ inline bool isNotGreen(cwipc_pcl_point* p)
 	return true;
 }
 
+inline bool isPointInRadius(cwipc_pcl_point& pt, float radius_filter) {
+	float distance = sqrt(pow(pt.x, 2) + pow(pt.z, 2));
+	return distance < radius_filter;
+}
+
 template<typename Type_api_camera>
 class K4ABaseCamera {
 public:
@@ -658,7 +663,7 @@ protected:
 			point.z = z;
 			transformPoint(point);
 			if (radius_filter > 0.0) { // apply radius filter
-				if(!isPointInRadius(point)) continue;
+				if(!isPointInRadius(point, radius_filter)) continue;
 			}
 			if (do_height_filtering && (point.y < height_min || point.y > height_max)) continue;
 			if (!do_greenscreen_removal || isNotGreen(&point)) // chromakey removal
@@ -677,11 +682,6 @@ protected:
 		pt.x = (*camData.trafo)(0,0)*x + (*camData.trafo)(0,1)*y + (*camData.trafo)(0,2)*z + (*camData.trafo)(0,3);
 		pt.y = (*camData.trafo)(1,0)*x + (*camData.trafo)(1,1)*y + (*camData.trafo)(1,2)*z + (*camData.trafo)(1,3);
 		pt.z = (*camData.trafo)(2,0)*x + (*camData.trafo)(2,1)*y + (*camData.trafo)(2,2)*z + (*camData.trafo)(2,3);
-	}
-
-	virtual boolean isPointInRadius(cwipc_pcl_point& pt) {
-		float distance = sqrt(pow(pt.x, 2) + pow(pt.z, 2));
-			return distance < radius_filter;
 	}
 	
 	virtual void transformDepthToColorPoint(cwipc_pcl_point& pt) final {
