@@ -19,6 +19,7 @@ public:
 	// methods
 	K4ACapture(const char *configFilename=NULL);
 	virtual ~K4ACapture() {}
+	bool seek(uint64_t timestamp) override;
 
 protected:
 	bool _capture_all_cameras() override;

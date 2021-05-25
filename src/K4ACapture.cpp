@@ -265,3 +265,7 @@ uint64_t K4ACapture::_get_best_timestamp() {
 	}
 	return timestamp;
 }
+
+bool K4ACapture::seek(uint64_t timestamp) {
+	return false;
+}

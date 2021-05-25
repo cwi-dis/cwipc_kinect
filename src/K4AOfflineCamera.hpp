@@ -24,6 +24,7 @@ public:
 
 public:
 	bool capture_frameset(uint64_t master_timestamp);
+	bool seek(uint64_t timestamp);
 
 protected:
 
@@ -38,6 +39,7 @@ private:
 private:
 	uint64_t max_delay = 0;
 	int capture_id = 0;
+	k4a_record_configuration_t file_config;
 
 
 };

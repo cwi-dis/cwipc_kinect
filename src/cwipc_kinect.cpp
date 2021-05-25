@@ -105,6 +105,10 @@ public:
         cwipc* rv = m_grabber->get_pointcloud();
 		return rv;
     }
+
+	bool seek(uint64_t timestamp) {
+		return false;
+	}
     
     int maxtile()
     {
@@ -223,6 +227,12 @@ public:
 	{
 		if (m_offline == NULL) return NULL;
 		cwipc* rv = m_offline->get_pointcloud();
+		return rv;
+	}
+
+	bool seek(uint64_t timestamp) {
+		if (m_offline == NULL) return NULL;
+		bool rv = m_offline->seek(timestamp);
 		return rv;
 	}
 

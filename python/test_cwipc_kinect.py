@@ -106,6 +106,25 @@ class TestApi(unittest.TestCase):
         finally:
             if grabber: grabber.free()
             if pc: pc.free()
+            
+    @unittest.skipIf(sys.platform=='linux' and not 'DISPLAY' in os.environ, "Test requires X server/OpenGL")
+    def test_cwipc_k4aoffline_seek(self):
+        """Test that we can grab a kinect image from the offline grabber"""
+        grabber = None
+        pc = None
+        try:
+            grabber = _cwipc_kinect.cwipc_k4aoffline(TEST_FIXTURES_OFFLINE_CONFIG)
+            self.assertFalse(grabber.eof())
+            self.assertTrue(grabber.available(True))
+            result = grabber.seek(1600233)
+            self.assertTrue(result)
+            result = grabber.seek(5000000)
+            self.assertFalse(result)
+            pc = grabber.get()
+            self._verify_pointcloud(pc)
+        finally:
+            if grabber: grabber.free()
+            if pc: pc.free()
 
     def _verify_pointcloud(self, pc):
         points = pc.get_points()

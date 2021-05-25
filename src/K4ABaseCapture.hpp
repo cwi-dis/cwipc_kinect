@@ -138,6 +138,8 @@ public:
 		_request_new_pointcloud();
 		return rv;
 	}
+
+	virtual bool seek(uint64_t timestamp) = 0;
 	
 	virtual cwipc* get_mostRecentPointCloud() final {
 		if (no_cameras) return nullptr;

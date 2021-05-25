@@ -192,3 +192,13 @@ uint64_t K4AOfflineCapture::_get_best_timestamp() {
 	}
 	return timestamp;
 }
+
+bool K4AOfflineCapture::seek(uint64_t timestamp) {
+	for (auto cam : cameras) { //SUBORDINATE or STANDALONE
+		if (cam->seek(timestamp) != true) {
+			std::cerr << "Camera " << cam->serial << " failed to seek to timestamp " << timestamp << std::endl;
+			return false;
+		}
+	}
+	return true;
+}

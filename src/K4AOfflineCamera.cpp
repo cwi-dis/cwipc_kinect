@@ -50,6 +50,21 @@ bool K4AOfflineCamera::capture_frameset(uint64_t master_timestamp)
 	return rv;
 }
 
+bool K4AOfflineCamera::seek(uint64_t timestamp) {
+	uint64_t first_t = file_config.start_timestamp_offset_usec;
+	uint64_t last_t = k4a_playback_get_recording_length_usec(camera_handle);
+	if (timestamp > first_t + last_t) {
+		std::cerr << CLASSNAME << " ERROR: desired seek timestamp " << timestamp << " is > than the last timestamp " << first_t + last_t << " of the recording." << std::endl;
+		return false;
+	}
+	if (k4a_playback_seek_timestamp(camera_handle, timestamp, K4A_PLAYBACK_SEEK_DEVICE_TIME) != K4A_RESULT_SUCCEEDED) {
+		return false;
+	}
+	else {
+		return true;
+	}
+}
+
 bool K4AOfflineCamera::_prepare_next_valid_frame() {
 	k4a_stream_result_t stream_result;
 	// Read the next capture into memory
@@ -130,6 +145,15 @@ bool K4AOfflineCamera::start() {
 		return false;
 	}
 	transformation_handle = k4a_transformation_create(&calibration);
+
+	//Get file config for further use of the parameters.
+	k4a_result_t result = k4a_playback_get_record_configuration(camera_handle, &file_config);
+	if (result != K4A_RESULT_SUCCEEDED)
+	{
+		std::cerr << CLASSNAME << ": Failed to get record configuration for camera: " << serial << std::endl;
+		return false;
+	}
+
 	camera_started = true;
 	max_delay = 10 * 160; //we set a 160us delay between cameras to avoid laser interference. It is enough for 10x cameras
 	return true;
