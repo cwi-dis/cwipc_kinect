@@ -77,7 +77,7 @@ int main(int argc, char** argv)
 #endif
         framenum++;
 		if (strcmp(outputdir, "-") != 0) {
-			snprintf(filename, sizeof(filename), "%s/pointcloud-%" PRIu64 ".ply", outputdir, pc->timestamp());
+			snprintf(filename, sizeof(filename), "%s/pointcloud-%08.8" PRIu64 ".ply", outputdir, pc->timestamp());
 	        std::cout << "-> Writing frame " << framenum << " with " << pc->count() << " points to "<< filename << std::endl;
 			ok = cwipc_write(filename, pc, &error);
 		} else {
