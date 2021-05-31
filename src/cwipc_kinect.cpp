@@ -182,7 +182,7 @@ public:
 		m_grabber->request_image_auxdata(
 			auxiliary_data_requested("rgb"),
 			auxiliary_data_requested("depth"));
-		m_grabber->request_skeleton_auxdata(auxiliary_data_requested("skeletons"));
+		m_grabber->request_skeleton_auxdata(auxiliary_data_requested("skeleton"));
 	}
 };
 
@@ -301,6 +301,15 @@ public:
 			}
 		}
 		return true;
+	}
+
+	void request_auxiliary_data(const std::string& name) override {
+		cwipc_tiledsource::request_auxiliary_data(name);
+		m_offline->request_image_auxdata(
+			auxiliary_data_requested("rgb"),
+			auxiliary_data_requested("depth"));
+		m_offline->request_skeleton_auxdata(auxiliary_data_requested("skeleton"));
+		std::cout << "Request auxdata rgb=" << auxiliary_data_requested("rgb") << ", depth=" << auxiliary_data_requested("depth") << ", skeleton=" << auxiliary_data_requested("skeleton") << std::endl;
 	}
 };
 

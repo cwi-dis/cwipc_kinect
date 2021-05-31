@@ -144,6 +144,7 @@ bool K4AOfflineCamera::start() {
 		camera_started = false;
 		return false;
 	}
+	depth_to_color_extrinsics = sensor_calibration.extrinsics[0][1];
 	transformation_handle = k4a_transformation_create(&calibration);
 
 	//Get file config for further use of the parameters.

@@ -218,6 +218,7 @@ public:
 		if (rgb) {
 			std::string name = "rgb." + serial;
 			k4a_image_t image = k4a_capture_get_color_image(current_frameset);
+			image = _uncompress_color_image(current_frameset, image);
 			if (image != NULL) {
 				uint8_t* data_pointer = k4a_image_get_buffer(image);
 				const size_t size = k4a_image_get_size(image);
@@ -689,7 +690,7 @@ protected:
 		float y = pt.y;
 		float z = pt.z;
 		float *rotation = depth_to_color_extrinsics.rotation;
-		float *translation = depth_to_color_extrinsics.rotation;
+		float *translation = depth_to_color_extrinsics.translation;
 		pt.x = rotation[0] * x + rotation[1] * y + rotation[2] * z + translation[0];
 		pt.y = rotation[3] * x + rotation[4] * y + rotation[5] * z + translation[1];
 		pt.z = rotation[6] * x + rotation[7] * y + rotation[8] * z + translation[2];

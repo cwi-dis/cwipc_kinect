@@ -66,6 +66,7 @@ bool K4ACamera::start()
 		camera_started = false;
 		return false;
 	}
+	depth_to_color_extrinsics = sensor_calibration.extrinsics[0][1];
 	transformation_handle = k4a_transformation_create(&sensor_calibration);
 
 	k4a_result_t res = k4a_device_start_cameras(camera_handle, &device_config);

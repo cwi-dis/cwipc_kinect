@@ -86,7 +86,11 @@ public:
 	
 	virtual void request_skeleton_auxdata(bool _skl) final {
 		want_auxdata_skeleton = _skl;
+		for (auto cam : cameras) {
+			cam->request_skeleton_auxdata(_skl);
+		}
 	}
+
 	virtual Type_our_camera* get_camera(std::string serial) final {
 		for (auto cam : cameras)
 			if (cam->serial == serial)
