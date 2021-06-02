@@ -89,8 +89,8 @@ inline bool isNotGreen(cwipc_pcl_point* p)
 }
 
 inline bool isPointInRadius(cwipc_pcl_point& pt, float radius_filter) {
-	float distance = sqrt(pow(pt.x, 2) + pow(pt.z, 2));
-	return distance < radius_filter;
+	float distance_2 = pow(pt.x, 2) + pow(pt.z, 2);
+	return distance_2 < radius_filter * radius_filter; // radius^2 to avoid sqrt
 }
 
 template<typename Type_api_camera>
