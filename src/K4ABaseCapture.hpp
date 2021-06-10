@@ -272,6 +272,12 @@ protected:
 					cam->save_auxdata_images(newPC, want_auxdata_rgb, want_auxdata_depth);
 				}
 			}
+			if (want_auxdata_skeleton) {
+				for (auto cam : cameras) {
+					cam->save_auxdata_skeleton(newPC);
+				}
+			}
+
 			if (stopped) break;
 
 			// Step 3: start processing frames to pointclouds, for each camera

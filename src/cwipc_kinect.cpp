@@ -183,6 +183,7 @@ public:
 			auxiliary_data_requested("rgb"),
 			auxiliary_data_requested("depth"));
 		m_grabber->request_skeleton_auxdata(auxiliary_data_requested("skeleton"));
+		std::cout << "cwipc_kinect: Requested auxdata rgb=" << auxiliary_data_requested("rgb") << ", depth=" << auxiliary_data_requested("depth") << ", skeleton=" << auxiliary_data_requested("skeleton") << std::endl;
 	}
 };
 
@@ -309,7 +310,7 @@ public:
 			auxiliary_data_requested("rgb"),
 			auxiliary_data_requested("depth"));
 		m_offline->request_skeleton_auxdata(auxiliary_data_requested("skeleton"));
-		std::cout << "Request auxdata rgb=" << auxiliary_data_requested("rgb") << ", depth=" << auxiliary_data_requested("depth") << ", skeleton=" << auxiliary_data_requested("skeleton") << std::endl;
+		std::cout << "cwipc_kinect: Requested auxdata rgb=" << auxiliary_data_requested("rgb") << ", depth=" << auxiliary_data_requested("depth") << ", skeleton=" << auxiliary_data_requested("skeleton") << std::endl;
 	}
 };
 
