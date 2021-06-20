@@ -14,5 +14,5 @@ if(NOT BUILDING_ON_HEADLESS_UNIX)
 	# This test depends on the test input recording containing exactly 6
 	# frames (although it will succeed if there are more, but the intention is
 	# that we test that we read all frames)
-	add_test(NAME cwipc_k4aoffline COMMAND cwipc_k4aoffline ${CMAKE_SOURCE_DIR}/tests/fixtures/input/recording . 6)
+	add_test(NAME cwipc_k4aoffline COMMAND cwipc_k4aoffline ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/fixtures/input/recording . 6)
 endif()
