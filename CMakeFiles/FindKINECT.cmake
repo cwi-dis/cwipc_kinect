@@ -29,9 +29,9 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 	set(KINECT_INCLUDE_DIRS "/usr/include")
 	set(KINECT_LIBRARIES "k4a" "k4arecord" "k4abt")
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-	MESSAGE(FATAL_ERROR "Kinect grabber not supported on OSX, SDK not available")
+	MESSAGE(WARNING "Kinect grabber not supported on OSX, SDK not available")
 else()
-	MESSAGE(FATAL_ERROR "Kinect grabber not supported on this unknown system ${CMAKE_SYSTEM_NAME}")
+	MESSAGE(WARNING "Kinect grabber not supported on this unknown system ${CMAKE_SYSTEM_NAME}")
 endif()
 
 
