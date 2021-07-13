@@ -112,7 +112,8 @@ void K4ACapture::_update_config_from_devices() {
 	// collect all camera's in the config that are connected
 	for (K4ACameraData cd : configuration.camera_data) {
 #if 1 // xxxjack find() doesn't work??!?
-		realcams.push_back(cd);
+		if(!cd.disabled)
+			realcams.push_back(cd);
 #else
 		if ((find(serials.begin(), serials.end(), cd.serial) != serials.end()))
 			realcams.push_back(cd);
@@ -238,8 +239,10 @@ void K4ACapture::_create_cameras(std::vector<Type_api_camera>& camera_handles, s
 			cwipc_k4a_log_warning("Camera " + cd.serial + " is type " + cd.type + " in stead of kinect");
 		}
 		int camera_index = cameras.size();
-		auto cam = new Type_our_camera(camera_handles[i], configuration, camera_index, cd);
-		cameras.push_back(cam);
+		if (!cd.disabled) {
+			auto cam = new Type_our_camera(camera_handles[i], configuration, camera_index, cd);
+			cameras.push_back(cam);
+		}
 	}
 }
 

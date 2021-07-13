@@ -132,6 +132,7 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		int i = 0;
 		while (i < config->camera_data.size()) {
 			if (config->camera_data[i].serial == serial) {
+				cameraElement->QueryBoolAttribute("disabled", &(config->camera_data[i].disabled));
 				cd = &config->camera_data[i];
 				break;
 			}
