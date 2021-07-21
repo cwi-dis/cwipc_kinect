@@ -239,7 +239,12 @@ void K4ACapture::_create_cameras(std::vector<Type_api_camera>& camera_handles, s
 			cwipc_k4a_log_warning("Camera " + cd.serial + " is type " + cd.type + " in stead of kinect");
 		}
 		int camera_index = cameras.size();
-		if (!cd.disabled) {
+		if (cd.disabled) {
+			// xxxjack this is gross. Due to the code structure we have opened all physically connected
+			// cameras early, including the ones that are disabled in the config. We close those cameras
+			// here. 
+			k4a_device_close(camera_handles[i]);
+		} else {
 			auto cam = new Type_our_camera(camera_handles[i], configuration, camera_index, cd);
 			cameras.push_back(cam);
 		}
