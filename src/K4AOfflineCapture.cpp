@@ -37,7 +37,10 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 	// current hardware setup. To be fixed at some point.
 	//
 	(void)_init_config_from_configfile(configFilename);
-	int camera_count =  configuration.camera_data.size();
+	int camera_count = 0;
+	for (auto data : configuration.camera_data) {
+		if (data.disabled == false) camera_count++;
+	}
 	std::vector<Type_api_camera> camera_handles(camera_count, nullptr);
 	if (!_open_recording_files(camera_handles)) {
 		no_cameras = true;
@@ -73,6 +76,8 @@ bool K4AOfflineCapture::_open_recording_files(std::vector<Type_api_camera>& came
 	// Open each recording file and validate they were recorded in master/subordinate mode.
 	for (size_t i = 0; i < camera_handles.size(); i++)
 	{
+		if (configuration.camera_data[i].disabled == true) continue;
+
 		const char *filename = configuration.camera_data[i].filename.c_str();
 
 		result = k4a_playback_open(filename, &camera_handles[i]);
@@ -138,8 +143,10 @@ void K4AOfflineCapture::_create_cameras(std::vector<Type_api_camera>& camera_han
 			cwipc_k4a_log_warning("Camera " + cd.serial + " is type " + cd.type + " in stead of kinect");
 		}
 		int camera_index = cameras.size();
-		auto cam = new K4AOfflineCapture::Type_our_camera(camera_handles[i], configuration, camera_index, cd);
-		cameras.push_back(cam);
+		if (!cd.disabled) {
+			auto cam = new K4AOfflineCapture::Type_our_camera(camera_handles[i], configuration, camera_index, cd);
+			cameras.push_back(cam);
+		}
 	}
 }
 

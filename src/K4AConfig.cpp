@@ -148,7 +148,7 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 			pcl::shared_ptr<Eigen::Affine3d> intrinsicTrafo(new Eigen::Affine3d());
 			intrinsicTrafo->setIdentity();
 			cd->serial = cameraElement->Attribute("serial");
-
+			cameraElement->QueryBoolAttribute("disabled", &cd->disabled);
 			cd->trafo = trafo;
 			cd->intrinsicTrafo = intrinsicTrafo;
 			cd->cameraposition = { 0, 0, 0 };
