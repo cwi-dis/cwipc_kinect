@@ -69,6 +69,10 @@ bool K4ACamera::start()
 	depth_to_color_extrinsics = sensor_calibration.extrinsics[0][1];
 	transformation_handle = k4a_transformation_create(&sensor_calibration);
 
+	if (xy_table == NULL) {	// generate xy_table
+		create_xy_table(&sensor_calibration);
+	}
+
 	k4a_result_t res = k4a_device_start_cameras(camera_handle, &device_config);
 	if (res != K4A_RESULT_SUCCEEDED) {
 		std::cerr << "cwipc_kinect: failed to start camera " << serial << std::endl;
