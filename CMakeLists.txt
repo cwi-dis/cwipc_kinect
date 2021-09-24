@@ -37,9 +37,9 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 endif()
 
 #
-# Find PCL. 1.11 is expected
+# Find PCL. 1.10-1.12 is expected
 #
-find_package(PCL 1.11 REQUIRED COMPONENTS common io filters) 
+find_package(PCL 1.10 REQUIRED COMPONENTS common io filters) 
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
