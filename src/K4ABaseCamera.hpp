@@ -301,7 +301,7 @@ protected:
 		k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
 		auto sts = k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle);
 		if (sts != K4A_RESULT_SUCCEEDED) {
-			cwipc_k4a_log_warning("Body tracker initialization failed");
+			std::cerr << CLASSNAME << " Body tracker initialization failed" << std::endl;
 			return false;
 		}
 		else {
