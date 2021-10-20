@@ -166,8 +166,11 @@ public:
 		std::cout << CLASSNAME << ": destroying " << serial << std::endl;
 #endif
 		assert(stopped);
-		if (tracker_handle) k4abt_tracker_destroy(tracker_handle);
-		tracker_handle = nullptr;
+		if (tracker_handle) {
+			k4abt_tracker_shutdown(tracker_handle);
+			k4abt_tracker_destroy(tracker_handle);
+			tracker_handle = nullptr;
+		}
 	}
 
 

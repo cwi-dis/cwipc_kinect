@@ -165,19 +165,25 @@ void K4ACamera::stop()
 	if (processing_thread) processing_thread->join();
 	delete processing_thread;
 
+	if (tracker_handle) {
+		//Stop body tracker
+		k4abt_tracker_shutdown(tracker_handle);
+		k4abt_tracker_destroy(tracker_handle);
+		tracker_handle = nullptr;
+	}
 	if (camera_started) {
 		// Stop camera
 		k4a_device_stop_cameras(camera_handle);
 		camera_started = false;
 	}
+	if (camera_handle) {
+		k4a_device_close(camera_handle);
+		camera_handle = nullptr;
+	}
 	// Delete objects
 	if (current_frameset != NULL) {
 		k4a_capture_release(current_frameset);
 		current_frameset = NULL;
-	}
-	if (camera_handle) {
-		k4a_device_close(camera_handle);
-		camera_handle = nullptr;
 	}
 	if (transformation_handle) {
 		k4a_transformation_destroy(transformation_handle);
@@ -185,10 +191,6 @@ void K4ACamera::stop()
 	}	
 	processing_done = true;
 	processing_done_cv.notify_one();
-	if (tracker_handle) {
-		k4abt_tracker_destroy(tracker_handle);
-		tracker_handle = nullptr;
-	}
 }
 
 void K4ACamera::start_capturer()
