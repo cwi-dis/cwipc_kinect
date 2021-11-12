@@ -158,7 +158,8 @@ public:
 			if (configuration.camera_data[i].serial == serial)
 				return configuration.camera_data[i];
 		cwipc_k4a_log_warning("Unknown camera " + serial);
-		abort();
+		static K4ACameraData empty;
+		return empty;
 	}
 
 protected:
