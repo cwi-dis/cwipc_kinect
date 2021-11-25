@@ -304,11 +304,11 @@ protected:
 		k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
 		auto sts = k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle);
 		if (sts != K4A_RESULT_SUCCEEDED) {
-			std::cerr << CLASSNAME << " Body tracker initialization failed" << std::endl;
+			std::cerr << CLASSNAME << " Body tracker initialization failed on camera " << serial << std::endl;
 			return false;
 		}
 		else {
-			std::cout << CLASSNAME << "Body tracker initialization succeeded" << std::endl;
+			std::cout << CLASSNAME << "Body tracker initialization succeeded on camera " << serial << std::endl;
 		}
 		return true;
 	}
