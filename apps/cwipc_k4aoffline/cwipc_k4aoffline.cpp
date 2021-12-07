@@ -42,7 +42,7 @@ int main(int argc, char** argv)
 #ifdef DEBUG_AUXDATA
     generator->request_auxiliary_data("rgb");
     generator->request_auxiliary_data("depth");
-    generator->request_auxiliary_data("skeleton");
+    generator->request_auxiliary_data("skeletons");
 #endif
 
     int ok = 0;

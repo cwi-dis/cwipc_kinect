@@ -308,7 +308,7 @@ protected:
 			return false;
 		}
 		else {
-			std::cout << CLASSNAME << "Body tracker initialization succeeded on camera " << serial << std::endl;
+			std::cout << CLASSNAME << " Body tracker initialization succeeded on camera " << serial << std::endl;
 		}
 		return true;
 	}
@@ -399,7 +399,7 @@ protected:
 				if (pop_frame_result == K4A_WAIT_RESULT_SUCCEEDED)
 				{
 					uint32_t num_bodies = k4abt_frame_get_num_bodies(body_frame);
-					std::cout << CLASSNAME << " : Popout frame from tracker. Numbodies = " << num_bodies << std::endl;
+					std::cout << CLASSNAME << " : " << serial << " - Numbodies = " << num_bodies << std::endl;
 					if (num_bodies > 0) {
 						//printf("\n%u bodies are detected in Camera %i\n", num_bodies, camera_index);
 
