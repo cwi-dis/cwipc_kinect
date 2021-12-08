@@ -399,10 +399,10 @@ protected:
 				if (pop_frame_result == K4A_WAIT_RESULT_SUCCEEDED)
 				{
 					uint32_t num_bodies = k4abt_frame_get_num_bodies(body_frame);
+#ifdef CWIPC_DEBUG_THREAD
 					std::cout << CLASSNAME << " : " << serial << " - Numbodies = " << num_bodies << std::endl;
+#endif
 					if (num_bodies > 0) {
-						//printf("\n%u bodies are detected in Camera %i\n", num_bodies, camera_index);
-
 						// Transform each 3d joints from 3d depth space to 2d color image space
 						for (uint32_t i = 0; i < num_bodies; i++)
 						{
