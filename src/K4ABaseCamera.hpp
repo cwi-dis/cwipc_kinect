@@ -103,9 +103,6 @@ protected:
 	std::string CLASSNAME;
 	K4ACaptureConfig& configuration;
 	Type_api_camera camera_handle;
-//	double minx = 0;
-//	double minz = 0;
-//	double maxz = 0;
 	int camera_index;	//<! For messages only
 	bool stopped = true;	//<! True when stopping
 	bool camera_started = false;	//<! True when camera hardware is grabbing
@@ -288,6 +285,16 @@ protected:
 	virtual bool _init_tracker() final {
 		if (tracker_handle != NULL) return true;
 		k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
+		tracker_config.processing_mode = K4ABT_TRACKER_PROCESSING_MODE_CPU;
+		if (configuration.bt_processing_mode >= 0) {
+			tracker_config.processing_mode = (k4abt_tracker_processing_mode_t)configuration.bt_processing_mode;
+		}
+		if (configuration.bt_sensor_orientation >= 0) {
+			tracker_config.sensor_orientation = (k4abt_sensor_orientation_t)configuration.bt_sensor_orientation;
+		}
+		if (configuration.bt_model_path != "") {
+			tracker_config.model_path = configuration.bt_model_path.c_str();
+		}
 		auto sts = k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle);
 		if (sts != K4A_RESULT_SUCCEEDED) {
 			std::cerr << CLASSNAME << " Body tracker initialization failed on camera " << serial << std::endl;

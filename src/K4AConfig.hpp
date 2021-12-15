@@ -62,7 +62,10 @@ struct K4ACaptureConfig {
 	std::string sync_master_serial = "";  // If empty run without sync. If non-empty this camera is the sync master
 
 	K4ACameraConfig camera_config;
-	
+	int bt_sensor_orientation = -1;	// Override k4abt sensor_orientation (if >= 0)
+	int bt_processing_mode = -1;	// Override k4abt processing_mode (if >= 0)
+	std::string bt_model_path = "";			// Override k4abt model path
+	// We could probably also allow overriding GPU id and model path, but no need for now.
 	// per camera data
 	std::vector<K4ACameraData> camera_data;
 };
