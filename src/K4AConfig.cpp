@@ -117,7 +117,7 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 			parameterElement->QueryIntAttribute("depth_x_erosion", &(config->camera_config.depth_x_erosion));
 			parameterElement->QueryIntAttribute("depth_y_erosion", &(config->camera_config.depth_y_erosion));
 		}
-		TiXmlElement* btElement = postprocessingElement->FirstChildElement("skeleton");
+		TiXmlElement* btElement = configElement->FirstChildElement("skeleton");
 		if (btElement) {
 			btElement->QueryIntAttribute("sensor_orientation", &(config->bt_sensor_orientation));
 			btElement->QueryIntAttribute("processing_mode", &(config->bt_processing_mode));
