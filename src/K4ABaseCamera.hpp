@@ -16,6 +16,10 @@
 #include "K4AConfig.hpp"
 #include "readerwriterqueue.h"
 
+// Check which K4ABT version we have
+# if K4ABT_VERSION_MAJOR >= 1 && K4ABT_VERSION_MINOR >= 1
+#define K4ABT_SUPPORTS_MODEL_PATH
+#endif
 
 // Define to get (a little) debug prints
 #undef CWIPC_DEBUG
@@ -292,9 +296,11 @@ protected:
 		if (configuration.bt_sensor_orientation >= 0) {
 			tracker_config.sensor_orientation = (k4abt_sensor_orientation_t)configuration.bt_sensor_orientation;
 		}
+#ifdef K4ABT_SUPPORTS_MODEL_PATH
 		if (configuration.bt_model_path != "") {
 			tracker_config.model_path = configuration.bt_model_path.c_str();
 		}
+#endif
 		auto sts = k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle);
 		if (sts != K4A_RESULT_SUCCEEDED) {
 			std::cerr << CLASSNAME << " Body tracker initialization failed on camera " << serial << std::endl;
