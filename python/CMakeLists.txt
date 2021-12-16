@@ -33,7 +33,8 @@ if(Python3_FOUND)
 		COMMAND ${Python3_EXECUTABLE} test_cwipc_kinect.py
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 	)
-
+	set_tests_properties(cwipc_kinect_python_tests PROPERTIES RUN_SERIAL TRUE)
+	
 	# Ensure the cwipc_kinect dynamic library and cwipc python module can be found by the tests
 	if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 		set_property(TEST cwipc_kinect_python_tests PROPERTY ENVIRONMENT DYLD_LIBRARY_PATH=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}:$ENV{DYLD_LIBRARY_PATH})
