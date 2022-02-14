@@ -669,7 +669,9 @@ protected:
 			if (point.r == 0 && point.g == 0 && point.b == 0 && alpha == 0) continue;
 			point.x = x;
 			point.y = y;
-			point.z = z;
+			point.z = z; 
+			if (configuration.camera_config.map_color_to_depth)
+				transformDepthToColorPoint(point);
 			transformPoint(point);
 			if (configuration.radius_filter > 0.0) { // apply radius filter
 				if(!isPointInRadius(point, configuration.radius_filter)) continue;
