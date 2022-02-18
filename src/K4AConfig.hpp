@@ -58,6 +58,7 @@ struct K4ACaptureConfig {
 	double height_min = 0.0;			  // If height_min != height_max perform height filtering
 	double height_max = 0.0;			  // If height_min != height_max perform height filtering
 	double radius_filter = 0.0;			// If radius_filter > 0 we will remove all points further than radius_filter from the (0,1,0) axis
+	int single_tile = -1;				// if singletile >=0 all the points will be the specified integer
 
 	std::string sync_master_serial = "";  // If empty run without sync. If non-empty this camera is the sync master
 

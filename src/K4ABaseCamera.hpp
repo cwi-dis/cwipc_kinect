@@ -663,7 +663,12 @@ protected:
 			point.r = color_data[i_rgba + 2];
 			point.g = color_data[i_rgba + 1];
 			point.b = color_data[i_rgba + 0];
-			point.a = (uint8_t)1 << camera_index;
+			if (configuration.single_tile >= 0) {
+				point.a = configuration.single_tile;
+			}
+			else {
+				point.a = (uint8_t)1 << camera_index;
+			}
 			uint8_t alpha = color_data[i_rgba + 3];
 
 			if (point.r == 0 && point.g == 0 && point.b == 0 && alpha == 0) continue;
