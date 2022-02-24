@@ -38,8 +38,15 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 	//
 	(void)_init_config_from_configfile(configFilename);
 	int camera_count = 0;
-	for (auto data : configuration.camera_data) {
-		if (data.disabled == false) camera_count++;
+	for (std::vector<K4ACameraData>::iterator it = configuration.camera_data.begin(); it != configuration.camera_data.end();) {
+		if (it->disabled) {
+			std::cout << CLASSNAME << ": Camera " << it->serial << " is disabled in cameraconfig.xml" << std::endl;
+			it = configuration.camera_data.erase(it); // we remove the cameradata from config as we don't plan to use it in this session.
+		}
+		else {
+			camera_count++;
+			++it;
+		}
 	}
 	std::vector<Type_api_camera> camera_handles(camera_count, nullptr);
 	if (!_open_recording_files(camera_handles)) {
