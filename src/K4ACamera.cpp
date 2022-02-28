@@ -78,7 +78,7 @@ bool K4ACamera::start()
 		std::cerr << "cwipc_kinect: failed to start camera " << serial << std::endl;
 		return false;
 	}
-	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". color_height=" << color_height << ", depth_height=" << depth_height << " map_color_to_depth=" << camSettings.map_color_to_depth << " @" << camera_fps << "fps as " << (camera_sync_inuse ? (camera_sync_ismaster? "Master" : "Subordinate") : "Standalone") << std::endl;
+	std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". color_height=" << configuration.color_height << ", depth_height=" << configuration.depth_height << " map_color_to_depth=" << configuration.camera_config.map_color_to_depth << " @" << configuration.fps << "fps as " << (camera_sync_inuse ? (camera_sync_ismaster? "Master" : "Subordinate") : "Standalone") << std::endl;
 	
 	camera_started = true;
 	return true;
@@ -86,7 +86,7 @@ bool K4ACamera::start()
 
 bool K4ACamera::_setup_device(k4a_device_configuration_t& device_config) {
 	device_config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
-	switch (color_height) {
+	switch (configuration.color_height) {
 	case 720:
 		device_config.color_resolution = K4A_COLOR_RESOLUTION_720P;
 		break;
@@ -106,10 +106,10 @@ bool K4ACamera::_setup_device(k4a_device_configuration_t& device_config) {
 		device_config.color_resolution = K4A_COLOR_RESOLUTION_3072P;
 		break;
 	default:
-		std::cerr << "cwipc_kinect: invalid color_height: " << color_height << std::endl;
+		std::cerr << "cwipc_kinect: invalid color_height: " << configuration.color_height << std::endl;
 		return false;
 	}
-	switch (depth_height) {
+	switch (configuration.depth_height) {
 	case 288:
 		device_config.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
 		break;
@@ -123,10 +123,10 @@ bool K4ACamera::_setup_device(k4a_device_configuration_t& device_config) {
 		device_config.depth_mode = K4A_DEPTH_MODE_WFOV_UNBINNED;
 		break;
 	default:
-		std::cerr << "cwipc_kinect: invalid depth_height: " << depth_height << std::endl;
+		std::cerr << "cwipc_kinect: invalid depth_height: " << configuration.depth_height << std::endl;
 		return false;
 	}
-	switch (camera_fps) {
+	switch (configuration.fps) {
 	case 5:
 		device_config.camera_fps = K4A_FRAMES_PER_SECOND_5;
 		break;
@@ -137,7 +137,7 @@ bool K4ACamera::_setup_device(k4a_device_configuration_t& device_config) {
 		device_config.camera_fps = K4A_FRAMES_PER_SECOND_30;
 		break;
 	default:
-		std::cerr << "cwipc_kinect: invalid camera_fps: " << camera_fps << std::endl;
+		std::cerr << "cwipc_kinect: invalid camera_fps: " << configuration.fps << std::endl;
 		return false;
 	}
 
@@ -169,19 +169,25 @@ void K4ACamera::stop()
 	if (processing_thread) processing_thread->join();
 	delete processing_thread;
 
+	if (tracker_handle) {
+		//Stop body tracker
+		k4abt_tracker_shutdown(tracker_handle);
+		k4abt_tracker_destroy(tracker_handle);
+		tracker_handle = nullptr;
+	}
 	if (camera_started) {
 		// Stop camera
 		k4a_device_stop_cameras(camera_handle);
 		camera_started = false;
 	}
+	if (camera_handle) {
+		k4a_device_close(camera_handle);
+		camera_handle = nullptr;
+	}
 	// Delete objects
 	if (current_frameset != NULL) {
 		k4a_capture_release(current_frameset);
 		current_frameset = NULL;
-	}
-	if (camera_handle) {
-		k4a_device_close(camera_handle);
-		camera_handle = nullptr;
 	}
 	if (transformation_handle) {
 		k4a_transformation_destroy(transformation_handle);
@@ -189,10 +195,6 @@ void K4ACamera::stop()
 	}	
 	processing_done = true;
 	processing_done_cv.notify_one();
-	if (tracker_handle) {
-		k4abt_tracker_destroy(tracker_handle);
-		tracker_handle = nullptr;
-	}
 }
 
 void K4ACamera::start_capturer()

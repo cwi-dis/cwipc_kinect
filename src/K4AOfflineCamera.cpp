@@ -137,15 +137,14 @@ bool K4AOfflineCamera::_prepare_cond_next_valid_frame(uint64_t master_timestamp)
 bool K4AOfflineCamera::start() {
 	// We don't have to start anything (opening the file did that) but
 	// we do have to get the RGB<->D transformation.
-	k4a_calibration_t calibration;
-	if (K4A_RESULT_SUCCEEDED != k4a_playback_get_calibration(camera_handle, &calibration))
+	if (K4A_RESULT_SUCCEEDED != k4a_playback_get_calibration(camera_handle, &sensor_calibration))
 	{
 		std::cerr << CLASSNAME << ":  Failed to k4a_device_get_calibration" << std::endl;
 		camera_started = false;
 		return false;
 	}
 	depth_to_color_extrinsics = sensor_calibration.extrinsics[0][1];
-	transformation_handle = k4a_transformation_create(&calibration);
+	transformation_handle = k4a_transformation_create(&sensor_calibration);
 
 	if (xy_table == NULL) {	// generate xy_table
 		create_xy_table(&calibration);

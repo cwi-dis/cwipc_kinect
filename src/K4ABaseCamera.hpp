@@ -16,6 +16,10 @@
 #include "K4AConfig.hpp"
 #include "readerwriterqueue.h"
 
+// Check which K4ABT version we have
+# if K4ABT_VERSION_MAJOR >= 1 && K4ABT_VERSION_MINOR >= 1
+#define K4ABT_SUPPORTS_MODEL_PATH
+#endif
 
 // Define to get (a little) debug prints
 #undef CWIPC_DEBUG
@@ -114,10 +118,8 @@ public:
 	bool eof = false;	//<! True when end of file reached on this camera stream
 protected:
 	std::string CLASSNAME;
+	K4ACaptureConfig& configuration;
 	Type_api_camera camera_handle;
-//	double minx = 0;
-//	double minz = 0;
-//	double maxz = 0;
 	int camera_index;	//<! For messages only
 	bool stopped = true;	//<! True when stopping
 	bool camera_started = false;	//<! True when camera hardware is grabbing
@@ -126,22 +128,14 @@ protected:
 	K4ACameraData& camData;	//<! Per-camera data for this camera
 	bool want_auxdata_skeleton = false;	//<! True if caller wants skeleton auxdata
 	std::vector<k4abt_skeleton_t> skeletons; //<! Skeletons extracted using the body tracking sdk
-	K4ACameraConfig& camSettings;	//<! Settings for all cameras
 	cwipc_pcl_pointcloud current_pointcloud = nullptr;	//<! Most recent grabbed pointcloud
 	k4a_transformation_t transformation_handle = nullptr;	//<! k4a structure describing relationship between RGB and D cameras
 	moodycamel::BlockingReaderWriterQueue<k4a_capture_t> captured_frame_queue;	//<! Frames from capture-thread, waiting to be inter-camera synchronized
 	moodycamel::BlockingReaderWriterQueue<k4a_capture_t> processing_frame_queue;	//<! Synchronized frames, waiting for processing thread
 	k4a_capture_t current_frameset = nullptr;	//<! Current frame being moved from captured_frame_queue to processing_frame_queue
-	int color_height;	//<! Parameter from camData
-	int depth_height;	//<! Parameter from camData
-	int camera_fps;	//<! Parameter from camData
 	bool camera_sync_ismaster;	//<! Parameter from camData
 	bool camera_sync_inuse;	//<! Parameter from camData
-	bool do_greenscreen_removal;	//<! Parameter from camData
 	bool do_height_filtering;	//<! Parameter from camData
-	double height_min;	//<! Parameter from camData
-	double height_max;	//<! Parameter from camData
-	double radius_filter;	//<! Parameter from camData
 	std::mutex processing_mutex;	//<! Exclusive lock for frame to pointcloud processing.
 	std::condition_variable processing_done_cv;	//<! Condition variable signalling pointcloud ready
 	bool processing_done = false;	//<! Boolean for processing_done_cv
@@ -152,25 +146,18 @@ protected:
 	int pc_gen_version = 2;
 	k4a_calibration_extrinsics_t depth_to_color_extrinsics;	//<! k4a calibration data read from hardware camera or recording
 public:
-	K4ABaseCamera(const std::string& _Classname, Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData)
+	K4ABaseCamera(const std::string& _Classname, Type_api_camera _handle, K4ACaptureConfig& _configuration, int _camera_index, K4ACameraData& _camData)
 	:	CLASSNAME(_Classname),
+		configuration(_configuration),
 		camera_handle(_handle),
 		camData(_camData),
-		camSettings(configuration.camera_config),
 		camera_index(_camera_index),
 		serial(_camData.serial),
 		captured_frame_queue(1),
 		processing_frame_queue(1),
-		color_height(configuration.color_height),
-		depth_height(configuration.depth_height),
-		camera_fps(configuration.fps),
 		camera_sync_ismaster(serial == configuration.sync_master_serial),
 		camera_sync_inuse(configuration.sync_master_serial != ""),
-		do_greenscreen_removal(configuration.greenscreen_removal),
-		do_height_filtering(configuration.height_min != configuration.height_max),
-		height_min(configuration.height_min),
-		height_max(configuration.height_max),
-		radius_filter(configuration.radius_filter)
+		do_height_filtering(configuration.height_min != configuration.height_max)
 	{
 
 	}
@@ -181,8 +168,11 @@ public:
 		std::cout << CLASSNAME << ": destroying " << serial << std::endl;
 #endif
 		assert(stopped);
-		if (tracker_handle) k4abt_tracker_destroy(tracker_handle);
-		tracker_handle = nullptr;
+		if (tracker_handle) {
+			k4abt_tracker_shutdown(tracker_handle);
+			k4abt_tracker_destroy(tracker_handle);
+			tracker_handle = nullptr;
+		}
 	}
 
 
@@ -314,13 +304,27 @@ protected:
 	virtual bool _init_tracker() final {
 		if (tracker_handle != NULL) return true;
 		k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
+		tracker_config.processing_mode = K4ABT_TRACKER_PROCESSING_MODE_CPU;
+		if (configuration.bt_processing_mode >= 0) {
+			tracker_config.processing_mode = (k4abt_tracker_processing_mode_t)configuration.bt_processing_mode;
+		}
+		if (configuration.bt_sensor_orientation >= 0) {
+			tracker_config.sensor_orientation = (k4abt_sensor_orientation_t)configuration.bt_sensor_orientation;
+		}
+#ifdef K4ABT_SUPPORTS_MODEL_PATH
+		if (configuration.bt_model_path != "") {
+			tracker_config.model_path = configuration.bt_model_path.c_str();
+		}
+#endif
 		auto sts = k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle);
+		char* processingModesStr[] = { "GPU", "CPU", "GPU_CUDA", "GPU_TENSORRT", "GPU_DIRECTML"	};
+		char* sensorOrientationsStr[] = { "Default", "Clockwise_90", "CounterClockwise_90", "Flip_180" };
 		if (sts != K4A_RESULT_SUCCEEDED) {
-			cwipc_k4a_log_warning("Body tracker initialization failed");
+			std::cerr << CLASSNAME << " Body tracker initialization failed on camera " << serial << " processing_mode=" << processingModesStr[tracker_config.processing_mode] << " sensor_orientation=" << sensorOrientationsStr[tracker_config.sensor_orientation] << std::endl;
 			return false;
 		}
 		else {
-			std::cout << CLASSNAME << "Body tracker initialization succeeded" << std::endl;
+			std::cout << CLASSNAME << " Body tracker initialization succeeded on camera " << serial << " processing_mode=" << processingModesStr[tracker_config.processing_mode] << " sensor_orientation=" << sensorOrientationsStr[tracker_config.sensor_orientation] << std::endl;
 		}
 		return true;
 	}
@@ -414,10 +418,10 @@ protected:
 				if (pop_frame_result == K4A_WAIT_RESULT_SUCCEEDED)
 				{
 					uint32_t num_bodies = k4abt_frame_get_num_bodies(body_frame);
-					std::cout << CLASSNAME << " : Popout frame from tracker. Numbodies = " << num_bodies << std::endl;
+#ifdef CWIPC_DEBUG_THREAD
+					std::cout << CLASSNAME << " : " << serial << " - Numbodies = " << num_bodies << std::endl;
+#endif
 					if (num_bodies > 0) {
-						//printf("\n%u bodies are detected in Camera %i\n", num_bodies, camera_index);
-
 						// Transform each 3d joints from 3d depth space to 2d color image space
 						for (uint32_t i = 0; i < num_bodies; i++)
 						{
@@ -435,7 +439,7 @@ protected:
 								point.x = pos.x;
 								point.y = pos.y;
 								point.z = pos.z;
-								if (!camSettings.map_color_to_depth)
+								if (!configuration.camera_config.map_color_to_depth)
 									transformDepthToColorPoint(point);
 								transformPoint(point);
 								pos.x = point.x;
@@ -463,7 +467,7 @@ protected:
 
 
 			cwipc_pcl_pointcloud new_pointcloud = nullptr;
-			if (camSettings.map_color_to_depth) {
+			if (configuration.camera_config.map_color_to_depth) {
 				new_pointcloud = generate_point_cloud_color_to_depth(depth_image, color_image);
 			}
 			else {
@@ -512,20 +516,20 @@ protected:
 	}
 
 	virtual void _filter_depth_data(int16_t* depth_values, int width, int height) final {
-		int16_t min_depth = (int16_t)(camSettings.threshold_near * 1000);
-		int16_t max_depth = (int16_t)(camSettings.threshold_far * 1000);
+		int16_t min_depth = (int16_t)(configuration.camera_config.threshold_near * 1000);
+		int16_t max_depth = (int16_t)(configuration.camera_config.threshold_far * 1000);
 		int16_t *z_values = (int16_t *)calloc(width * height, sizeof(int16_t));
 		// Pass one: Copy Z values to temporary buffer, but leave out-of-range values at zero.
 		for (int i = 0; i < width * height; i++)
 		{
 			int i_pc = i * 3;
 			int16_t z = depth_values[i_pc + 2];
-			if (camSettings.do_threshold && (z <= min_depth || z >= max_depth)) continue;
+			if (configuration.camera_config.do_threshold && (z <= min_depth || z >= max_depth)) continue;
 			z_values[i] = z;
 		}
 		// Pass two: loop for zero pixels in temp buffer, and clear out x/y pixels adjacent in depth buffer
-		int x_delta = camSettings.depth_x_erosion;
-		int y_delta = camSettings.depth_y_erosion;
+		int x_delta = configuration.camera_config.depth_x_erosion;
+		int y_delta = configuration.camera_config.depth_y_erosion;
 		if (x_delta || y_delta) {
 			for (int x = 0; x < width; x++) {
 				for (int y = 0; y < height; y++) {
@@ -682,8 +686,8 @@ protected:
 
 		uint8_t * color_data = k4a_image_get_buffer(color_image);
 		int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
-		if (camSettings.do_threshold || camSettings.depth_x_erosion || camSettings.depth_y_erosion) {
-			//_filter_depth_data(point_cloud_image_data, width, height);
+		if (configuration.camera_config.do_threshold || configuration.camera_config.depth_x_erosion || configuration.camera_config.depth_y_erosion) {
+			_filter_depth_data(point_cloud_image_data, width, height);
 		}
 		// Setup depth filtering, if needed
 		// now loop over images and create points.
@@ -704,19 +708,26 @@ protected:
 			point.r = color_data[i_rgba + 2];
 			point.g = color_data[i_rgba + 1];
 			point.b = color_data[i_rgba + 0];
-			point.a = (uint8_t)1 << camera_index;
+			if (configuration.single_tile >= 0) {
+				point.a = configuration.single_tile;
+			}
+			else {
+				point.a = (uint8_t)1 << camera_index;
+			}
 			uint8_t alpha = color_data[i_rgba + 3];
 
 			if (point.r == 0 && point.g == 0 && point.b == 0 && alpha == 0) continue;
 			point.x = x;
 			point.y = y;
-			point.z = z;
+			point.z = z; 
+			if (configuration.camera_config.map_color_to_depth)
+				transformDepthToColorPoint(point);
 			transformPoint(point);
-			if (radius_filter > 0.0) { // apply radius filter
-				if(!isPointInRadius(point, radius_filter)) continue;
+			if (configuration.radius_filter > 0.0) { // apply radius filter
+				if(!isPointInRadius(point, configuration.radius_filter)) continue;
 			}
-			if (do_height_filtering && (point.y < height_min || point.y > height_max)) continue;
-			if (!do_greenscreen_removal || isNotGreen(&point)) // chromakey removal
+			if (do_height_filtering && (point.y < configuration.height_min || point.y > configuration.height_max)) continue;
+			if (!configuration.greenscreen_removal || isNotGreen(&point)) // chromakey removal
 				new_cloud->push_back(point);
 		}
 #ifdef CWIPC_DEBUG_THREAD

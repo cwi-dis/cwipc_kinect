@@ -17,7 +17,6 @@ project(cwipc_kinect)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/CMakeFiles)
 
-# option(BUILD_GRAPHICAL_EXAMPLES "Build graphical examples and tools." ON)
 option(BUILD_SHARED_LIBS "Build shared library" ON)
 
 include(CTest)
@@ -38,9 +37,9 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 endif()
 
 #
-# Find PCL. 1.11 is expected
+# Find PCL. 1.10-1.12 is expected
 #
-find_package(PCL REQUIRED COMPONENTS common io visualization filters) 
+find_package(PCL 1.10 REQUIRED COMPONENTS common io filters) 
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})

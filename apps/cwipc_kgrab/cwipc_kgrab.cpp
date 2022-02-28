@@ -7,7 +7,7 @@
 #include "cwipc_util/api.h"
 #include "cwipc_kinect/api.h"
 
-#undef DEBUG_AUXDATA
+#define DEBUG_AUXDATA
 
 int main(int argc, char** argv)
 {
@@ -39,7 +39,7 @@ int main(int argc, char** argv)
 #ifdef DEBUG_AUXDATA
     generator->request_auxiliary_data("rgb");
     generator->request_auxiliary_data("depth");
-    generator->request_auxiliary_data("skeletons");
+    generator->request_auxiliary_data("skeleton");
 #endif
 
     int ok = 0;

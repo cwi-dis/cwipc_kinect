@@ -58,11 +58,15 @@ struct K4ACaptureConfig {
 	double height_min = 0.0;			  // If height_min != height_max perform height filtering
 	double height_max = 0.0;			  // If height_min != height_max perform height filtering
 	double radius_filter = 0.0;			// If radius_filter > 0 we will remove all points further than radius_filter from the (0,1,0) axis
+	int single_tile = -1;				// if singletile >=0 all the points will be the specified integer
 
 	std::string sync_master_serial = "";  // If empty run without sync. If non-empty this camera is the sync master
 
 	K4ACameraConfig camera_config;
-	
+	int bt_sensor_orientation = -1;	// Override k4abt sensor_orientation (if >= 0)
+	int bt_processing_mode = -1;	// Override k4abt processing_mode (if >= 0)
+	std::string bt_model_path = "";			// Override k4abt model path
+	// We could probably also allow overriding GPU id and model path, but no need for now.
 	// per camera data
 	std::vector<K4ACameraData> camera_data;
 };

@@ -83,6 +83,7 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		systemElement->QueryIntAttribute("color_height", &(config->color_height));
 		systemElement->QueryIntAttribute("depth_height", &(config->depth_height));
 		systemElement->QueryIntAttribute("fps", &(config->fps));
+		systemElement->QueryIntAttribute("single_tile", &(config->single_tile));
 		const char* serial_str = systemElement->Attribute("sync_master_serial");
 		if (serial_str && *serial_str) {
 			config->sync_master_serial = serial_str;
@@ -116,6 +117,15 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 			parameterElement->QueryDoubleAttribute("threshold_far", &(config->camera_config.threshold_far));
 			parameterElement->QueryIntAttribute("depth_x_erosion", &(config->camera_config.depth_x_erosion));
 			parameterElement->QueryIntAttribute("depth_y_erosion", &(config->camera_config.depth_y_erosion));
+		}
+		TiXmlElement* btElement = configElement->FirstChildElement("skeleton");
+		if (btElement) {
+			btElement->QueryIntAttribute("sensor_orientation", &(config->bt_sensor_orientation));
+			btElement->QueryIntAttribute("processing_mode", &(config->bt_processing_mode));
+			const char* model_path = btElement->Attribute("model_path");
+			if (model_path && *model_path) {
+				config->bt_model_path = std::string(model_path);
+			}
 		}
     }
     
