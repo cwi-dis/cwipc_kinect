@@ -499,7 +499,7 @@ protected:
 	}
 
 	virtual void _filter_depthmap(k4a_image_t depth_image) {
-		if (camSettings.do_threshold) {
+		if (configuration.camera_config.do_threshold) {
 			uint16_t* depth_data = (uint16_t*)(void*)k4a_image_get_buffer(depth_image);
 
 			int width = k4a_image_get_width_pixels(depth_image);
@@ -508,7 +508,7 @@ protected:
 			for (int i = 0; i < width * height; i++) {
 				if (depth_data[i] != 0) {
 					float z = ((float)depth_data[i]) / 1000.0;
-					if (z <= camSettings.threshold_near || z >= camSettings.threshold_far)
+					if (z <= configuration.camera_config.threshold_near || z >= configuration.camera_config.threshold_far)
 						depth_data[i] = 0;
 				}
 			}
@@ -741,7 +741,7 @@ protected:
 		std::cout << "generating xy table" << std::endl;
 		int width;
 		int height;
-		if (camSettings.map_color_to_depth) {
+		if (configuration.camera_config.map_color_to_depth) {
 			width = calibration->depth_camera_calibration.resolution_width;
 			height = calibration->depth_camera_calibration.resolution_height;
 		}
@@ -772,7 +772,7 @@ protected:
 			for (int x = 0; x < width; x++, idx++)
 			{
 				p.xy.x = (float)x;
-				if (camSettings.map_color_to_depth) {
+				if (configuration.camera_config.map_color_to_depth) {
 					k4a_calibration_2d_to_3d(
 						calibration, &p, 1.f, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_DEPTH, &ray, &valid);
 				}
@@ -801,8 +801,8 @@ protected:
 		int width = k4a_image_get_width_pixels(depth_image);
 		int height = k4a_image_get_height_pixels(depth_image);
 
-		float min_depth = (camSettings.threshold_near);
-		float max_depth = (camSettings.threshold_far);
+		float min_depth = (configuration.camera_config.threshold_near);
+		float max_depth = (configuration.camera_config.threshold_far);
 
 		//access depth and color data
 		uint16_t* depth_data = (uint16_t*)(void*)k4a_image_get_buffer(depth_image);
@@ -824,14 +824,16 @@ protected:
 				point.g = color_data[i].bgra.g;
 				point.r = color_data[i].bgra.r;
 				point.a = (uint8_t)1 << camera_index;
-				
+
+				if (configuration.camera_config.map_color_to_depth)
+					transformDepthToColorPoint(point);
 				transformPoint(point); //transforming from camera to world coordinates
 
-				if (do_height_filtering && (point.y < height_min || point.y > height_max)) continue; //height filtering
-				if (radius_filter > 0.0) { // apply radius filter
-					if (!isPointInRadius(point, radius_filter)) continue;
+				if (do_height_filtering && (point.y < configuration.height_min || point.y > configuration.height_max)) continue; //height filtering
+				if (configuration.radius_filter > 0.0) { // apply radius filter
+					if (!isPointInRadius(point, configuration.radius_filter)) continue;
 				}
-				if (do_greenscreen_removal && !isNotGreen(&point)) continue; // chromakey removal
+				if (configuration.greenscreen_removal && !isNotGreen(&point)) continue; // chromakey removal
 				//point passed all filters, so we add this to the pointcloud
 				new_cloud->push_back(point);
 			}

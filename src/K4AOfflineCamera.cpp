@@ -147,7 +147,7 @@ bool K4AOfflineCamera::start() {
 	transformation_handle = k4a_transformation_create(&sensor_calibration);
 
 	if (xy_table == NULL) {	// generate xy_table
-		create_xy_table(&calibration);
+		create_xy_table(&sensor_calibration);
 	}
 
 	//Get file config for further use of the parameters.
