@@ -112,8 +112,12 @@ void K4ACapture::_update_config_from_devices() {
 	// collect all camera's in the config that are connected
 	for (K4ACameraData cd : configuration.camera_data) {
 #if 1 // xxxjack find() doesn't work??!?
-		if(!cd.disabled)
+		if (cd.disabled) {
+			std::cout << "Camera " << cd.serial << " is disabled in cameraconfig.xml" << std::endl;
+		}
+		else {
 			realcams.push_back(cd);
+		}
 #else
 		if ((find(serials.begin(), serials.end(), cd.serial) != serials.end()))
 			realcams.push_back(cd);
