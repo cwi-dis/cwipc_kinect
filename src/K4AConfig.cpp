@@ -84,7 +84,6 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		systemElement->QueryIntAttribute("depth_height", &(config->depth_height));
 		systemElement->QueryIntAttribute("fps", &(config->fps));
 		systemElement->QueryIntAttribute("single_tile", &(config->single_tile));
-		systemElement->QueryIntAttribute("pc_gen_version", &(config->pc_gen_version));
 		const char* serial_str = systemElement->Attribute("sync_master_serial");
 		if (serial_str && *serial_str) {
 			config->sync_master_serial = serial_str;

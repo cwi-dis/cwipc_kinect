@@ -28,6 +28,7 @@
 #undef CWIPC_DEBUG
 #undef CWIPC_DEBUG_THREAD
 #undef CWIPC_MEMORY_DEBUG
+#undef CWIPC_PC_GENERATION_OLD
 
 #ifdef CWIPC_MEMORY_DEBUG
 #include <vld.h>
@@ -147,7 +148,6 @@ protected:
 	k4a_calibration_t sensor_calibration;	//<! k4a calibration data read from hardware camera or recording
 	k4a_calibration_extrinsics_t depth_to_color_extrinsics;	//<! k4a calibration data read from hardware camera or recording
 	k4a_image_t xy_table = NULL;
-	int pc_gen_version = 1;
 public:
 	K4ABaseCamera(const std::string& _Classname, Type_api_camera _handle, K4ACaptureConfig& _configuration, int _camera_index, K4ACameraData& _camData)
 	:	CLASSNAME(_Classname),
@@ -160,11 +160,12 @@ public:
 		processing_frame_queue(1),
 		camera_sync_ismaster(serial == configuration.sync_master_serial),
 		camera_sync_inuse(configuration.sync_master_serial != ""),
-		do_height_filtering(configuration.height_min != configuration.height_max),
-		pc_gen_version(configuration.pc_gen_version) //xxxnacho
+		do_height_filtering(configuration.height_min != configuration.height_max)
 	{
 
-		std::cout << "Using pc_gen_version = " << pc_gen_version << std::endl; //xxxnacho testing
+#ifdef CWIPC_PC_GENERATION_OLD
+		std::cout << "Using CWIPC_PC_GENERATION_OLD " << std::endl;
+#endif
 	}
 	
 	~K4ABaseCamera()
@@ -467,9 +468,10 @@ protected:
 
 			// get depth and color images. Apply filters and uncompress color image if needed
 			depth_image = k4a_capture_get_depth_image(processing_frameset);
-			if (pc_gen_version == 2) {
-				_filter_depth_image(depth_image);	//filtering depthmap => better now because if we map depth to color then we need to filter more points.
-			}
+
+#ifndef CWIPC_PC_GENERATION_OLD
+			_filter_depth_image(depth_image);	//filtering depthmap => better now because if we map depth to color then we need to filter more points.
+#endif
 			color_image = k4a_capture_get_color_image(processing_frameset);
 			color_image = _uncompress_color_image(processing_frameset, color_image);
 
@@ -621,34 +623,33 @@ protected:
 		}
 
 		cwipc_pcl_pointcloud rv;
-		if (pc_gen_version == 1) { // pc_gen_v1
-			k4a_image_t point_cloud_image = NULL;
-			status = k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
-				depth_image_width_pixels,
-				depth_image_height_pixels,
-				depth_image_width_pixels * 3 * (int)sizeof(int16_t),
-				&point_cloud_image);
-			if (status != K4A_RESULT_SUCCEEDED)
-			{
-				std::cerr << "cwipc_kinect: Failed to create point cloud image: " << status << std::endl;
-				return nullptr;
-			}
-			status = k4a_transformation_depth_image_to_point_cloud(transformation_handle,
-				depth_image,
-				K4A_CALIBRATION_TYPE_DEPTH,
-				point_cloud_image);
-			if (status != K4A_RESULT_SUCCEEDED)
-			{
-				std::cerr << "cwipc_kinect: Failed to compute point cloud: " << status << std::endl;
-				return nullptr;
-			}
+#ifdef CWIPC_PC_GENERATION_OLD
+		k4a_image_t point_cloud_image = NULL;
+		status = k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
+			depth_image_width_pixels,
+			depth_image_height_pixels,
+			depth_image_width_pixels * 3 * (int)sizeof(int16_t),
+			&point_cloud_image);
+		if (status != K4A_RESULT_SUCCEEDED)
+		{
+			std::cerr << "cwipc_kinect: Failed to create point cloud image: " << status << std::endl;
+			return nullptr;
+		}
+		status = k4a_transformation_depth_image_to_point_cloud(transformation_handle,
+			depth_image,
+			K4A_CALIBRATION_TYPE_DEPTH,
+			point_cloud_image);
+		if (status != K4A_RESULT_SUCCEEDED)
+		{
+			std::cerr << "cwipc_kinect: Failed to compute point cloud: " << status << std::endl;
+			return nullptr;
+		}
 
-			rv = generate_point_cloud(point_cloud_image, transformed_color_image);
-			k4a_image_release(point_cloud_image);
-		}
-		else { // pc_gen v2
-			rv = generate_point_cloud_v2(depth_image, transformed_color_image);
-		}
+		rv = generate_point_cloud(point_cloud_image, transformed_color_image);
+		k4a_image_release(point_cloud_image);
+#else
+		rv = generate_point_cloud_v2(depth_image, transformed_color_image);
+#endif
 
 		k4a_image_release(transformed_color_image);
 
@@ -680,34 +681,33 @@ protected:
 		}
 
 		cwipc_pcl_pointcloud rv;
-		if (pc_gen_version == 1) { // pc_gen_v1
-			k4a_image_t point_cloud_image = NULL;
-			status = k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
-				color_image_width_pixels,
-				color_image_height_pixels,
-				color_image_width_pixels * 3 * (int)sizeof(int16_t),
-				&point_cloud_image);
-			if (status != K4A_RESULT_SUCCEEDED)
-			{
-				std::cerr << "cwipc_kinect: Failed to create point cloud image: " << status << std::endl;
-				return nullptr;
-			}
-			status = k4a_transformation_depth_image_to_point_cloud(transformation_handle,
-				transformed_depth_image,
-				K4A_CALIBRATION_TYPE_COLOR,
-				point_cloud_image);
-			if (status != K4A_RESULT_SUCCEEDED)
-			{
-				std::cerr << "cwipc_kinect: Failed to compute point cloud: " << status << std::endl;
-				return nullptr;
-			}
+#ifdef CWIPC_PC_GENERATION_OLD
+		k4a_image_t point_cloud_image = NULL;
+		status = k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
+			color_image_width_pixels,
+			color_image_height_pixels,
+			color_image_width_pixels * 3 * (int)sizeof(int16_t),
+			&point_cloud_image);
+		if (status != K4A_RESULT_SUCCEEDED)
+		{
+			std::cerr << "cwipc_kinect: Failed to create point cloud image: " << status << std::endl;
+			return nullptr;
+		}
+		status = k4a_transformation_depth_image_to_point_cloud(transformation_handle,
+			transformed_depth_image,
+			K4A_CALIBRATION_TYPE_COLOR,
+			point_cloud_image);
+		if (status != K4A_RESULT_SUCCEEDED)
+		{
+			std::cerr << "cwipc_kinect: Failed to compute point cloud: " << status << std::endl;
+			return nullptr;
+		}
 
-			rv = generate_point_cloud(point_cloud_image, color_image);
-			k4a_image_release(point_cloud_image);
-		}
-		else { // pc_gen v2
-			rv = generate_point_cloud_v2(transformed_depth_image, color_image);
-		}
+		rv = generate_point_cloud(point_cloud_image, color_image);
+		k4a_image_release(point_cloud_image);
+#else
+		rv = generate_point_cloud_v2(transformed_depth_image, color_image);
+#endif
 
 		k4a_image_release(transformed_depth_image);
 
@@ -721,10 +721,12 @@ protected:
 		uint8_t * color_data = k4a_image_get_buffer(color_image);
 		int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
 
-		// Setup depth filtering, if needed (pc_gen_version == 1)
+#ifdef CWIPC_PC_GENERATION_OLD
 		if (configuration.camera_config.do_threshold || configuration.camera_config.depth_x_erosion || configuration.camera_config.depth_y_erosion) {
 			_filter_depth_data(point_cloud_image_data, width, height);
 		}
+#endif
+		
 		// now loop over images and create points.
 		cwipc_pcl_pointcloud new_cloud = new_cwipc_pcl_pointcloud();
 		new_cloud->clear();
@@ -773,7 +775,6 @@ protected:
 
 	virtual void create_xy_table(const k4a_calibration_t* calibration)
 	{
-		std::cout << "generating xy table" << std::endl;
 		int width;
 		int height;
 		if (configuration.camera_config.map_color_to_depth) {
