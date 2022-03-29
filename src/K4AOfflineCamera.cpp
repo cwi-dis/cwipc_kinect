@@ -146,7 +146,7 @@ bool K4AOfflineCamera::start() {
 	depth_to_color_extrinsics = sensor_calibration.extrinsics[0][1];
 	transformation_handle = k4a_transformation_create(&sensor_calibration);
 
-	if (xy_table == NULL) {	// generate xy_table
+	if (xy_table == NULL) {	// generate xy_table for the fast pc_gen v2
 		create_xy_table(&sensor_calibration);
 	}
 

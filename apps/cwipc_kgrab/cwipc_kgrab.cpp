@@ -76,7 +76,7 @@ int main(int argc, char** argv)
 		if (strcmp(outputdir, "-") != 0) {
 			snprintf(filename, sizeof(filename), "%s/pointcloud-%" PRIu64 ".ply", outputdir, pc->timestamp());
 	        std::cout << "-> Writing frame " << framenum << " with " << pc->count() << " points to "<< filename << std::endl;
-			ok = cwipc_write_ext(filename, pc, 1, &error);
+			ok = cwipc_write(filename, pc, &error);
 		} else {
 	        std::cout << "-> Dropping frame " << framenum << " with " << pc->count() << " points" << std::endl;
 		}

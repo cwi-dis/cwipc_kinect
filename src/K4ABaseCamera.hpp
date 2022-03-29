@@ -146,9 +146,9 @@ protected:
 
 	k4abt_tracker_t tracker_handle = nullptr;	//<! Handle to k4abt skeleton tracker
 	k4a_calibration_t sensor_calibration;	//<! k4a calibration data read from hardware camera or recording
+	k4a_calibration_extrinsics_t depth_to_color_extrinsics;	//<! k4a calibration data read from hardware camera or recording
 	k4a_image_t xy_table = NULL;
 	int pc_gen_version = 1;
-	k4a_calibration_extrinsics_t depth_to_color_extrinsics;	//<! k4a calibration data read from hardware camera or recording
 public:
 	K4ABaseCamera(const std::string& _Classname, Type_api_camera _handle, K4ACaptureConfig& _configuration, int _camera_index, K4ACameraData& _camData)
 	:	CLASSNAME(_Classname),
@@ -516,25 +516,23 @@ protected:
 
 			int16_t min_depth = (int16_t)(configuration.camera_config.threshold_near * 1000);
 			int16_t max_depth = (int16_t)(configuration.camera_config.threshold_far * 1000);
-			// min depth should be > minimum_operating_range (250-500 for kinect). 0 means no data.
-			min_depth = (min_depth > 1) ? min_depth : 1;
-			// max depth should be >min_depth otherwise we use the maximum_operating_range (5460 for kinect).
-			max_depth = (max_depth > min_depth) ? max_depth : 5460;
+			min_depth = (min_depth > 1) ? min_depth : 1; // min depth should be > minimum_operating_range (250-500 for kinect). 0 means no data.
+			max_depth = (max_depth > min_depth) ? max_depth : 5460; // max depth should be >min_depth otherwise we use the maximum_operating_range (5460 for kinect).
 
-			//First we create the depth material from the depth_data
+			// First we create the depth material from the depth_data
 			cv::Mat depth_in(height, width, CV_16UC1, depth_buffer);
 #ifdef CWIPC_DEBUG_IMAGES
 			cv::imwrite("test/depth_in_" + std::to_string(k4a_image_get_device_timestamp_usec(depth_image)) + ".png", depth_in);
 #endif
 
-			//DISTANCE FILTER: we create a mask to filter data using the distance thresholds
+			// DISTANCE FILTER: we create a mask to filter data using the distance thresholds
 			cv::Mat mask = cv::Mat::ones(height, width, CV_8UC1);
 			cv::inRange(depth_in, min_depth, max_depth, mask); //we check if the depth values are in the wanted range and create a mask
 #ifdef CWIPC_DEBUG_IMAGES
 			cv::imwrite("test/mask_" + std::to_string(k4a_image_get_device_timestamp_usec(depth_image)) + ".png", mask);
 #endif
 
-			//EROSION FILTER: if erosion wanted, we will erode the mask using a kernel.
+			// EROSION FILTER: if erosion wanted, we will erode the mask using a kernel.
 			int x_delta = configuration.camera_config.depth_x_erosion;
 			int y_delta = configuration.camera_config.depth_y_erosion;
 			if (x_delta || y_delta) {
@@ -554,11 +552,7 @@ protected:
 
 			//copy filtered_depthmap data back to initial depth_buffer
 			memcpy(depth_buffer, depth_out.data, depth_out.step * depth_out.rows);
-
-			// xxxNacho remember to clear all the Mats. 
-			//mat.release(); //UPDATE: I think this is not needed as OPENCV will clean as soon as they get out of scope.
 		}
-		//return depth_image;
 	}
 
 	virtual void _filter_depth_data(int16_t* depth_values, int width, int height) final {
@@ -608,15 +602,6 @@ protected:
 				depth_values[i_pc + 2] = 0;
 			}
 		}
-
-		/*for (int i = 0; i < width * height; i++)
-		{
-			int i_pc = i * 3;
-			int16_t z = depth_values[i_pc + 2];
-			z_values[i] = z;
-		}
-		cv::Mat depth_out(height, width, CV_16UC1, z_values);
-		cv::imwrite("test/depth_out.png", depth_out);*/
 
 		free(z_values);
 	}
@@ -675,7 +660,7 @@ protected:
 			k4a_image_release(point_cloud_image);
 		}
 		else { // pc_gen v2
-			rv = generate_k4a_point_cloud(depth_image, transformed_color_image);
+			rv = generate_point_cloud_v2(depth_image, transformed_color_image);
 		}
 
 		k4a_image_release(transformed_color_image);
@@ -734,7 +719,7 @@ protected:
 			k4a_image_release(point_cloud_image);
 		}
 		else { // pc_gen v2
-			rv = generate_k4a_point_cloud(transformed_depth_image, color_image);
+			rv = generate_point_cloud_v2(transformed_depth_image, color_image);
 		}
 
 		k4a_image_release(transformed_depth_image);
@@ -748,12 +733,11 @@ protected:
 
 		uint8_t * color_data = k4a_image_get_buffer(color_image);
 		int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
-		if (pc_gen_version == 1) {
-			if (configuration.camera_config.do_threshold || configuration.camera_config.depth_x_erosion || configuration.camera_config.depth_y_erosion) {
-				_filter_depth_data(point_cloud_image_data, width, height); // it is a bad idea to filter the depth here because we may have upscaled the depthmap already if map_depth_to_color 
-			}
+
+		// Setup depth filtering, if needed (pc_gen_version == 1)
+		if (configuration.camera_config.do_threshold || configuration.camera_config.depth_x_erosion || configuration.camera_config.depth_y_erosion) {
+			_filter_depth_data(point_cloud_image_data, width, height);
 		}
-		// Setup depth filtering, if needed
 		// now loop over images and create points.
 		cwipc_pcl_pointcloud new_cloud = new_cwipc_pcl_pointcloud();
 		new_cloud->clear();
@@ -859,7 +843,7 @@ protected:
 		}
 	}
 
-	virtual cwipc_pcl_pointcloud generate_k4a_point_cloud(const k4a_image_t depth_image,
+	virtual cwipc_pcl_pointcloud generate_point_cloud_v2(const k4a_image_t depth_image,
 		k4a_image_t color_image)
 	{
 		int width = k4a_image_get_width_pixels(depth_image);
