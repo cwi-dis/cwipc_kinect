@@ -28,7 +28,6 @@
 #undef CWIPC_DEBUG
 #undef CWIPC_DEBUG_THREAD
 #undef CWIPC_MEMORY_DEBUG
-#undef CWIPC_DEBUG_IMAGES
 
 #ifdef CWIPC_MEMORY_DEBUG
 #include <vld.h>
@@ -521,16 +520,10 @@ protected:
 
 			// First we create the depth material from the depth_data
 			cv::Mat depth_in(height, width, CV_16UC1, depth_buffer);
-#ifdef CWIPC_DEBUG_IMAGES
-			cv::imwrite("test/depth_in_" + std::to_string(k4a_image_get_device_timestamp_usec(depth_image)) + ".png", depth_in);
-#endif
 
 			// DISTANCE FILTER: we create a mask to filter data using the distance thresholds
 			cv::Mat mask = cv::Mat::ones(height, width, CV_8UC1);
 			cv::inRange(depth_in, min_depth, max_depth, mask); //we check if the depth values are in the wanted range and create a mask
-#ifdef CWIPC_DEBUG_IMAGES
-			cv::imwrite("test/mask_" + std::to_string(k4a_image_get_device_timestamp_usec(depth_image)) + ".png", mask);
-#endif
 
 			// EROSION FILTER: if erosion wanted, we will erode the mask using a kernel.
 			int x_delta = configuration.camera_config.depth_x_erosion;
@@ -538,17 +531,11 @@ protected:
 			if (x_delta || y_delta) {
 				cv::Mat kernel = cv::getStructuringElement(CV_16UC1, cv::Size(x_delta*2+1, y_delta*2+1), cv::Point(-1, -1)); //we want erosion on 4 directions. +-x, +-y.
 				cv::erode(mask, mask, kernel, cv::Point(-1, -1), 1);
-#ifdef CWIPC_DEBUG_IMAGES
-				cv::imwrite("test/mask_eroded_" + std::to_string(k4a_image_get_device_timestamp_usec(depth_image)) + ".png", mask);
-#endif
 			}
 			
 			//APPLYING THE MASK:
 			cv::Mat depth_out;
 			depth_in.copyTo(depth_out, mask); //we apply the mask
-#ifdef CWIPC_DEBUG_IMAGES
-			cv::imwrite("test/depth_out_" + std::to_string(k4a_image_get_device_timestamp_usec(depth_image)) + ".png", depth_out);
-#endif
 
 			//copy filtered_depthmap data back to initial depth_buffer
 			memcpy(depth_buffer, depth_out.data, depth_out.step * depth_out.rows);
