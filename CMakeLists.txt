@@ -56,6 +56,10 @@ find_package(JPEG_Turbo REQUIRED)
 include_directories(${JPEG_Turbo_INCLUDE_DIR})
 link_directories(${JPEG_Turbo_LIBRARY_DIR})
 
+# We need OpenCV for some image filtering
+
+find_package( OpenCV REQUIRED )
+include_directories( ${OpenCV_INCLUDE_DIRS} )
 
 # we need the thirdparty tinyXML for the test programs.
 include(third-party/tinyXML/CMakeLists.txt)
