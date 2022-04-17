@@ -323,8 +323,8 @@ protected:
 		}
 #endif
 		auto sts = k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle);
-		char* processingModesStr[] = { "GPU", "CPU", "GPU_CUDA", "GPU_TENSORRT", "GPU_DIRECTML"	};
-		char* sensorOrientationsStr[] = { "Default", "Clockwise_90", "CounterClockwise_90", "Flip_180" };
+		const char* processingModesStr[] = { "GPU", "CPU", "GPU_CUDA", "GPU_TENSORRT", "GPU_DIRECTML"	};
+		const char* sensorOrientationsStr[] = { "Default", "Clockwise_90", "CounterClockwise_90", "Flip_180" };
 		if (sts != K4A_RESULT_SUCCEEDED) {
 			std::cerr << CLASSNAME << " Body tracker initialization failed on camera " << serial << " processing_mode=" << processingModesStr[tracker_config.processing_mode] << " sensor_orientation=" << sensorOrientationsStr[tracker_config.sensor_orientation] << std::endl;
 			return false;
