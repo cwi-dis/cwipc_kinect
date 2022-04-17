@@ -4,8 +4,7 @@
 # Copyright (C) 2018 by CWI. All rights reserved.
 # ======================================================
 #
-#  minimum required cmake version: 3.10.0
-cmake_minimum_required(VERSION 3.10.0)
+cmake_minimum_required(VERSION 3.16.0)
 
 
 add_library(cwipc_kinect 
@@ -35,7 +34,7 @@ target_sources(cwipc_kinect
 )
 
 target_link_libraries(cwipc_kinect PUBLIC cwipc_util)
-target_link_libraries(cwipc_kinect PRIVATE ${PCL_LIBRARIES} ${KINECT_LIBRARIES} ${JPEG_Turbo_LIBRARIES} ${OpenCV_LIBS})
+target_link_libraries(cwipc_kinect PRIVATE ${PCL_LIBRARIES} k4a::k4a k4a::k4arecord k4a::k4abt ${OpenCV_LIBS} libjpeg-turbo::turbojpeg)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" AND CMAKE_BUILD_TYPE MATCHES "Release")
    target_compile_options(cwipc_kinect PRIVATE /Zi)
@@ -63,7 +62,7 @@ install(TARGETS cwipc_kinect
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_PREFIX}/include/cwipc_kinect"
+    PUBLIC_HEADER DESTINATION "include/cwipc_kinect"
 )
 
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/cwipc_kinect
