@@ -43,15 +43,15 @@
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-if(NOT K4A_ROOT)
-  set(K4A_ROOT "$ENV{PROGRAMW6432}/Azure Kinect SDK v1.4.1")
+if(NOT k4a_ROOT)
+  set(k4a_ROOT "$ENV{PROGRAMW6432}/Azure Kinect SDK v1.4.1")
 endif()
 
 find_path(k4a_INCLUDE_DIR
   NAMES
     k4a/k4a.h
   HINTS
-    "${K4A_ROOT}/sdk/"
+    "${k4a_ROOT}/sdk/"
   PATH_SUFFIXES
     include
 )
@@ -61,7 +61,7 @@ find_library(k4a_LIBRARY
     k4a.lib
     libk4a.so
   HINTS
-    "${K4A_ROOT}/sdk/windows-desktop/amd64/release"
+    "${k4a_ROOT}/sdk/windows-desktop/amd64/release"
   PATH_SUFFIXES
     lib
     x86_64-linux-gnu
@@ -72,7 +72,7 @@ find_library(k4arecord_LIBRARY
     k4arecord.lib
     libk4arecord.so
   HINTS
-    "${K4A_ROOT}/sdk/windows-desktop/amd64/release"
+    "${k4a_ROOT}/sdk/windows-desktop/amd64/release"
   PATH_SUFFIXES
     lib
     x86_64-linux-gnu
