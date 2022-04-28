@@ -38,7 +38,7 @@ cwipc_install_wheel(NAME "cwipc_kinect" WHEELDIR ${CMAKE_PYWHEELS_OUTPUT_DIRECTO
 add_test(NAME _python_setup_cwipc_kinect
 	COMMAND ${Python3_EXECUTABLE} -m pip install --upgrade --find-links=${CMAKE_PYWHEELS_OUTPUT_DIRECTORY} cwipc_kinect
 	)
-set_tests_properties(_python_setup_cwipc_kinect PROPERTIES FIXTURES_SETUP venv)
+set_tests_properties(_python_setup_cwipc_kinect PROPERTIES FIXTURES_SETUP venv RUN_SERIAL TRUE)
 
 
 add_test(NAME cwipc_kinect_python_tests
