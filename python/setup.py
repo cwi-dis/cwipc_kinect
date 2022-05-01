@@ -5,6 +5,11 @@ https://packaging.python.org/en/latest/distributing.html
 https://github.com/pypa/sampleproject
 """
 
+import os
+CWIPC_VERSION="7.1+unknown"
+if 'CWIPC_VERSION' in os.environ:
+    CWIPC_VERSION=os.environ['CWIPC_VERSION']
+
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages
 from os import path
@@ -39,7 +44,7 @@ setup(
     # For a discussion on single-sourcing the version across setup.py and the
     # project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='7.1',  # Required
+    version=CWIPC_VERSION,  # Required
 
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
@@ -154,11 +159,8 @@ setup(
     #
     # For example, the following would provide a command called `sample` which
     # executes the function `main` from this package when invoked:
-    entry_points={  # Optional
-        'console_scripts': [
-            'cwipc_kinectcalibrate=_cwipc_kinect.scripts.cwipc_kinectcalibrate:main',
-        ],
-    },
+    # entry_points={  # Optional
+    # },
 
     # List additional URLs that are relevant to your project as a dict.
     #

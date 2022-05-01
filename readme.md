@@ -1,42 +1,64 @@
 # cwipc_kinect
 
-This project has software for capturing point clouds using Microsoft Azure Kinect (K4A) cameras. The software turns K4A depth- and colorframes into a cwipc pointcloud.
 
-It requires the cwipc_util library.
+This project has software for capturing point clouds using Microsoft Azure Kinect cameras, _k4a_ for short. The software turns k4a depth- and colorframes into a cwipc pointcloud.
 
-As of this writing, the cwipc_util utilities that do something with a camera (such as `cwipc_calibrate` or `cwipc_view`) default to using Realsense cameras. Pass the `--kinect` option to use Kinect.
+It is usually built or installed as part of the _cwipc_ suite, <https://github.com/cwi-dis/cwipc>.
 
-## Installing
+When installed it enables the `--kinect` option to tools like `cwipc_view`, `cwipc_grab`, `cwipc_calibrate` and others. This will useKinect cameras as a source of pointclouds.
 
-For use within VRtogether you can get pre-built zipfiles (or tgzfiles for Mac/Linux) from <https://baltig.viaccess-orca.com:8443/VRT/nativeclient-group/cwipc_kinect/releases>. Download the most recent release with a normal v_X_._Y_._Z_ name. You will also need the accompanying _cwipc\_util_ installer from 
-<https://baltig.viaccess-orca.com:8443/VRT/nativeclient-group/cwipc_util/releases>.
+This module requires the following software to be installed:
 
-[![pipeline status](https://baltig.viaccess-orca.com:8443/VRT/nativeclient-group/cwipc_kinect/badges/master/pipeline.svg)](https://baltig.viaccess-orca.com:8443/VRT/nativeclient-group/cwipc_kinect/commits/master)
+- Azure Kinect SDK
+- Azure Kinect Body Tracking SDK
+- OpenCV
 
-### Windows
+See the [cwipc readme](../readme.md) file for installation instructions.
 
-- Install cwipc_util (and its dependencies PCL and others).
+## Prepare for use
 
-- Install _Azure Kinect SDK_ version 1.4.1 via <https://github.com/microsoft/Azure-Kinect-Sensor-SDK>.
-- Extract the `cwipc_util_win1064_vX.Y.zip` file into the same place you extracted cwipc_util. Check that the DLLs are right next to each other in `installed/bin`
-- Add the `c:\vrtogether\installed\bin` folder to the `%PATH%` system environment variable.
+The k4a capturer needs a `cameraconfig.xml` file that specifies the serial numbers of the cameras and their position and orientation.
 
-### OSX
+If you have a single camera in landscape mode looking forward, approximately 1m from the subject at 1m height you can automatically create a config file with
 
-K4A is currently not supported for OSX, because the Microsoft K4A SDK is not available yet.
-  
-### Ubuntu 20.04
+```
+cwipc_calibrate --kinect --auto
+```
 
-K4A is currently not support for Linux, because the build process needs work.
+If you have more cameras, or a single camera that is oriented differently (for example in portrait mode, so it is easier to capture a full human body) you need to print a _target_ from `../cwipc_util/target-a4.pdf`. Easiest is to put the target on the floor, at the position that will become `(0, 0, 0)` in your captured pointclouds. Then run
 
-## Building from source
+```
+cwipc_calibrate --kinect --target a4floor --nofine
+```
 
-The directory `cwipc_kinect` that is the root of this repository should be put on your system where you cloned all other repos. The CMake setup should be able to find all dependencies needed.
+> It is possible to hold the target in a different position, or use different targets, depending on the physical layout of your space. Use `cwipc_calibrate --list` to see the options.
 
-It is assumed that if you build cwipc_kinect from source you also build cwipc_util from source. So the instructions here assume that you have already followed the cwipc_util instructions.
+You now inspect the frame captured to check that the target is fully visible in all cameras. If it is not you reorient and restart the calibration.
 
-## Build instructions (all platforms)
+Next you select the 4 colored points on the virtual target, remembering the colors.
 
-- You need everything needed by the cwipc_util build instructions.
-- You need the Azure Kinect SDK from <https://github.com/microsoft/Azure-Kinect-Sensor-SDK>
-- After you have built cwipc_util you follow the same sequence of commands for cwipc_kinect.
+Then, for each of the cameras, you select the corners of the A4 paper with the same colors in the same order, and inspect the single-camera result.
+
+Finally you inspect the merged pointcloud.
+
+This gives you a course calibration in `cameraconfig.xml`.
+
+Inspect the resulting pointcloud view with
+
+```
+cwipc_view
+```
+
+If you want to fine-tune calibration you can grab a pointcloud with the `w` key. You can then use 
+
+```
+cwipc_view --nograb file.ply --reuse --nocoarse
+```
+
+to attempt fine calibration but this is a bit of a black art.
+
+## cameraconfig.xml
+
+You can edit `cameraconfig.xml` and modify various settings, such as camera parameters like white balance, various processing options that govern how RGB and Depth images are converted to pointclouds, and bounding box parameters for the pointcloud.
+
+After editing parameters you re-run `cwipc_view` to see the effect of your changes.
