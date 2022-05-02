@@ -1,3 +1,4 @@
+import os
 import ctypes
 import ctypes.util
 import warnings
@@ -40,13 +41,17 @@ def _cwipc_kinect_dll(libname=None):
     global _cwipc_kinect_dll_reference
     if _cwipc_kinect_dll_reference: return _cwipc_kinect_dll_reference
     
-    if libname == None:
-        libname = ctypes.util.find_library('cwipc_kinect')
-        if not libname:
-            raise RuntimeError('Dynamic library cwipc_kinect not found')
-    assert libname
-    with _cwipc_dll_search_path_collection(None):
+    with _cwipc_dll_search_path_collection(None) as loader:
+        if libname == None:
+            libname = 'cwipc_kinect'
+        if not os.path.isabs(libname):
+            libname = loader.find_library(libname)
+            if not libname:
+                raise RuntimeError('Dynamic library cwipc_kinect not found')
+        assert libname
         _cwipc_kinect_dll_reference = ctypes.CDLL(libname)
+        if not _cwipc_kinect_dll_reference:
+            raise RuntimeError(f'Dynamic library {libname} cannot be loaded')
     
     _cwipc_kinect_dll_reference.cwipc_kinect.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_char_p), ctypes.c_ulong]
     _cwipc_kinect_dll_reference.cwipc_kinect.restype = cwipc_tiledsource_p
