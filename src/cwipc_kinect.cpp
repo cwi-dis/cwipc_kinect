@@ -324,7 +324,9 @@ cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage,
 {
 	if (apiVersion < CWIPC_API_VERSION_OLD || apiVersion > CWIPC_API_VERSION) {
 		if (errorMessage) {
-			*errorMessage = (char *)"cwipc_kinect: incorrect apiVersion";
+			char* msgbuf = (char*)malloc(1024);
+			snprintf(msgbuf, 1024, "cwipc_kinect: incorrect apiVersion 0x%08" PRIx64 " expected 0x%08" PRIx64 "..0x%08" PRIx64 "", apiVersion, CWIPC_API_VERSION_OLD, CWIPC_API_VERSION);
+			*errorMessage = msgbuf;
 		}
 		return NULL;
 	}
@@ -345,7 +347,9 @@ cwipc_tiledsource* cwipc_k4aoffline(const char* configFilename, char** errorMess
 {
 	if (apiVersion < CWIPC_API_VERSION_OLD || apiVersion > CWIPC_API_VERSION) {
 		if (errorMessage) {
-			*errorMessage = (char*)"cwipc_kinect: incorrect apiVersion";
+			char* msgbuf = (char*)malloc(1024);
+			snprintf(msgbuf, 1024, "cwipc_k4aoffline: incorrect apiVersion 0x%08" PRIx64 " expected 0x%08" PRIx64 "..0x%08" PRIx64 "", apiVersion, CWIPC_API_VERSION_OLD, CWIPC_API_VERSION);
+			*errorMessage = msgbuf;
 		}
 		return NULL;
 	}
