@@ -45,7 +45,7 @@ class TestApi(unittest.TestCase):
     
     def _open_grabber(self):
         try:
-            grabber = _cwipc_kinect.cwipc_kinect()
+            grabber = _cwipc_kinect.cwipc_kinect("auto")
         except cwipc.CwipcError as arg:
             if str(arg) == 'cwipc_kinect: no kinect cameras found':
                 self.skipTest(str(arg))
