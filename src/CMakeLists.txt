@@ -35,6 +35,7 @@ target_sources(cwipc_kinect
 
 target_link_libraries(cwipc_kinect PUBLIC cwipc_util)
 target_link_libraries(cwipc_kinect PRIVATE ${PCL_LIBRARIES} k4a::k4a k4a::k4arecord k4a::k4abt ${OpenCV_LIBS} libjpeg-turbo::turbojpeg)
+target_link_libraries(cwipc_kinect PRIVATE nlohmann_json::nlohmann_json)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" AND CMAKE_BUILD_TYPE MATCHES "Release")
    target_compile_options(cwipc_kinect PRIVATE /Zi)

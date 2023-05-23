@@ -38,10 +38,10 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 	//
 	(void)_init_config_from_configfile(configFilename);
 	int camera_count = 0;
-	for (std::vector<K4ACameraData>::iterator it = configuration.camera_data.begin(); it != configuration.camera_data.end();) {
+	for (std::vector<K4ACameraConfig>::iterator it = configuration.all_camera_configs.begin(); it != configuration.all_camera_configs.end();) {
 		if (it->disabled) {
 			std::cout << CLASSNAME << ": Camera " << it->serial << " is disabled in cameraconfig.xml" << std::endl;
-			it = configuration.camera_data.erase(it); // we remove the cameradata from config as we don't plan to use it in this session.
+			it = configuration.all_camera_configs.erase(it); // we remove the cameradata from config as we don't plan to use it in this session.
 		}
 		else {
 			camera_count++;
@@ -83,9 +83,9 @@ bool K4AOfflineCapture::_open_recording_files(std::vector<Type_api_camera>& came
 	// Open each recording file and validate they were recorded in master/subordinate mode.
 	for (size_t i = 0; i < camera_handles.size(); i++)
 	{
-		if (configuration.camera_data[i].disabled == true) continue;
+		if (configuration.all_camera_configs[i].disabled == true) continue;
 
-		const char *filename = configuration.camera_data[i].filename.c_str();
+		const char *filename = configuration.all_camera_configs[i].filename.c_str();
 
 		result = k4a_playback_open(filename, &camera_handles[i]);
 
@@ -129,7 +129,7 @@ bool K4AOfflineCapture::_open_recording_files(std::vector<Type_api_camera>& came
 		}
 
 		//initialize cameradata attributes:
-		configuration.camera_data[i].cameraposition = { 0, 0, 0 };
+		configuration.all_camera_configs[i].cameraposition = { 0, 0, 0 };
 	}
 	// xxxjack we should chack that configuration.sync_master_serial matches master_id...
 
@@ -145,7 +145,7 @@ void K4AOfflineCapture::_create_cameras(std::vector<Type_api_camera>& camera_han
 		std::cout << CLASSNAME << ": opening camera " << serials[i] << std::endl;
 #endif
 		// Found a kinect camera. Create a default data entry for it.
-		K4ACameraData& cd = configuration.camera_data[i];
+		K4ACameraConfig& cd = configuration.all_camera_configs[i];
 		if (cd.type != "kinect") {
 			cwipc_k4a_log_warning("Camera " + cd.serial + " is type " + cd.type + " in stead of kinect");
 		}

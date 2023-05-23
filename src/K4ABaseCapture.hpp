@@ -153,12 +153,12 @@ public:
 		return mergedPC;
 	}
 	
-	virtual K4ACameraData& get_camera_data(std::string serial) final {
-		for (int i = 0; i < configuration.camera_data.size(); i++)
-			if (configuration.camera_data[i].serial == serial)
-				return configuration.camera_data[i];
+	virtual K4ACameraConfig& get_camera_data(std::string serial) final {
+		for (int i = 0; i < configuration.all_camera_configs.size(); i++)
+			if (configuration.all_camera_configs[i].serial == serial)
+				return configuration.all_camera_configs[i];
 		cwipc_k4a_log_warning("Unknown camera " + serial);
-		static K4ACameraData empty;
+		static K4ACameraConfig empty;
 		return empty;
 	}
 
@@ -167,23 +167,23 @@ protected:
 		if (configFilename == NULL) {
 			configFilename = "cameraconfig.xml";
 		}
-		return cwipc_k4a_file2config(configFilename, &configuration);
+		return cwipc_k4a_xmlfile2config(configFilename, &configuration);
 	}
 	
 	virtual void _init_camera_positions() final {
 		// find camerapositions
-		for (int i = 0; i < configuration.camera_data.size(); i++) {
+		for (int i = 0; i < configuration.all_camera_configs.size(); i++) {
 			cwipc_pcl_pointcloud pcptr(new_cwipc_pcl_pointcloud());
 			cwipc_pcl_point pt;
 			pt.x = 0;
 			pt.y = 0;
 			pt.z = 0;
 			pcptr->push_back(pt);
-			transformPointCloud(*pcptr, *pcptr, *configuration.camera_data[i].trafo);
+			transformPointCloud(*pcptr, *pcptr, *configuration.all_camera_configs[i].trafo);
 			cwipc_pcl_point pnt = pcptr->points[0];
-			configuration.camera_data[i].cameraposition.x = pnt.x;
-			configuration.camera_data[i].cameraposition.y = pnt.y;
-			configuration.camera_data[i].cameraposition.z = pnt.z;
+			configuration.all_camera_configs[i].cameraposition.x = pnt.x;
+			configuration.all_camera_configs[i].cameraposition.y = pnt.y;
+			configuration.all_camera_configs[i].cameraposition.z = pnt.z;
 		}
 	}
 
@@ -367,7 +367,7 @@ protected:
 				cwipc_pcl_point joint_pos;
 				//printf("Joint %i:\n", joint_id);
 				int numsk = 0;
-				for (K4ACameraData cd : configuration.cameraData) {
+				for (K4ACameraConfig cd : configuration.cameraData) {
 					if (cd.skeletons.size() > 0) {
 						numsk++;
 						joint_pos.x += cd.skeletons[0].joints[joint_id].position.xyz.x;

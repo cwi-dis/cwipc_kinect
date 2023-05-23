@@ -15,7 +15,7 @@ private:
 	K4AOfflineCamera(const K4AOfflineCamera&);	// Disable copy constructor
 	K4AOfflineCamera& operator=(const K4AOfflineCamera&);	// Disable assignment
 public:
-	K4AOfflineCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData);
+	K4AOfflineCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraConfig& _camData);
 	virtual ~K4AOfflineCamera() {}
 
 	bool start() override;

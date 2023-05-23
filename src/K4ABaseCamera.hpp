@@ -129,7 +129,7 @@ protected:
 	bool camera_started = false;	//<! True when camera hardware is grabbing
 	std::thread* processing_thread = nullptr;	//<! Handle for thread that runs processing loop
 	std::thread* grabber_thread = nullptr;	//<! Handle for thread that rungs grabber (if applicable)
-	K4ACameraData& camData;	//<! Per-camera data for this camera
+	K4ACameraConfig& camData;	//<! Per-camera data for this camera
 	bool want_auxdata_skeleton = false;	//<! True if caller wants skeleton auxdata
 	std::vector<k4abt_skeleton_t> skeletons; //<! Skeletons extracted using the body tracking sdk
 	cwipc_pcl_pointcloud current_pointcloud = nullptr;	//<! Most recent grabbed pointcloud
@@ -149,7 +149,7 @@ protected:
 	k4a_calibration_extrinsics_t depth_to_color_extrinsics;	//<! k4a calibration data read from hardware camera or recording
 	k4a_image_t xy_table = NULL;
 public:
-	K4ABaseCamera(const std::string& _Classname, Type_api_camera _handle, K4ACaptureConfig& _configuration, int _camera_index, K4ACameraData& _camData)
+	K4ABaseCamera(const std::string& _Classname, Type_api_camera _handle, K4ACaptureConfig& _configuration, int _camera_index, K4ACameraConfig& _camData)
 	:	CLASSNAME(_Classname),
 		configuration(_configuration),
 		camera_handle(_handle),
@@ -440,7 +440,7 @@ protected:
 								point.x = pos.x;
 								point.y = pos.y;
 								point.z = pos.z;
-								if (!configuration.camera_config.map_color_to_depth)
+								if (!configuration.camera_processing.map_color_to_depth)
 									transformDepthToColorPoint(point);
 								transformPoint(point);
 								pos.x = point.x;
@@ -477,7 +477,7 @@ protected:
 
 			//generate pointclouds
 			cwipc_pcl_pointcloud new_pointcloud = nullptr;
-			if (configuration.camera_config.map_color_to_depth) {
+			if (configuration.camera_processing.map_color_to_depth) {
 				new_pointcloud = generate_point_cloud_color_to_depth(depth_image, color_image);
 			}
 			else {
@@ -509,14 +509,14 @@ protected:
 	}
 
 	virtual void _filter_depth_image(k4a_image_t depth_image) {
-		if (configuration.camera_config.do_threshold) {
+		if (configuration.camera_processing.do_threshold) {
 			uint16_t* depth_buffer = (uint16_t*)(void*)k4a_image_get_buffer(depth_image);
 
 			int width = k4a_image_get_width_pixels(depth_image);
 			int height = k4a_image_get_height_pixels(depth_image);
 
-			int16_t min_depth = (int16_t)(configuration.camera_config.threshold_near * 1000);
-			int16_t max_depth = (int16_t)(configuration.camera_config.threshold_far * 1000);
+			int16_t min_depth = (int16_t)(configuration.camera_processing.threshold_near * 1000);
+			int16_t max_depth = (int16_t)(configuration.camera_processing.threshold_far * 1000);
 			min_depth = (min_depth > 1) ? min_depth : 1; // min depth should be > minimum_operating_range (250-500 for kinect). 0 means no data.
 			max_depth = (max_depth > min_depth) ? max_depth : 5460; // max depth should be >min_depth otherwise we use the maximum_operating_range (5460 for kinect).
 
@@ -528,8 +528,8 @@ protected:
 			cv::inRange(depth_in, min_depth, max_depth, mask); //we check if the depth values are in the wanted range and create a mask
 
 			// EROSION FILTER: if erosion wanted, we will erode the mask using a kernel.
-			int x_delta = configuration.camera_config.depth_x_erosion;
-			int y_delta = configuration.camera_config.depth_y_erosion;
+			int x_delta = configuration.camera_processing.depth_x_erosion;
+			int y_delta = configuration.camera_processing.depth_y_erosion;
 			if (x_delta || y_delta) {
 				cv::Mat kernel = cv::getStructuringElement(CV_16UC1, cv::Size(x_delta*2+1, y_delta*2+1), cv::Point(-1, -1)); //we want erosion on 4 directions. +-x, +-y.
 				cv::erode(mask, mask, kernel, cv::Point(-1, -1), 1);
@@ -545,8 +545,8 @@ protected:
 	}
 
 	virtual void _filter_depth_data(int16_t* depth_values, int width, int height) final {
-		int16_t min_depth = (int16_t)(configuration.camera_config.threshold_near * 1000);
-		int16_t max_depth = (int16_t)(configuration.camera_config.threshold_far * 1000);
+		int16_t min_depth = (int16_t)(configuration.camera_processing.threshold_near * 1000);
+		int16_t max_depth = (int16_t)(configuration.camera_processing.threshold_far * 1000);
 		int16_t *z_values = (int16_t *)calloc(width * height, sizeof(int16_t));
 
 
@@ -555,7 +555,7 @@ protected:
 		{
 			int i_pc = i * 3;
 			int16_t z = depth_values[i_pc + 2];
-			if (configuration.camera_config.do_threshold && (z <= min_depth || z >= max_depth)) continue;
+			if (configuration.camera_processing.do_threshold && (z <= min_depth || z >= max_depth)) continue;
 			z_values[i] = z;
 		}
 
@@ -563,8 +563,8 @@ protected:
 		cv::imwrite("test/depth_th.png", depth_in);*/
 
 		// Pass two: loop for zero pixels in temp buffer, and clear out x/y pixels adjacent in depth buffer
-		int x_delta = configuration.camera_config.depth_x_erosion;
-		int y_delta = configuration.camera_config.depth_y_erosion;
+		int x_delta = configuration.camera_processing.depth_x_erosion;
+		int y_delta = configuration.camera_processing.depth_y_erosion;
 		if (x_delta || y_delta) {
 			for (int x = 0; x < width; x++) {
 				for (int y = 0; y < height; y++) {
@@ -722,7 +722,7 @@ protected:
 		int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
 
 #ifdef CWIPC_PC_GENERATION_OLD
-		if (configuration.camera_config.do_threshold || configuration.camera_config.depth_x_erosion || configuration.camera_config.depth_y_erosion) {
+		if (configuration.camera_processing.do_threshold || configuration.camera_processing.depth_x_erosion || configuration.camera_processing.depth_y_erosion) {
 			_filter_depth_data(point_cloud_image_data, width, height);
 		}
 #endif
@@ -757,7 +757,7 @@ protected:
 			point.x = x;
 			point.y = y;
 			point.z = z; 
-			if (configuration.camera_config.map_color_to_depth)
+			if (configuration.camera_processing.map_color_to_depth)
 				transformDepthToColorPoint(point);
 			transformPoint(point);
 			if (configuration.radius_filter > 0.0) { // apply radius filter
@@ -777,7 +777,7 @@ protected:
 	{
 		int width;
 		int height;
-		if (configuration.camera_config.map_color_to_depth) {
+		if (configuration.camera_processing.map_color_to_depth) {
 			width = calibration->depth_camera_calibration.resolution_width;
 			height = calibration->depth_camera_calibration.resolution_height;
 		}
@@ -808,7 +808,7 @@ protected:
 			for (int x = 0; x < width; x++, idx++)
 			{
 				p.xy.x = (float)x;
-				if (configuration.camera_config.map_color_to_depth) {
+				if (configuration.camera_processing.map_color_to_depth) {
 					k4a_calibration_2d_to_3d(
 						calibration, &p, 1.f, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_DEPTH, &ray, &valid);
 				}
@@ -837,8 +837,8 @@ protected:
 		int width = k4a_image_get_width_pixels(depth_image);
 		int height = k4a_image_get_height_pixels(depth_image);
 
-		float min_depth = (configuration.camera_config.threshold_near);
-		float max_depth = (configuration.camera_config.threshold_far);
+		float min_depth = (configuration.camera_processing.threshold_near);
+		float max_depth = (configuration.camera_processing.threshold_far);
 
 		//access depth and color data
 		uint16_t* depth_data = (uint16_t*)(void*)k4a_image_get_buffer(depth_image);
@@ -861,7 +861,7 @@ protected:
 				point.r = color_data[i].bgra.r;
 				point.a = (uint8_t)1 << camera_index;
 
-				if (configuration.camera_config.map_color_to_depth)
+				if (configuration.camera_processing.map_color_to_depth)
 					transformDepthToColorPoint(point);
 				transformPoint(point); //transforming from camera to world coordinates
 

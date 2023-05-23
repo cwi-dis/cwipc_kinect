@@ -8,7 +8,7 @@
 #include "K4AOfflineCamera.hpp"
 #include "turbojpeg.h"
 
-K4AOfflineCamera::K4AOfflineCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraData& _camData)
+K4AOfflineCamera::K4AOfflineCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraConfig& _camData)
 :	K4ABaseCamera("cwipc_kinect: K4AOfflineCamera", _handle, configuration, _camera_index, _camData),
 	capture_id(-1),
 	current_frameset_timestamp(0),

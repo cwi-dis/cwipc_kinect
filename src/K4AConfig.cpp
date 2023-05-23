@@ -4,10 +4,19 @@
 //  Created by Fons Kuijk on 12-12-18.
 //
 
-//enable this to print memory statistics
-#undef MEMORY_DEBUG 
 #include "K4AConfig.hpp"
 #include "tinyxml.h"
+
+
+#include <fstream>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
+#define _MY_JSON_GET(jsonobj, name, config, attr) if (jsonobj.contains(#name)) jsonobj.at(#name).get_to(config.attr)
+#define _MY_JSON_PUT(jsonobj, name, config, attr) jsonobj[#name] = config.attr
+
+//enable this to print memory statistics
+#undef MEMORY_DEBUG 
 #ifdef MEMORY_DEBUG
 	#include "psapi.h"
 #endif
@@ -59,8 +68,209 @@ void print_stats(std::string header) {
 }
 #endif // MEMORY_DEBUG
 
+
+void from_json(const json& json_data, K4ACaptureConfig& config) {
+    // version and type should already have been checked.
+
+    json system_data = json_data.at("system");
+    _MY_JSON_GET(system_data, color_height, config, color_height);
+    _MY_JSON_GET(system_data, depth_height, config, depth_height);
+    _MY_JSON_GET(system_data, fps, config, fps);
+    _MY_JSON_GET(system_data, single_tile, config, single_tile);
+    _MY_JSON_GET(system_data, sync_master_serial, config, sync_master_serial);
+    _MY_JSON_GET(system_data, color_exposure_time, config.camera_processing, color_exposure_time);
+    _MY_JSON_GET(system_data, color_whitebalance, config.camera_processing, color_whitebalance);
+    _MY_JSON_GET(system_data, color_brightness, config.camera_processing, color_brightness);
+    _MY_JSON_GET(system_data, color_contrast, config.camera_processing, color_contrast);
+    _MY_JSON_GET(system_data, color_saturation, config.camera_processing, color_saturation);
+    _MY_JSON_GET(system_data, color_gain, config.camera_processing, color_gain);
+    _MY_JSON_GET(system_data, color_powerline_frequency, config.camera_processing, color_powerline_frequency);
+    _MY_JSON_GET(system_data, map_color_to_depth, config.camera_processing, map_color_to_depth);
+
+    json postprocessing = json_data.at("postprocessing");
+    _MY_JSON_GET(postprocessing, greenscreenremoval, config, greenscreen_removal);
+    _MY_JSON_GET(postprocessing, height_min, config, height_min);
+    _MY_JSON_GET(postprocessing, height_max, config, height_max);
+    _MY_JSON_GET(postprocessing, radius_filter, config, radius_filter);
+
+    json depthfilterparameters = postprocessing.at("depthfilterparameters");
+    _MY_JSON_GET(depthfilterparameters, do_threshold, config.camera_processing, do_threshold);
+    _MY_JSON_GET(depthfilterparameters, threshold_near, config.camera_processing, threshold_near);
+    _MY_JSON_GET(depthfilterparameters, threshold_far, config.camera_processing, threshold_far);
+    _MY_JSON_GET(depthfilterparameters, depth_x_erosion, config.camera_processing, depth_x_erosion);
+    _MY_JSON_GET(depthfilterparameters, depth_y_erosion, config.camera_processing, depth_y_erosion);
+    
+    json skeleton = json_data.at("skeleton");
+    _MY_JSON_GET(skeleton, sensor_orientation, config, bt_sensor_orientation);
+    _MY_JSON_GET(skeleton, processing_mode, config, bt_processing_mode);
+    _MY_JSON_GET(skeleton, model_path, config, bt_model_path);
+
+    json cameras = json_data.at("camera");
+    int camera_index = 0;
+    for (json::iterator it = cameras.begin(); it != cameras.end(); it++) {
+        json camera = *it;
+        K4ACameraConfig cd;
+        pcl::shared_ptr<Eigen::Affine3d> default_trafo(new Eigen::Affine3d());
+        default_trafo->setIdentity();
+        cd.trafo = default_trafo;
+        cd.intrinsicTrafo = default_trafo;
+        _MY_JSON_GET(camera, serial, cd, serial);
+        _MY_JSON_GET(camera, type, cd, type);
+        _MY_JSON_GET(camera, disabled, cd, disabled);
+        _MY_JSON_GET(camera, filename, cd, filename);
+        if (camera.contains("trafo")) {
+            for (int x = 0; x < 4; x++) {
+                for (int y = 0; y < 4; y++) {
+                    (*cd.trafo)(x, y) = camera["trafo"][x][y];
+                }
+            }
+        }
+        if (camera.contains("intrinsicTrafo")) {
+            for (int x = 0; x < 4; x++) {
+                for (int y = 0; y < 4; y++) {
+                    (*cd.intrinsicTrafo)(x, y) = camera["intrinsicTrafo"][x][y];
+                }
+            }
+        }
+        // xxxjack should check whether the camera with this serial already exists
+        config.all_camera_configs.push_back(cd);
+        camera_index++;
+    }
+}
+
+void to_json(json& json_data, const K4ACaptureConfig& config) {
+
+    json cameras;
+    int camera_index = 0;
+    for (K4ACameraConfig cd : config.all_camera_configs) {
+        json camera;
+        _MY_JSON_PUT(camera, serial, cd, serial);
+        _MY_JSON_PUT(camera, type, cd, type);
+        camera["trafo"] = {
+            {(*cd.trafo)(0, 0), (*cd.trafo)(0, 1), (*cd.trafo)(0, 2), (*cd.trafo)(0, 3)},
+            {(*cd.trafo)(1, 0), (*cd.trafo)(1, 1), (*cd.trafo)(1, 2), (*cd.trafo)(1, 3)},
+            {(*cd.trafo)(2, 0), (*cd.trafo)(2, 1), (*cd.trafo)(2, 2), (*cd.trafo)(2, 3)},
+            {(*cd.trafo)(3, 0), (*cd.trafo)(3, 1), (*cd.trafo)(3, 2), (*cd.trafo)(3, 3)},
+        };
+        cameras[camera_index] = camera;
+        camera_index++;
+    }
+    json_data["cameras"] = cameras;
+#if xxxjack_notyet
+    json depthfilterparameters;
+    _MY_JSON_PUT(depthfilterparameters, do_decimation, config.camera_processing, do_decimation);
+    _MY_JSON_PUT(depthfilterparameters, decimation_value, config.camera_processing, decimation_value);
+    _MY_JSON_PUT(depthfilterparameters, do_threshold, config.camera_processing, do_threshold);
+    _MY_JSON_PUT(depthfilterparameters, threshold_near, config.camera_processing, threshold_near);
+    _MY_JSON_PUT(depthfilterparameters, threshold_far, config.camera_processing, threshold_far);
+    _MY_JSON_PUT(depthfilterparameters, do_spatial, config.camera_processing, do_spatial);
+    _MY_JSON_PUT(depthfilterparameters, spatial_iterations, config.camera_processing, spatial_iterations);
+    _MY_JSON_PUT(depthfilterparameters, spatial_alpha, config.camera_processing, spatial_alpha);
+    _MY_JSON_PUT(depthfilterparameters, spatial_delta, config.camera_processing, spatial_delta);
+    _MY_JSON_PUT(depthfilterparameters, spatial_filling, config.camera_processing, spatial_filling);
+    _MY_JSON_PUT(depthfilterparameters, do_temporal, config.camera_processing, do_temporal);
+    _MY_JSON_PUT(depthfilterparameters, temporal_alpha, config.camera_processing, temporal_alpha);
+    _MY_JSON_PUT(depthfilterparameters, temporal_delta, config.camera_processing, temporal_delta);
+    _MY_JSON_PUT(depthfilterparameters, temporal_percistency, config.camera_processing, temporal_percistency);
+
+    json postprocessing;
+    postprocessing["depthfilterparameters"] = depthfilterparameters;
+
+    _MY_JSON_PUT(postprocessing, greenscreenremoval, config, greenscreen_removal);
+    _MY_JSON_PUT(postprocessing, height_min, config, height_min);
+    _MY_JSON_PUT(postprocessing, height_max, config, height_max);
+    json_data["postprocessing"] = postprocessing;
+
+    json system_data;
+    _MY_JSON_PUT(system_data, usb2width, config, usb2_width);
+    _MY_JSON_PUT(system_data, usb2height, config, usb2_height);
+    _MY_JSON_PUT(system_data, usb2fps, config, usb2_fps);
+    _MY_JSON_PUT(system_data, usb3width, config, usb3_width);
+    _MY_JSON_PUT(system_data, usb3height, config, usb3_height);
+    _MY_JSON_PUT(system_data, usb3fps, config, usb3_fps);
+    _MY_JSON_PUT(system_data, usb2allowed, config, usb2allowed);
+    _MY_JSON_PUT(system_data, density_preferred, config, density);
+    _MY_JSON_PUT(system_data, exposure, config, exposure);
+    _MY_JSON_PUT(system_data, whitebalance, config, whitebalance);
+    _MY_JSON_PUT(system_data, backlight_compensation, config, backlight_compensation);
+    _MY_JSON_PUT(system_data, laser_power, config, laser_power);
+    json_data["system"] = system_data;
+#endif
+    json_data["version"] = 3;
+    json_data["type"] = "kinect";
+}
+
+bool cwipc_k4a_jsonfile2config(const char* filename, K4ACaptureConfig* config) {
+    json json_data;
+    try {
+        std::ifstream f(filename);
+        if (!f.is_open()) {
+            cwipc_k4a_log_warning(std::string("CameraConfig ") + filename + " not found");
+            return false;
+        }
+        json_data = json::parse(f);
+
+        int version = 0;
+        json_data.at("version").get_to(version);
+        if (version != 3) {
+            cwipc_k4a_log_warning(std::string("CameraConfig ") + filename + "ignored, is not version 3");
+            return false;
+        }
+        std::string type;
+        json_data.at("type").get_to(type);
+        if (type != "kinect") {
+            cwipc_k4a_log_warning(std::string("CameraConfig ") + filename + "ignored, is not kinect but " + type);
+            return false;
+        }
+        from_json(json_data, *config);
+    }
+    catch (const std::exception& e) {
+        cwipc_k4a_log_warning(std::string("CameraConfig ") + filename + ": exception " + e.what());
+        return false;
+    }
+    json dbg_result;
+    to_json(dbg_result, *config);
+    std::cerr << "xxxjack debug json parse result: \n" << dbg_result << "\n";
+    return true;
+}
+
+bool cwipc_k4a_jsonbuffer2config(const char* jsonBuffer, K4ACaptureConfig* config) {
+    json json_data;
+    try {
+        json_data = json::parse(jsonBuffer);
+
+        int version = 0;
+        json_data.at("version").get_to(version);
+        if (version != 3) {
+            cwipc_k4a_log_warning(std::string("CameraConfig ") + "(inline buffer) " + "ignored, is not version 3");
+            return false;
+        }
+        std::string type;
+        json_data.at("type").get_to(type);
+        if (type != "kinect") {
+            cwipc_k4a_log_warning(std::string("CameraConfig ") + "(inline buffer) " + "ignored, is not kinect but " + type);
+            return false;
+        }
+        from_json(json_data, *config);
+    }
+    catch (const std::exception& e) {
+        cwipc_k4a_log_warning(std::string("CameraConfig ") + "(inline buffer) " + ": exception " + e.what());
+        return false;
+    }
+    json dbg_result;
+    to_json(dbg_result, *config);
+    std::cerr << "xxxjack debug json parse result: \n" << dbg_result << "\n";
+    return true;
+}
+
+std::string cwipc_k4a_config2jsonbuffer(K4ACaptureConfig* config) {
+    json result;
+    to_json(result, *config);
+    return result.dump();
+}
+
 // read and restore the camera transformation setting as stored in the configuration document
-bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
+bool cwipc_k4a_xmlfile2config(const char* filename, K4ACaptureConfig* config)
 {
 	TiXmlDocument doc(filename);
 	bool loadOkay = doc.LoadFile();
@@ -91,16 +301,16 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 #ifdef notyet
 		systemElement->QueryBoolAttribute("colormaster", &(config->colormaster));
 #endif
-		systemElement->QueryIntAttribute("color_exposure_time", &(config->camera_config.color_exposure_time));
-		systemElement->QueryIntAttribute("color_whitebalance", &(config->camera_config.color_whitebalance));
-		systemElement->QueryIntAttribute("color_backlight_compensation", &(config->camera_config.color_backlight_compensation));
-		systemElement->QueryIntAttribute("color_brightness", &(config->camera_config.color_brightness));
-		systemElement->QueryIntAttribute("color_contrast", &(config->camera_config.color_contrast));
-		systemElement->QueryIntAttribute("color_saturation", &(config->camera_config.color_saturation));
-		systemElement->QueryIntAttribute("color_sharpness", &(config->camera_config.color_sharpness));
-		systemElement->QueryIntAttribute("color_gain", &(config->camera_config.color_gain));
-		systemElement->QueryIntAttribute("color_powerline_frequency", &(config->camera_config.color_powerline_frequency));
-		systemElement->QueryBoolAttribute("map_color_to_depth", &(config->camera_config.map_color_to_depth));
+		systemElement->QueryIntAttribute("color_exposure_time", &(config->camera_processing.color_exposure_time));
+		systemElement->QueryIntAttribute("color_whitebalance", &(config->camera_processing.color_whitebalance));
+		systemElement->QueryIntAttribute("color_backlight_compensation", &(config->camera_processing.color_backlight_compensation));
+		systemElement->QueryIntAttribute("color_brightness", &(config->camera_processing.color_brightness));
+		systemElement->QueryIntAttribute("color_contrast", &(config->camera_processing.color_contrast));
+		systemElement->QueryIntAttribute("color_saturation", &(config->camera_processing.color_saturation));
+		systemElement->QueryIntAttribute("color_sharpness", &(config->camera_processing.color_sharpness));
+		systemElement->QueryIntAttribute("color_gain", &(config->camera_processing.color_gain));
+		systemElement->QueryIntAttribute("color_powerline_frequency", &(config->camera_processing.color_powerline_frequency));
+		systemElement->QueryBoolAttribute("map_color_to_depth", &(config->camera_processing.map_color_to_depth));
 }
 
     // get the processing related information
@@ -112,11 +322,11 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		postprocessingElement->QueryDoubleAttribute("radius_filter", &(config->radius_filter));
         TiXmlElement* parameterElement = postprocessingElement->FirstChildElement("depthfilterparameters");
         if (parameterElement) {
-			parameterElement->QueryBoolAttribute("do_threshold", &(config->camera_config.do_threshold));
-			parameterElement->QueryDoubleAttribute("threshold_near", &(config->camera_config.threshold_near));
-			parameterElement->QueryDoubleAttribute("threshold_far", &(config->camera_config.threshold_far));
-			parameterElement->QueryIntAttribute("depth_x_erosion", &(config->camera_config.depth_x_erosion));
-			parameterElement->QueryIntAttribute("depth_y_erosion", &(config->camera_config.depth_y_erosion));
+			parameterElement->QueryBoolAttribute("do_threshold", &(config->camera_processing.do_threshold));
+			parameterElement->QueryDoubleAttribute("threshold_near", &(config->camera_processing.threshold_near));
+			parameterElement->QueryDoubleAttribute("threshold_far", &(config->camera_processing.threshold_far));
+			parameterElement->QueryIntAttribute("depth_x_erosion", &(config->camera_processing.depth_x_erosion));
+			parameterElement->QueryIntAttribute("depth_y_erosion", &(config->camera_processing.depth_y_erosion));
 		}
 		TiXmlElement* btElement = configElement->FirstChildElement("skeleton");
 		if (btElement) {
@@ -129,7 +339,7 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		}
     }
     
-	bool allnewcameras = config->camera_data.size() == 0; // if empty we have to set up a new administration
+	bool allnewcameras = config->all_camera_configs.size() == 0; // if empty we have to set up a new administration
 	int registeredcameras = 0;
 
 	// now get the per camera info
@@ -137,23 +347,23 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 	while (cameraElement)
 	{
 		const char * serial = cameraElement->Attribute("serial");
-		K4ACameraData* cd;
+		K4ACameraConfig* cd;
 
 		int i = 0;
-		while (i < config->camera_data.size()) {
-			if (config->camera_data[i].serial == serial) {
-				cameraElement->QueryBoolAttribute("disabled", &(config->camera_data[i].disabled));
-				cd = &config->camera_data[i];
+		while (i < config->all_camera_configs.size()) {
+			if (config->all_camera_configs[i].serial == serial) {
+				cameraElement->QueryBoolAttribute("disabled", &(config->all_camera_configs[i].disabled));
+				cd = &config->all_camera_configs[i];
 				break;
 			}
 			i++;
 		}
-		if (i == config->camera_data.size()) {
+		if (i == config->all_camera_configs.size()) {
 			// this camera was not in the admin yet
 			if (!allnewcameras)
 				loadOkay = false;
 
-			cd = new K4ACameraData();
+			cd = new K4ACameraConfig();
 			pcl::shared_ptr<Eigen::Affine3d> trafo(new Eigen::Affine3d());
 			pcl::shared_ptr<Eigen::Affine3d> intrinsicTrafo(new Eigen::Affine3d());
 			intrinsicTrafo->setIdentity();
@@ -162,8 +372,8 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 			cd->trafo = trafo;
 			cd->intrinsicTrafo = intrinsicTrafo;
 			cd->cameraposition = { 0, 0, 0 };
-			config->camera_data.push_back(*cd);
-			cd = &config->camera_data.back();
+			config->all_camera_configs.push_back(*cd);
+			cd = &config->all_camera_configs.back();
 		}
 
         std::string type = cameraElement->Attribute("type");
@@ -234,7 +444,7 @@ bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config)
 		registeredcameras++;
 		cameraElement = cameraElement->NextSiblingElement("camera");
 	}
-	if (config->camera_data.size() != registeredcameras)
+	if (config->all_camera_configs.size() != registeredcameras)
 		loadOkay = false;
 
     if (!loadOkay) {

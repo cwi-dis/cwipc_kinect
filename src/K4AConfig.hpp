@@ -19,9 +19,10 @@
 // Definitions of types used across cwipc_kinect, cwipc_codec and cwipc_util.
 //
 #include "cwipc_util/api_pcl.h"
+#include "cwipc_util/internal.h"
 #include <k4abt.h>
 
-struct K4ACameraConfig {
+struct K4ACameraProcessingParameters {
 	bool do_threshold = true;
 	double threshold_near = 0.15;         // float, near point for distance threshold
 	double threshold_far = 6.0;           // float, far point for distance threshold
@@ -39,7 +40,7 @@ struct K4ACameraConfig {
 	bool map_color_to_depth = false; // default DEPTH_TO_COLOR
 };
 
-struct K4ACameraData {
+struct K4ACameraConfig : CwipcBaseCameraConfig {
 	bool disabled = false;	// to easily disable cameras without altering to much the cameraconfig.
 	std::string serial;		// Serial number of this camera
 	std::string type = "kinect";       // Camera type (must be realsense)
@@ -49,7 +50,7 @@ struct K4ACameraData {
 	cwipc_vector cameraposition;	//!< Position of this camera in real world coordinates
 };
 
-struct K4ACaptureConfig {
+struct K4ACaptureConfig : CwipcBaseCaptureConfig {
 
 	int color_height = 720;                     // width of color frame (720, 1080 and various other values allowed, see kinect docs)
 	int depth_height = 576;                // width of depth frame (288, 576, 512 and 1024 allowed)
@@ -62,13 +63,13 @@ struct K4ACaptureConfig {
 
 	std::string sync_master_serial = "";  // If empty run without sync. If non-empty this camera is the sync master
 
-	K4ACameraConfig camera_config;
+	K4ACameraProcessingParameters camera_processing;
 	int bt_sensor_orientation = -1;	// Override k4abt sensor_orientation (if >= 0)
 	int bt_processing_mode = -1;	// Override k4abt processing_mode (if >= 0)
 	std::string bt_model_path = "";			// Override k4abt model path
 	// We could probably also allow overriding GPU id and model path, but no need for now.
 	// per camera data
-	std::vector<K4ACameraData> camera_data;
+	std::vector<K4ACameraConfig> all_camera_configs;
 };
 
 
@@ -77,7 +78,10 @@ struct K4ACaptureConfig;
 void cwipc_k4a_log_warning(std::string warning);
 extern char** cwipc_k4a_warning_store;
 
-bool cwipc_k4a_file2config(const char* filename, K4ACaptureConfig* config);
+bool cwipc_k4a_xmlfile2config(const char* filename, K4ACaptureConfig* config);
+bool cwipc_k4a_jsonfile2config(const char* filename, K4ACaptureConfig* config);
+bool cwipc_k4a_jsonbuffer2config(const char* filename, K4ACaptureConfig* config);
+std::string cwipc_k4a_config2string(K4ACaptureConfig* config);
 
 #ifdef _WIN32
 #include <Windows.h>

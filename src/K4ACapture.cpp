@@ -78,7 +78,7 @@ bool K4ACapture::_init_config_from_devices(std::vector<Type_api_camera>& camera_
 			any_failure = true;
 			continue;
 		}
-		K4ACameraData cd;
+		K4ACameraConfig cd;
 		char serial_buf[64];
 		size_t serial_buf_size = sizeof(serial_buf) / sizeof(serial_buf[0]);
 		if (k4a_device_get_serialnum(camera_handles[i], serial_buf, &serial_buf_size) != K4A_BUFFER_RESULT_SUCCEEDED) {
@@ -93,7 +93,7 @@ bool K4ACapture::_init_config_from_devices(std::vector<Type_api_camera>& camera_
 		cd.trafo = default_trafo;
 		cd.intrinsicTrafo = default_trafo;
 		cd.cameraposition = { 0, 0, 0 };
-		configuration.camera_data.push_back(cd);
+		configuration.all_camera_configs.push_back(cd);
 	}
 	if (any_failure) {
 		no_cameras = true;
@@ -106,11 +106,11 @@ void K4ACapture::_update_config_from_devices() {
 
 	// the configuration file did not fully match the current situation so we have to update the admin
 	std::vector<std::string> serials;
-	std::vector<K4ACameraData> realcams;
+	std::vector<K4ACameraConfig> realcams;
 
 
 	// collect all camera's in the config that are connected
-	for (K4ACameraData cd : configuration.camera_data) {
+	for (K4ACameraConfig cd : configuration.all_camera_configs) {
 #if 1 // xxxjack find() doesn't work??!?
 		if (cd.disabled) {
 			std::cout << "Camera " << cd.serial << " is disabled in cameraconfig.xml" << std::endl;
@@ -126,7 +126,7 @@ void K4ACapture::_update_config_from_devices() {
 #endif
 	}
 	// Reduce the active configuration to cameras that are connected
-	configuration.camera_data = realcams;
+	configuration.all_camera_configs = realcams;
 }
 
 void K4ACapture::_init_hardware_settings(std::vector<Type_api_camera>& camera_handles) {
@@ -134,47 +134,47 @@ void K4ACapture::_init_hardware_settings(std::vector<Type_api_camera>& camera_ha
 	// Set various camera hardware parameters (color)
 	for (int i = 0; i < camera_handles.size(); i++) {
 		//options for color sensor
-		if (configuration.camera_config.color_exposure_time >= 0) {	//MANUAL
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_exposure_time); // Exposure_time (in microseconds)
+		if (configuration.camera_processing.color_exposure_time >= 0) {	//MANUAL
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_exposure_time); // Exposure_time (in microseconds)
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_exposure_time should be microsecond and in range (500-133330)" << std::endl;
 		}
 		else {	//AUTO
 			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
 		}
-		if (configuration.camera_config.color_whitebalance >= 0) {	//MANUAL
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_whitebalance); // White_balance (2500-12500)
+		if (configuration.camera_processing.color_whitebalance >= 0) {	//MANUAL
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_whitebalance); // White_balance (2500-12500)
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_whitebalance should be in range (2500-12500)" << std::endl;
 		}
 		else {	//AUTO
 			k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
 		}
 
-		if (configuration.camera_config.color_backlight_compensation >= 0){
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_backlight_compensation); // Backlight_compensation 0=disabled | 1=enabled. Default=0
+		if (configuration.camera_processing.color_backlight_compensation >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_backlight_compensation); // Backlight_compensation 0=disabled | 1=enabled. Default=0
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_backlight_compensation should be 0=Enabled, 1= Disabled" << std::endl;
 		}
-		if (configuration.camera_config.color_brightness >= 0){
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_BRIGHTNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_brightness); // Brightness. (0 to 255). Default=128.
+		if (configuration.camera_processing.color_brightness >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_BRIGHTNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_brightness); // Brightness. (0 to 255). Default=128.
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_brightness should be in range (0-255)" << std::endl;
 		}
-		if (configuration.camera_config.color_contrast >= 0){
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_CONTRAST, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_contrast); // Contrast (0-10). Default=5
+		if (configuration.camera_processing.color_contrast >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_CONTRAST, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_contrast); // Contrast (0-10). Default=5
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_contrast should be in range (0-10)" << std::endl;
 		}
-		if (configuration.camera_config.color_saturation >= 0){
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_SATURATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_saturation); // saturation (0-63). Default=32
+		if (configuration.camera_processing.color_saturation >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_SATURATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_saturation); // saturation (0-63). Default=32
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_saturation should be in range (0-63)" << std::endl;
 		}
-		if (configuration.camera_config.color_sharpness >= 0){
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_SHARPNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_sharpness); // Sharpness (0-4). Default=2
+		if (configuration.camera_processing.color_sharpness >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_SHARPNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_sharpness); // Sharpness (0-4). Default=2
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_sharpness should be in range (0-4)" << std::endl;
 		}
-		if (configuration.camera_config.color_gain >= 0){	//if autoexposure mode=AUTO gain does not affect
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_GAIN, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_gain); // Gain (0-255). Default=0
+		if (configuration.camera_processing.color_gain >= 0){	//if autoexposure mode=AUTO gain does not affect
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_GAIN, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_gain); // Gain (0-255). Default=0
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_gain should be in range (0-255)" << std::endl;
 		}
-		if (configuration.camera_config.color_powerline_frequency >= 0){
-			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_config.color_powerline_frequency); // Powerline_Frequency (1=50Hz, 2=60Hz). Default=2
+		if (configuration.camera_processing.color_powerline_frequency >= 0){
+			k4a_result_t res = k4a_device_set_color_control(camera_handles[i], K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_powerline_frequency); // Powerline_Frequency (1=50Hz, 2=60Hz). Default=2
 			if (res != K4A_RESULT_SUCCEEDED) std::cerr << "cwipc_kinect: cameraconfig.xml: color_powerline_frequency should be 1=50Hz or 2=60Hz" << std::endl;
 		}
 	}
@@ -238,7 +238,7 @@ void K4ACapture::_create_cameras(std::vector<Type_api_camera>& camera_handles, s
 		// Found a Kinect camera. Create a default data entry for it.
 		std::string serial(serials[serial_index++]);
 
-		K4ACameraData& cd = get_camera_data(serial);
+		K4ACameraConfig& cd = get_camera_data(serial);
 		if (cd.type != "kinect") {
 			cwipc_k4a_log_warning("Camera " + cd.serial + " is type " + cd.type + " in stead of kinect");
 		}
