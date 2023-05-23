@@ -69,7 +69,8 @@ public:
     cwipc_source_kinect_impl(const char *configFilename=NULL)
 		: m_grabber(NULL)
 	{ 
-		m_grabber = new K4ACapture(configFilename); 
+		m_grabber = new K4ACapture();
+		m_grabber->config_reload(configFilename);
 	}
 
     ~cwipc_source_kinect_impl()
@@ -194,8 +195,9 @@ protected:
 	K4AOfflineCapture *m_offline;
 public:
 	cwipc_source_k4aoffline_impl(const char* configFilename = NULL)
-		: m_offline(new K4AOfflineCapture(configFilename))
+		: m_offline(new K4AOfflineCapture())
 	{
+		m_offline->config_reload(configFilename);
 	}
 
 	~cwipc_source_k4aoffline_impl()

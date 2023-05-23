@@ -20,7 +20,7 @@
 // if there is another one open.
 static int numberOfCapturersActive = 0;
 
-K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
+K4AOfflineCapture::K4AOfflineCapture()
 :	K4ABaseCapture("cwipc_kinect: K4AOfflineCapture"),
 	sync_inuse(false),
 	master_id(-1)
@@ -31,12 +31,18 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 		cwipc_k4a_log_warning("Attempting to create capturer while one is already active.");
 	}
 
+}
+
+bool K4AOfflineCapture::config_reload(const char* configFilename) {
+	_unload_cameras();
 	//
 	// Read the configuration. We do this only now because for historical reasons the configuration
 	// reader is also the code that checks whether the configuration file contents match the actual
 	// current hardware setup. To be fixed at some point.
 	//
-	(void)_init_config_from_configfile(configFilename);
+	if (!_apply_config(configFilename)) {
+		return false;
+	}
 	int camera_count = 0;
 	for (std::vector<K4ACameraConfig>::iterator it = configuration.all_camera_configs.begin(); it != configuration.all_camera_configs.end();) {
 		if (it->disabled) {
@@ -51,7 +57,7 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 	std::vector<Type_api_camera> camera_handles(camera_count, nullptr);
 	if (!_open_recording_files(camera_handles)) {
 		no_cameras = true;
-		return;
+		return false;
 	}
 
 	_create_cameras(camera_handles);
@@ -68,6 +74,7 @@ K4AOfflineCapture::K4AOfflineCapture(const char* configFilename)
 	stopped = false;
 	control_thread = new std::thread(&K4AOfflineCapture::_control_thread_main, this);
 	_cwipc_setThreadName(control_thread, L"cwipc_kinect::K4AOfflineCapture::control_thread");
+	return true;
 }
 
 bool K4AOfflineCapture::_open_recording_files(std::vector<Type_api_camera>& camera_handles) {

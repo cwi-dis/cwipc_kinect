@@ -17,10 +17,14 @@
 #include "K4ACapture.hpp"
 
 
-K4ACapture::K4ACapture(const char *configFilename)
+K4ACapture::K4ACapture()
 :	K4ABaseCapture("cwipc_kinect: K4ACapture")
 {
 
+}
+
+bool K4ACapture::config_reload(const char* configFilename) {
+	_unload_cameras();
 	//
 	// Check for attached cameras and create dummy configuration entries (basically only serial number)
 	//
@@ -28,24 +32,21 @@ K4ACapture::K4ACapture(const char *configFilename)
 	if (camera_count == 0) {
 		// no camera connected, so we'll return nothing
 		no_cameras = true;
-		return;
+		return false;
 	}
-	
+
 	std::vector<std::string> serials;
 	std::vector<Type_api_camera> camera_handles(camera_count, nullptr);
-	if (!_init_config_from_devices(camera_handles, serials)) return;
+	//if (!_init_config_from_devices(camera_handles, serials)) return false;
 	//
 	// Read the configuration. We do this only now because for historical reasons the configuration
 	// reader is also the code that checks whether the configuration file contents match the actual
 	// current hardware setup. To be fixed at some point.
 	//
-	if (!_init_config_from_configfile(configFilename)) {
-		//
-		// If the attached devices don't match the config file we update our configuration to
-		// match the hardware situation.
-		//
-		_update_config_from_devices();
+	if (!_apply_config(configFilename)) {
+		return false;
 	}
+	
 
 	//
 	// Initialize hardware capture setting (for all cameras)
@@ -67,6 +68,20 @@ K4ACapture::K4ACapture(const char *configFilename)
 	stopped = false;
 	control_thread = new std::thread(&K4ACapture::_control_thread_main, this);
 	_cwipc_setThreadName(control_thread, L"cwipc_kinect::K4ACapture::control_thread");
+	return true;
+}
+
+bool K4ACapture::_apply_default_config() {
+	int camera_count = k4a_device_get_installed_count();
+	if (camera_count == 0) {
+		// no camera connected, so we'll return nothing
+		no_cameras = true;
+		return false;
+	}
+
+	std::vector<std::string> serials;
+	std::vector<Type_api_camera> camera_handles(camera_count, nullptr);
+	return _init_config_from_devices(camera_handles, serials);
 }
 
 bool K4ACapture::_init_config_from_devices(std::vector<Type_api_camera>& camera_handles, std::vector<std::string>& serials) {

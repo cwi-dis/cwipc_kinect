@@ -46,22 +46,30 @@ public:
 
 	}
 	
+	virtual bool config_reload(const char* configFilename) = 0;
+
 	~K4ABaseCapture() {
 		if (no_cameras) {
 			return;
 		}
 		uint64_t stopTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-		stop();
 		
+		_unload_cameras();
+		
+
+		// Print some minimal statistics of this run
+		float deltaT = (stopTime - starttime) / 1000.0;
+		std::cerr << CLASSNAME << ": ran for " << deltaT << " seconds, produced " << numberOfPCsProduced << " pointclouds at " << numberOfPCsProduced / deltaT << " fps." << std::endl;
+	}
+
+	void _unload_cameras() {
+		stop();
+
 		// Delete all cameras (which will stop their threads as well)
 		for (auto cam : cameras)
 			delete cam;
 		cameras.clear();
 		std::cerr << CLASSNAME << ": deleted all cameras\n";
-
-		// Print some minimal statistics of this run
-		float deltaT = (stopTime - starttime) / 1000.0;
-		std::cerr << CLASSNAME << ": ran for " << deltaT << " seconds, produced " << numberOfPCsProduced << " pointclouds at " << numberOfPCsProduced / deltaT << " fps." << std::endl;
 	}
 
 	virtual void stop() final {
@@ -163,11 +171,28 @@ public:
 	}
 
 protected:
-	virtual bool _init_config_from_configfile(const char *configFilename) final {
+	virtual bool _apply_default_config() = 0;
+	virtual bool _apply_config(const char *configFilename) final {
 		if (configFilename == NULL) {
 			configFilename = "cameraconfig.xml";
 		}
-		return cwipc_k4a_xmlfile2config(configFilename, &configuration);
+		if (strcmp(configFilename, "auto") == 0) {
+			// Special case 1: string "auto" means auto-configure all realsense cameras.
+			return _apply_default_config();
+		}
+		if (configFilename[0] == '{') {
+			// Special case 2: a string starting with { is considered a JSON literal
+			return cwipc_k4a_jsonbuffer2config(configFilename, &configuration);
+		}
+		// Otherwise we check the extension. It can be .xml or .json.
+		const char* extension = strrchr(configFilename, '.');
+		if (strcmp(extension, ".xml") == 0) {
+			return cwipc_k4a_xmlfile2config(configFilename, &configuration);
+		}
+		if (strcmp(extension, ".json") == 0) {
+			return cwipc_k4a_jsonfile2config(configFilename, &configuration);
+		}
+		return false;
 	}
 	
 	virtual void _init_camera_positions() final {
