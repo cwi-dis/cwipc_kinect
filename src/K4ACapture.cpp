@@ -23,31 +23,33 @@ K4ACapture::K4ACapture()
 
 }
 
+int K4ACapture::count_devices() {
+	return k4a_device_get_installed_count();
+}
+
 bool K4ACapture::config_reload(const char* configFilename) {
 	_unload_cameras();
 	//
 	// Check for attached cameras and create dummy configuration entries (basically only serial number)
 	//
-	int camera_count = k4a_device_get_installed_count();
+	camera_count = count_devices();
 	if (camera_count == 0) {
 		// no camera connected, so we'll return nothing
-		no_cameras = true;
 		return false;
 	}
 
 	std::vector<std::string> serials;
 	std::vector<Type_api_camera> camera_handles(camera_count, nullptr);
-	//if (!_init_config_from_devices(camera_handles, serials)) return false;
+	// For K4A we have to open all devices before we can find the serial numbers.
+	if (!_init_config_from_devices(camera_handles, serials)) return false;
 	//
-	// Read the configuration. We do this only now because for historical reasons the configuration
-	// reader is also the code that checks whether the configuration file contents match the actual
-	// current hardware setup. To be fixed at some point.
+	// Read the configuration. 
 	//
 	if (!_apply_config(configFilename)) {
+		_unload_cameras();
 		return false;
 	}
-	
-
+	_update_config_from_devices(serials);
 	//
 	// Initialize hardware capture setting (for all cameras)
 	//
@@ -55,9 +57,6 @@ bool K4ACapture::config_reload(const char* configFilename) {
 
 	// Now we have all the configuration information. Create our K4ACamera objects.
 	_create_cameras(camera_handles, serials);
-
-	// delete camera_handles;
-	no_cameras = false;
 
 	_init_camera_positions();
 
@@ -72,16 +71,8 @@ bool K4ACapture::config_reload(const char* configFilename) {
 }
 
 bool K4ACapture::_apply_default_config() {
-	int camera_count = k4a_device_get_installed_count();
-	if (camera_count == 0) {
-		// no camera connected, so we'll return nothing
-		no_cameras = true;
-		return false;
-	}
-
-	std::vector<std::string> serials;
-	std::vector<Type_api_camera> camera_handles(camera_count, nullptr);
-	return _init_config_from_devices(camera_handles, serials);
+	// Nothing to do: the devices have already been opened.
+	return true;
 }
 
 bool K4ACapture::_init_config_from_devices(std::vector<Type_api_camera>& camera_handles, std::vector<std::string>& serials) {
@@ -111,16 +102,15 @@ bool K4ACapture::_init_config_from_devices(std::vector<Type_api_camera>& camera_
 		configuration.all_camera_configs.push_back(cd);
 	}
 	if (any_failure) {
-		no_cameras = true;
+		_unload_cameras();
 		return false;
 	}
 	return true;
 }
 
-void K4ACapture::_update_config_from_devices() {
+void K4ACapture::_update_config_from_devices(std::vector<std::string>& serials) {
 
 	// the configuration file did not fully match the current situation so we have to update the admin
-	std::vector<std::string> serials;
 	std::vector<K4ACameraConfig> realcams;
 
 
@@ -244,30 +234,38 @@ void K4ACapture::_init_hardware_settings(std::vector<Type_api_camera>& camera_ha
 }
 
 void K4ACapture::_create_cameras(std::vector<Type_api_camera>& camera_handles, std::vector<std::string>& serials) {
-	int serial_index = 0;
 	for(uint32_t i=0; i<camera_handles.size(); i++) {
 		assert (camera_handles[i] != nullptr);
 #ifdef CWIPC_DEBUG
 		std::cout << CLASSNAME << ": opening camera " << serials[i] << std::endl;
 #endif
-		// Found a Kinect camera. Create a default data entry for it.
-		std::string serial(serials[serial_index++]);
+		// We look up the config by its serial number.
+		std::string serial(serials[i]);
 
-		K4ACameraConfig& cd = get_camera_data(serial);
-		if (cd.type != "kinect") {
-			cwipc_k4a_log_warning("Camera " + cd.serial + " is type " + cd.type + " in stead of kinect");
+		K4ACameraConfig* cd = get_camera_config(serial);
+		if (cd->type != "kinect") {
+			cwipc_k4a_log_warning("Camera " + cd->serial + " is type " + cd->type + " in stead of kinect");
 		}
 		int camera_index = cameras.size();
-		if (cd.disabled) {
+		if (cd->disabled) {
 			// xxxjack this is gross. Due to the code structure we have opened all physically connected
 			// cameras early, including the ones that are disabled in the config. We close those cameras
 			// here. 
 			k4a_device_close(camera_handles[i]);
 		} else {
-			auto cam = new Type_our_camera(camera_handles[i], configuration, camera_index, cd);
+			auto cam = new Type_our_camera(camera_handles[i], configuration, camera_index, *cd);
 			cameras.push_back(cam);
 		}
 	}
+	// Finally we want to check that all cameras for which we have a config (and that are enabled)
+	// are also attached.
+	for (auto cd : configuration.all_camera_configs) {
+		if (cd.disabled) continue;
+		if (std::find(serials.begin(), serials.end(), cd.serial) == serials.end()) {
+			cwipc_k4a_log_warning("Camera " + cd.serial + "not found");
+		}
+	}
+	camera_count = cameras.size();
 }
 
 bool K4ACapture::_capture_all_cameras() {

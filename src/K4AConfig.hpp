@@ -47,7 +47,7 @@ struct K4ACameraConfig : CwipcBaseCameraConfig {
 	std::string filename;		// Filename for offline captures
 	pcl::shared_ptr<Eigen::Affine3d> trafo;	//!< Transformation matrix from camera coorindates to world coordinates
 	pcl::shared_ptr<Eigen::Affine3d> intrinsicTrafo;	//!< offline only: matrix to convert color to depth coordinates
-	cwipc_vector cameraposition;	//!< Position of this camera in real world coordinates
+	cwipc_vector cameraposition = { 0, 0, 0 };	//!< Position of this camera in real world coordinates
 };
 
 struct K4ACaptureConfig : CwipcBaseCaptureConfig {

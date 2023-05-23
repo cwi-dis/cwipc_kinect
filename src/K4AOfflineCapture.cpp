@@ -56,15 +56,14 @@ bool K4AOfflineCapture::config_reload(const char* configFilename) {
 	}
 	std::vector<Type_api_camera> camera_handles(camera_count, nullptr);
 	if (!_open_recording_files(camera_handles)) {
-		no_cameras = true;
+		_unload_cameras();
 		return false;
 	}
 
 	_create_cameras(camera_handles);
 
 	// delete camera_handles;
-	no_cameras = false;
-
+	
 	_init_camera_positions();
 
 	_start_cameras();
@@ -81,7 +80,6 @@ bool K4AOfflineCapture::_open_recording_files(std::vector<Type_api_camera>& came
 	
 	if (camera_handles.size() == 0) {
 		// no camera connected, so we'll return nothing
-		no_cameras = true;
 		return false;
 	}
 	bool master_found = false;

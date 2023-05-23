@@ -15,7 +15,7 @@ template<typename Type_api_camera, class Type_our_camera>
 class K4ABaseCapture {
 public:
 	K4ACaptureConfig configuration;	//!< Complete configuration read from cameraconfig.xml
-	bool no_cameras = true;	//<! True of no cameras attached
+	int camera_count = 0;
 	bool eof = false;	//<! True when end-of-file seen on pointcloud source
 
 protected:
@@ -49,7 +49,7 @@ public:
 	virtual bool config_reload(const char* configFilename) = 0;
 
 	~K4ABaseCapture() {
-		if (no_cameras) {
+		if (camera_count == 0) {
 			return;
 		}
 		uint64_t stopTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -63,6 +63,7 @@ public:
 	}
 
 	void _unload_cameras() {
+		if (camera_count == 0) return;
 		stop();
 
 		// Delete all cameras (which will stop their threads as well)
@@ -70,6 +71,7 @@ public:
 			delete cam;
 		cameras.clear();
 		std::cerr << CLASSNAME << ": deleted all cameras\n";
+		camera_count = 0;
 	}
 
 	virtual void stop() final {
@@ -107,7 +109,7 @@ public:
 	}
 
 	virtual float get_pointSize() final {
-		if (no_cameras) return 0;
+		if (camera_count == 0) return 0;
 		float rv = 99999;
 		for (auto cam : cameras) {
 			if (cam->pointSize < rv) rv = cam->pointSize;
@@ -117,7 +119,7 @@ public:
 	}
 	
 	virtual bool pointcloud_available(bool wait) final {
-		if (no_cameras) return false;
+		if (camera_count == 0) return false;
 		_request_new_pointcloud();
 		std::this_thread::yield();
 		std::unique_lock<std::mutex> mylock(mergedPC_mutex);
@@ -127,7 +129,7 @@ public:
 	}
 	
 	virtual cwipc* get_pointcloud() final {
-		if (no_cameras) {
+		if (camera_count == 0) {
 			cwipc_k4a_log_warning("get_pointcloud: returning NULL, no cameras");
 			return nullptr;
 		}
@@ -154,20 +156,19 @@ public:
 	virtual bool seek(uint64_t timestamp) = 0;
 	
 	virtual cwipc* get_mostRecentPointCloud() final {
-		if (no_cameras) return nullptr;
-		// This call doesn't need a fresh pointcloud (Jack thinks), but it does need one that is
+		if (camera_count == 0) return nullptr;
+		// This call cdoesn't need a fresh pointcloud (Jack thinks), but it does need one that is
 		// consistent. So we lock, but don't wait on the condition.
 		std::unique_lock<std::mutex> mylock(mergedPC_mutex);
 		return mergedPC;
 	}
 	
-	virtual K4ACameraConfig& get_camera_data(std::string serial) final {
+	virtual K4ACameraConfig* get_camera_config(std::string serial) final {
 		for (int i = 0; i < configuration.all_camera_configs.size(); i++)
 			if (configuration.all_camera_configs[i].serial == serial)
-				return configuration.all_camera_configs[i];
+				return &configuration.all_camera_configs[i];
 		cwipc_k4a_log_warning("Unknown camera " + serial);
-		static K4ACameraConfig empty;
-		return empty;
+		return nullptr;
 	}
 
 protected:
@@ -216,21 +217,23 @@ protected:
 		//
 		// start the cameras. First start all non-sync-master cameras, then start the sync-master camera.
 		//
+		bool start_error = false;
 		for (auto cam : cameras) {
 			if (cam->is_sync_master()) continue;
 			if (!cam->start()) {
-				cwipc_k4a_log_warning("Not all cameras could be started");
-				no_cameras = true;
-				return;
+				start_error = true;
 			}
 		}
 		for (auto cam : cameras) {
 			if (!cam->is_sync_master()) continue;
 			if (!cam->start()) {
-				cwipc_k4a_log_warning("Not all cameras could be started");
-				no_cameras = true;
-				return;
+				start_error = true;
 			}
+		}
+		if (start_error) {
+			cwipc_k4a_log_warning("Not all cameras could be started");
+			_unload_cameras();
+			return;
 		}
 
 		starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
