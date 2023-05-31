@@ -8,6 +8,7 @@
 #include "cwipc_kinect/api.h"
 
 #define DEBUG_AUXDATA
+#define DEBUG_CONFIG
 
 int main(int argc, char** argv)
 {
@@ -40,6 +41,13 @@ int main(int argc, char** argv)
     generator->request_auxiliary_data("rgb");
     generator->request_auxiliary_data("depth");
     generator->request_auxiliary_data("skeleton");
+#endif
+#ifdef DEBUG_CONFIG
+    size_t configSize = generator->get_config(nullptr, 0);
+    char* configBuf = (char *)malloc(configSize + 1);
+    memset(configBuf, 0, configSize + 1);
+    generator->get_config(configBuf, configSize);
+    std::cerr << "cameraconfig as json:\n=================\n" << configBuf << "\n======================\n";
 #endif
 
     int ok = 0;
