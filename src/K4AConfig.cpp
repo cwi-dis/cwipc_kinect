@@ -379,6 +379,9 @@ bool cwipc_k4a_xmlfile2config(const char* filename, K4ACaptureConfig* config)
         std::string type = cameraElement->Attribute("type");
         if (type != "") {
             cd->type = type;
+            if (config->type == "") {
+                config->type = type;
+            }
         }
 
 		auto camerafile_c = cameraElement->Attribute("filename");
