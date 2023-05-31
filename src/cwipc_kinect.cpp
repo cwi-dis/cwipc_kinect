@@ -89,6 +89,19 @@ public:
         m_grabber = NULL;
     }
 
+	virtual size_t get_config(char* buffer, size_t size)
+	{
+		auto config = m_grabber->config_get();
+		if (buffer == nullptr) {
+			return config.length();
+		}
+		if (size < config.length()) {
+			return 0;
+		}
+		memcpy(buffer, config.c_str(), config.length());
+		return config.length();
+	}
+
     bool eof() 
 	{
     	return m_grabber->eof;

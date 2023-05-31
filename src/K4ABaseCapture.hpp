@@ -48,6 +48,10 @@ public:
 	
 	virtual bool config_reload(const char* configFilename) = 0;
 
+	virtual std::string config_get() {
+		return cwipc_k4a_config2string(&configuration);
+	}
+
 	virtual ~K4ABaseCapture() {
 		if (camera_count == 0) {
 			return;

@@ -263,7 +263,7 @@ bool cwipc_k4a_jsonbuffer2config(const char* jsonBuffer, K4ACaptureConfig* confi
     return true;
 }
 
-std::string cwipc_k4a_config2jsonbuffer(K4ACaptureConfig* config) {
+std::string cwipc_k4a_config2string(K4ACaptureConfig* config) {
     json result;
     to_json(result, *config);
     return result.dump();
