@@ -168,7 +168,7 @@ public:
 #endif
 	}
 	
-	~K4ABaseCamera()
+	virtual ~K4ABaseCamera()
 	{
 #ifdef CWIPC_DEBUG
 		std::cout << CLASSNAME << ": destroying " << serial << std::endl;

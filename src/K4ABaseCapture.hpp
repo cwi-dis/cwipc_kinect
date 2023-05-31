@@ -48,7 +48,7 @@ public:
 	
 	virtual bool config_reload(const char* configFilename) = 0;
 
-	~K4ABaseCapture() {
+	virtual ~K4ABaseCapture() {
 		if (camera_count == 0) {
 			return;
 		}
