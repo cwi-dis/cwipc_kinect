@@ -126,6 +126,10 @@ void from_json(const json& json_data, K4ACaptureConfig& config) {
             }
         }
         if (camera.contains("intrinsicTrafo")) {
+            if (cd.intrinsicTrafo == nullptr) {
+                pcl::shared_ptr<Eigen::Affine3d> intrinsic_trafo(new Eigen::Affine3d());
+                cd.intrinsicTrafo = intrinsic_trafo;
+            }
             for (int x = 0; x < 4; x++) {
                 for (int y = 0; y < 4; y++) {
                     (*cd.intrinsicTrafo)(x, y) = camera["intrinsicTrafo"][x][y];
@@ -146,32 +150,34 @@ void to_json(json& json_data, const K4ACaptureConfig& config) {
         json camera;
         _MY_JSON_PUT(camera, serial, cd, serial);
         _MY_JSON_PUT(camera, type, cd, type);
+        _MY_JSON_PUT(camera, disabled, cd, disabled);
+        if (cd.filename != "") {
+            _MY_JSON_PUT(camera, filename, cd, filename);
+        }
         camera["trafo"] = {
             {(*cd.trafo)(0, 0), (*cd.trafo)(0, 1), (*cd.trafo)(0, 2), (*cd.trafo)(0, 3)},
             {(*cd.trafo)(1, 0), (*cd.trafo)(1, 1), (*cd.trafo)(1, 2), (*cd.trafo)(1, 3)},
             {(*cd.trafo)(2, 0), (*cd.trafo)(2, 1), (*cd.trafo)(2, 2), (*cd.trafo)(2, 3)},
             {(*cd.trafo)(3, 0), (*cd.trafo)(3, 1), (*cd.trafo)(3, 2), (*cd.trafo)(3, 3)},
         };
+        if (cd.intrinsicTrafo != nullptr) {
+            camera["intrinsicTrafo"] = {
+               {(*cd.intrinsicTrafo)(0, 0), (*cd.intrinsicTrafo)(0, 1), (*cd.intrinsicTrafo)(0, 2), (*cd.intrinsicTrafo)(0, 3)},
+               {(*cd.intrinsicTrafo)(1, 0), (*cd.intrinsicTrafo)(1, 1), (*cd.intrinsicTrafo)(1, 2), (*cd.intrinsicTrafo)(1, 3)},
+               {(*cd.intrinsicTrafo)(2, 0), (*cd.intrinsicTrafo)(2, 1), (*cd.intrinsicTrafo)(2, 2), (*cd.intrinsicTrafo)(2, 3)},
+               {(*cd.intrinsicTrafo)(3, 0), (*cd.intrinsicTrafo)(3, 1), (*cd.intrinsicTrafo)(3, 2), (*cd.intrinsicTrafo)(3, 3)},
+            };
+        }
         cameras[camera_index] = camera;
         camera_index++;
     }
     json_data["cameras"] = cameras;
-#if xxxjack_notyet
     json depthfilterparameters;
-    _MY_JSON_PUT(depthfilterparameters, do_decimation, config.camera_processing, do_decimation);
-    _MY_JSON_PUT(depthfilterparameters, decimation_value, config.camera_processing, decimation_value);
     _MY_JSON_PUT(depthfilterparameters, do_threshold, config.camera_processing, do_threshold);
     _MY_JSON_PUT(depthfilterparameters, threshold_near, config.camera_processing, threshold_near);
     _MY_JSON_PUT(depthfilterparameters, threshold_far, config.camera_processing, threshold_far);
-    _MY_JSON_PUT(depthfilterparameters, do_spatial, config.camera_processing, do_spatial);
-    _MY_JSON_PUT(depthfilterparameters, spatial_iterations, config.camera_processing, spatial_iterations);
-    _MY_JSON_PUT(depthfilterparameters, spatial_alpha, config.camera_processing, spatial_alpha);
-    _MY_JSON_PUT(depthfilterparameters, spatial_delta, config.camera_processing, spatial_delta);
-    _MY_JSON_PUT(depthfilterparameters, spatial_filling, config.camera_processing, spatial_filling);
-    _MY_JSON_PUT(depthfilterparameters, do_temporal, config.camera_processing, do_temporal);
-    _MY_JSON_PUT(depthfilterparameters, temporal_alpha, config.camera_processing, temporal_alpha);
-    _MY_JSON_PUT(depthfilterparameters, temporal_delta, config.camera_processing, temporal_delta);
-    _MY_JSON_PUT(depthfilterparameters, temporal_percistency, config.camera_processing, temporal_percistency);
+    _MY_JSON_PUT(depthfilterparameters, depth_x_erosion, config.camera_processing, depth_x_erosion);
+    _MY_JSON_PUT(depthfilterparameters, depth_y_erosion, config.camera_processing, depth_y_erosion);
 
     json postprocessing;
     postprocessing["depthfilterparameters"] = depthfilterparameters;
@@ -179,23 +185,32 @@ void to_json(json& json_data, const K4ACaptureConfig& config) {
     _MY_JSON_PUT(postprocessing, greenscreenremoval, config, greenscreen_removal);
     _MY_JSON_PUT(postprocessing, height_min, config, height_min);
     _MY_JSON_PUT(postprocessing, height_max, config, height_max);
+    _MY_JSON_PUT(postprocessing, radius_filter, config, radius_filter);
+
     json_data["postprocessing"] = postprocessing;
 
     json system_data;
-    _MY_JSON_PUT(system_data, usb2width, config, usb2_width);
-    _MY_JSON_PUT(system_data, usb2height, config, usb2_height);
-    _MY_JSON_PUT(system_data, usb2fps, config, usb2_fps);
-    _MY_JSON_PUT(system_data, usb3width, config, usb3_width);
-    _MY_JSON_PUT(system_data, usb3height, config, usb3_height);
-    _MY_JSON_PUT(system_data, usb3fps, config, usb3_fps);
-    _MY_JSON_PUT(system_data, usb2allowed, config, usb2allowed);
-    _MY_JSON_PUT(system_data, density_preferred, config, density);
-    _MY_JSON_PUT(system_data, exposure, config, exposure);
-    _MY_JSON_PUT(system_data, whitebalance, config, whitebalance);
-    _MY_JSON_PUT(system_data, backlight_compensation, config, backlight_compensation);
-    _MY_JSON_PUT(system_data, laser_power, config, laser_power);
+    _MY_JSON_PUT(system_data, color_height, config, color_height);
+    _MY_JSON_PUT(system_data, depth_height, config, depth_height);
+    _MY_JSON_PUT(system_data, fps, config, fps);
+    _MY_JSON_PUT(system_data, single_tile, config, single_tile);
+    _MY_JSON_PUT(system_data, sync_master_serial, config, sync_master_serial);
+    _MY_JSON_PUT(system_data, color_exposure_time, config.camera_processing, color_exposure_time);
+    _MY_JSON_PUT(system_data, color_whitebalance, config.camera_processing, color_whitebalance);
+    _MY_JSON_PUT(system_data, color_brightness, config.camera_processing, color_brightness);
+    _MY_JSON_PUT(system_data, color_contrast, config.camera_processing, color_contrast);
+    _MY_JSON_PUT(system_data, color_saturation, config.camera_processing, color_saturation);
+    _MY_JSON_PUT(system_data, color_gain, config.camera_processing, color_gain);
+    _MY_JSON_PUT(system_data, color_powerline_frequency, config.camera_processing, color_powerline_frequency);
+    _MY_JSON_PUT(system_data, map_color_to_depth, config.camera_processing, map_color_to_depth);
+
+    json skeleton;
+    _MY_JSON_PUT(skeleton, sensor_orientation, config, bt_sensor_orientation);
+    _MY_JSON_PUT(skeleton, processing_mode, config, bt_processing_mode);
+    _MY_JSON_PUT(skeleton, model_path, config, bt_model_path);
+    json_data["skeleton"] = skeleton;
+
     json_data["system"] = system_data;
-#endif
     json_data["version"] = 3;
     json_data["type"] = "kinect";
 }
