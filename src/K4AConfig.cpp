@@ -291,7 +291,7 @@ bool cwipc_k4a_xmlfile2config(const char* filename, K4ACaptureConfig* config)
 	bool loadOkay = doc.LoadFile();
 	if (!loadOkay)
 	{
-        cwipc_k4a_log_warning(std::string("Failed to load configfile ") + filename + ", using default matrices");
+        cwipc_k4a_log_warning(std::string("Failed to load configfile ") + filename);
 		return false;
 	}
 

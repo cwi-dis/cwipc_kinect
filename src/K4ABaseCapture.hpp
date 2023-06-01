@@ -179,7 +179,7 @@ protected:
 	virtual bool _apply_default_config() = 0;
 	virtual bool _apply_config(const char *configFilename) final {
 		if (configFilename == NULL) {
-			configFilename = "cameraconfig.xml";
+			configFilename = "cameraconfig.json";
 		}
 		if (strcmp(configFilename, "auto") == 0) {
 			// Special case 1: string "auto" means auto-configure all realsense cameras.
