@@ -20,7 +20,7 @@
 K4ACapture::K4ACapture()
 :	K4ABaseCapture("cwipc_kinect: K4ACapture")
 {
-
+	type = "kinect";
 }
 
 int K4ACapture::count_devices() {

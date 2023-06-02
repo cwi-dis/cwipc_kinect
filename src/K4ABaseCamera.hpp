@@ -13,6 +13,8 @@
 
 #include "cwipc_util/api_pcl.h"
 #include "cwipc_kinect/api.h"
+#include <cwipc_util/internal.h>
+
 #include "K4AConfig.hpp"
 #include "readerwriterqueue.h"
 
@@ -115,7 +117,7 @@ typedef union
 } cwi_bgra_t;
 
 template<typename Type_api_camera>
-class K4ABaseCamera {
+class K4ABaseCamera : public CwipcBaseCamera {
 public:
 	float pointSize = 0;	//<! (Approximate) 3D cellsize of pointclouds captured by this camera
 	std::string serial; //<! Serial number for this camera

@@ -215,7 +215,7 @@ void to_json(json& json_data, const K4ACaptureConfig& config) {
     json_data["type"] = "kinect";
 }
 
-bool cwipc_k4a_jsonfile2config(const char* filename, K4ACaptureConfig* config) {
+bool cwipc_k4a_jsonfile2config(const char* filename, K4ACaptureConfig* config, std::string typeWanted) {
     json json_data;
     try {
         std::ifstream f(filename);
@@ -249,7 +249,7 @@ bool cwipc_k4a_jsonfile2config(const char* filename, K4ACaptureConfig* config) {
     return true;
 }
 
-bool cwipc_k4a_jsonbuffer2config(const char* jsonBuffer, K4ACaptureConfig* config) {
+bool cwipc_k4a_jsonbuffer2config(const char* jsonBuffer, K4ACaptureConfig* config, std::string typeWanted) {
     json json_data;
     try {
         json_data = json::parse(jsonBuffer);
@@ -285,7 +285,7 @@ std::string cwipc_k4a_config2string(K4ACaptureConfig* config) {
 }
 
 // read and restore the camera transformation setting as stored in the configuration document
-bool cwipc_k4a_xmlfile2config(const char* filename, K4ACaptureConfig* config)
+bool cwipc_k4a_xmlfile2config(const char* filename, K4ACaptureConfig* config, std::string typeWanted)
 {
 	TiXmlDocument doc(filename);
 	bool loadOkay = doc.LoadFile();
@@ -302,6 +302,7 @@ bool cwipc_k4a_xmlfile2config(const char* filename, K4ACaptureConfig* config)
     if (version != 2) {
         cwipc_k4a_log_warning(std::string("CameraConfig ") + filename + " is not version 2");
     }
+    config->type = typeWanted;
 	// get the system related information
 	TiXmlElement* systemElement = configElement->FirstChildElement("system");
 	if (systemElement) {
@@ -391,12 +392,12 @@ bool cwipc_k4a_xmlfile2config(const char* filename, K4ACaptureConfig* config)
 			cd = &config->all_camera_configs.back();
 		}
 
-        std::string type = cameraElement->Attribute("type");
-        if (type != "") {
-            cd->type = type;
-            if (config->type == "") {
-                config->type = type;
-            }
+        cd->type = cameraElement->Attribute("type");
+        if (cd->type == "") {
+            cd->type = config->type;
+        }
+        if (cd->type != config->type) {
+            cwipc_k4a_log_warning(std::string("Camera type mismatch: ") + cd->type + " versus " + config->type);
         }
 
 		auto camerafile_c = cameraElement->Attribute("filename");

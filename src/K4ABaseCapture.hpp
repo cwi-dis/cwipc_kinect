@@ -9,10 +9,12 @@
 #include <k4a/k4a.h>
 #include <k4abt.h>
 
+#include <cwipc_util/internal.h>
+
 #include "K4AConfig.hpp"
 
 template<typename Type_api_camera, class Type_our_camera>
-class K4ABaseCapture {
+class K4ABaseCapture : public CwipcBaseCapture {
 public:
 	K4ACaptureConfig configuration;	//!< Complete configuration read from cameraconfig.xml
 	int camera_count = 0;
@@ -187,15 +189,15 @@ protected:
 		}
 		if (configFilename[0] == '{') {
 			// Special case 2: a string starting with { is considered a JSON literal
-			return cwipc_k4a_jsonbuffer2config(configFilename, &configuration);
+			return cwipc_k4a_jsonbuffer2config(configFilename, &configuration, type);
 		}
 		// Otherwise we check the extension. It can be .xml or .json.
 		const char* extension = strrchr(configFilename, '.');
 		if (strcmp(extension, ".xml") == 0) {
-			return cwipc_k4a_xmlfile2config(configFilename, &configuration);
+			return cwipc_k4a_xmlfile2config(configFilename, &configuration, type);
 		}
 		if (strcmp(extension, ".json") == 0) {
-			return cwipc_k4a_jsonfile2config(configFilename, &configuration);
+			return cwipc_k4a_jsonfile2config(configFilename, &configuration, type);
 		}
 		return false;
 	}

@@ -25,6 +25,7 @@ K4AOfflineCapture::K4AOfflineCapture()
 	sync_inuse(false),
 	master_id(-1)
 	{
+	type = "kinect_offline";
 	// First check that no other K4AOfflineCapture is active within this process (trying to catch programmer errors)
 	numberOfCapturersActive++;
 	if (numberOfCapturersActive > 1) {
