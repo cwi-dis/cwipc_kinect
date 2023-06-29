@@ -29,9 +29,8 @@ protected:
 	uint64_t _get_best_timestamp() override;
 	virtual bool _apply_default_config() override;
 private:
-	bool _init_config_from_devices(std::vector<Type_api_camera>& camera_handles, std::vector<std::string>& serials); // Get initial configuration from attached hardware devices.
-	void _update_config_from_devices(std::vector<std::string>& serials); // update config to match attached hardware
-	void _init_hardware_settings(std::vector<Type_api_camera>& camera_handles); // initialize hardware parameters from configuration
-	void _create_cameras(std::vector<Type_api_camera>& camera_handles, std::vector<std::string>& serials);
+	bool _init_hardware_settings(); // initialize hardware parameters from configuration
+	bool _open_cameras();
+	bool _create_cameras();
 };
 #endif // cwipc_realsense_MFCapture_hpp

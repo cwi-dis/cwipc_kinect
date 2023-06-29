@@ -184,7 +184,7 @@ protected:
 			configFilename = "cameraconfig.json";
 		}
 		if (strcmp(configFilename, "auto") == 0) {
-			// Special case 1: string "auto" means auto-configure all realsense cameras.
+			// Special case 1: string "auto" means auto-configure all cameras.
 			return _apply_default_config();
 		}
 		if (configFilename[0] == '{') {

@@ -42,6 +42,7 @@ struct K4ACameraProcessingParameters {
 
 struct K4ACameraConfig : CwipcBaseCameraConfig {
 	bool disabled = false;	// to easily disable cameras without altering to much the cameraconfig.
+	void* handle = nullptr; // Will be set if camera is opened
 	std::string serial;		// Serial number of this camera
 	std::string type = "kinect";       // Camera type (must be realsense)
 	std::string filename;		// Filename for offline captures
