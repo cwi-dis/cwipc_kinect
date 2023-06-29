@@ -17,12 +17,12 @@ public:
 	static int count_devices() { return 0; }
 	static K4AOfflineCapture* factory() { return new K4AOfflineCapture(); }
 	// methods
-	K4AOfflineCapture();
 	virtual ~K4AOfflineCapture() {}
 	virtual bool config_reload(const char* configFilename) override;
 	bool seek(uint64_t timestamp) override;
 
 protected:
+	K4AOfflineCapture();
 	bool _capture_all_cameras() override;
 	uint64_t _get_best_timestamp() override;
 	virtual bool _apply_default_config() override { return false; }

@@ -19,12 +19,12 @@ public:
 	static int count_devices();
 	static K4ACapture* factory() { return new K4ACapture(); }
 	// methods
-	K4ACapture();
 	virtual ~K4ACapture() {}
 	virtual bool config_reload(const char* configFilename) override;
 	bool seek(uint64_t timestamp) override;
 
 protected:
+	K4ACapture();
 	bool _capture_all_cameras() override;
 	uint64_t _get_best_timestamp() override;
 	virtual bool _apply_default_config() override;
