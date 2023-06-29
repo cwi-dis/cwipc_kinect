@@ -228,15 +228,16 @@ bool cwipc_k4a_jsonfile2config(const char* filename, K4ACaptureConfig* config, s
         int version = 0;
         json_data.at("version").get_to(version);
         if (version != 3) {
-            cwipc_k4a_log_warning(std::string("CameraConfig ") + filename + "ignored, is not version 3");
+            cwipc_k4a_log_warning(std::string("CameraConfig ") + filename + " ignored, is not version 3");
             return false;
         }
         std::string type;
         json_data.at("type").get_to(type);
-        if (type != "kinect") {
-            cwipc_k4a_log_warning(std::string("CameraConfig ") + filename + "ignored, is not kinect but " + type);
+        if (type != typeWanted) {
+            cwipc_k4a_log_warning(std::string("CameraConfig ") + filename + " ignored, is not " + typeWanted + " but " + type);
             return false;
         }
+
         from_json(json_data, *config);
     }
     catch (const std::exception& e) {
