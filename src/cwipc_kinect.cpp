@@ -367,12 +367,14 @@ cwipc_tiledsource* cwipc_k4aoffline(const char* configFilename, char** errorMess
 		}
 		return NULL;
 	}
+	cwipc_k4a_warning_store = errorMessage;
 	cwipc_source_k4aoffline_impl* rv = new cwipc_source_k4aoffline_impl(configFilename);
+	cwipc_k4a_warning_store = NULL;
 	// If the grabber found cameras everything is fine
 	if (rv && rv->is_valid()) return rv;
 	delete rv;
 	if (errorMessage && *errorMessage == NULL) {
-		*errorMessage = (char*)"cwipc_kinect: no kinect cameras found";
+		*errorMessage = (char*)"cwipc_k4aoffline: cannot open recording";
 	}
 	return NULL;
 }
