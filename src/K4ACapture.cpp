@@ -225,8 +225,7 @@ bool K4ACapture::_init_hardware_settings() {
 			}
 		}
 	}
-
-
+	return true;
 }
 
 bool K4ACapture::_create_cameras() {

@@ -113,7 +113,6 @@ void from_json(const json& json_data, K4ACaptureConfig& config) {
         pcl::shared_ptr<Eigen::Affine3d> default_trafo(new Eigen::Affine3d());
         default_trafo->setIdentity();
         cd.trafo = default_trafo;
-        cd.intrinsicTrafo = default_trafo;
         _MY_JSON_GET(camera, serial, cd, serial);
         _MY_JSON_GET(camera, type, cd, type);
         _MY_JSON_GET(camera, disabled, cd, disabled);
