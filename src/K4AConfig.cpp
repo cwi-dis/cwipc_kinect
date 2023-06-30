@@ -243,9 +243,6 @@ bool cwipc_k4a_jsonfile2config(const char* filename, K4ACaptureConfig* config, s
         cwipc_k4a_log_warning(std::string("CameraConfig ") + filename + ": exception " + e.what());
         return false;
     }
-    json dbg_result;
-    to_json(dbg_result, *config);
-    std::cerr << "xxxjack debug json parse result: \n" << dbg_result << "\n";
     return true;
 }
 
