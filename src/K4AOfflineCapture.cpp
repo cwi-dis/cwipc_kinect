@@ -151,8 +151,8 @@ void K4AOfflineCapture::_create_cameras(std::vector<Type_api_camera>& camera_han
 #endif
 		// Found a kinect camera. Create a default data entry for it.
 		K4ACameraConfig& cd = configuration.all_camera_configs[i];
-		if (cd.type != "kinect") {
-			cwipc_k4a_log_warning("Camera " + cd.serial + " is type " + cd.type + " in stead of kinect");
+		if (cd.type != "kinect_offline") {
+			cwipc_k4a_log_warning("Camera " + cd.serial + " is type " + cd.type + " in stead of kinect_offline");
 		}
 		int camera_index = cameras.size();
 		if (!cd.disabled) {

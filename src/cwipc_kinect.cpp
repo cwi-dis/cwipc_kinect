@@ -321,6 +321,20 @@ public:
 		return true;
 	}
 
+
+	virtual size_t get_config(char* buffer, size_t size) override
+	{
+		auto config = m_offline->config_get();
+		if (buffer == nullptr) {
+			return config.length();
+		}
+		if (size < config.length()) {
+			return 0;
+		}
+		memcpy(buffer, config.c_str(), config.length());
+		return config.length();
+	}
+
 	void request_auxiliary_data(const std::string& name) override {
 		cwipc_tiledsource::request_auxiliary_data(name);
 		m_offline->request_image_auxdata(

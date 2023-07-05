@@ -393,6 +393,10 @@ bool cwipc_k4a_xmlfile2config(const char* filename, K4ACaptureConfig* config, st
         if (cd->type == "") {
             cd->type = config->type;
         }
+        // Hack for old-style config files
+        if (cd->type == "kinect" && config->type == "kinect_offline") {
+            cd->type = "kinect_offline";
+        }
         if (cd->type != config->type) {
             cwipc_k4a_log_warning(std::string("Camera type mismatch: ") + cd->type + " versus " + config->type);
         }
