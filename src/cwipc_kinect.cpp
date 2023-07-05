@@ -5,6 +5,7 @@
 
 #include "cwipc_util/api_pcl.h"
 #include "cwipc_util/api.h"
+#include "cwipc_util/internal.h"
 #include "cwipc_kinect/api.h"
 #include "K4AConfig.hpp"
 #include "K4ACapture.hpp"
@@ -378,6 +379,13 @@ cwipc_tiledsource* cwipc_k4aoffline(const char* configFilename, char** errorMess
 	}
 	return NULL;
 }
+
+//
+// These static variables only exist to ensure the initializer is called, which registers our camera type.
+//
+int _cwipc_dummy_kinect_initializer = _cwipc_register_capturer("kinect", K4ACapture::count_devices, cwipc_kinect);
+int _cwipc_dummy_kinect_offline_initializer = _cwipc_register_capturer("kinect_offline", nullptr, cwipc_k4aoffline);
+
 
 //void cwipc_offline_free(cwipc_offline* obj)
 //{
