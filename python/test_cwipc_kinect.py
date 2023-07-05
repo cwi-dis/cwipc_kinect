@@ -35,7 +35,8 @@ if 'CWIPC_TEST_DLL' in os.environ:
 _thisdir=os.path.dirname(os.path.join(os.getcwd(), __file__))
 _topdir=os.path.dirname(_thisdir)
 TEST_FIXTURES_DIR=os.path.join(_topdir, "tests", "fixtures")
-TEST_FIXTURES_OFFLINE_CONFIG=os.path.join(TEST_FIXTURES_DIR, "input", "recording", "cameraconfig.xml")
+TEST_FIXTURES_OFFLINE_CONFIG=os.path.join(TEST_FIXTURES_DIR, "input", "recording", "cameraconfig.json")
+TEST_FIXTURES_OFFLINE_CONFIG_XML=os.path.join(TEST_FIXTURES_DIR, "input", "recording", "cameraconfig.xml")
 print('xxxjack', _thisdir, _topdir, TEST_FIXTURES_DIR)
 TEST_OUTPUT_DIR=os.path.join(TEST_FIXTURES_DIR, "output")
 if not os.access(TEST_OUTPUT_DIR, os.W_OK):
@@ -100,6 +101,21 @@ class TestApi(unittest.TestCase):
         pc = None
         try:
             grabber = _cwipc_kinect.cwipc_k4aoffline(TEST_FIXTURES_OFFLINE_CONFIG)
+            self.assertFalse(grabber.eof())
+            self.assertTrue(grabber.available(True))
+            pc = grabber.get()
+            self._verify_pointcloud(pc)
+        finally:
+            if grabber: grabber.free()
+            if pc: pc.free()
+            
+    @unittest.skipIf(sys.platform=='linux' and not 'DISPLAY' in os.environ, "Test requires X server/OpenGL")
+    def test_cwipc_k4aoffline_xml(self):
+        """Test that we can grab a kinect image from the offline grabber using xml config"""
+        grabber = None
+        pc = None
+        try:
+            grabber = _cwipc_kinect.cwipc_k4aoffline(TEST_FIXTURES_OFFLINE_CONFIG_XML)
             self.assertFalse(grabber.eof())
             self.assertTrue(grabber.available(True))
             pc = grabber.get()
