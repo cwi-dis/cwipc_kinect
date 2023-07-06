@@ -89,7 +89,7 @@ public:
         m_grabber = NULL;
     }
 
-	virtual size_t get_config(char* buffer, size_t size)
+	virtual size_t get_config(char* buffer, size_t size) override
 	{
 		auto config = m_grabber->config_get();
 		if (buffer == nullptr) {
@@ -100,6 +100,11 @@ public:
 		}
 		memcpy(buffer, config.c_str(), config.length());
 		return config.length();
+	}
+
+	virtual bool reload_config(const char* configFile) override
+	{
+		return m_grabber->config_reload(configFile);
 	}
 
     bool eof() 
@@ -203,7 +208,7 @@ public:
 };
 
 
-class cwipc_source_k4aoffline_impl : public cwipc_tiledsource{
+class cwipc_source_k4aoffline_impl : public cwipc_tiledsource {
 protected:
 	K4AOfflineCapture *m_offline;
 public:
@@ -321,6 +326,10 @@ public:
 		return true;
 	}
 
+	virtual bool reload_config(const char* configFile) override
+	{
+		return m_offline->config_reload(configFile);
+	}
 
 	virtual size_t get_config(char* buffer, size_t size) override
 	{
