@@ -107,6 +107,7 @@ void from_json(const json& json_data, K4ACaptureConfig& config) {
 
     json cameras = json_data.at("camera");
     int camera_index = 0;
+    config.all_camera_configs.clear();
     for (json::iterator it = cameras.begin(); it != cameras.end(); it++) {
         json camera = *it;
         K4ACameraConfig cd;
