@@ -17,7 +17,7 @@ public:
 	static int count_devices() { return 0; }
 	static K4AOfflineCapture* factory() { return new K4AOfflineCapture(); }
 	// methods
-	virtual ~K4AOfflineCapture() {}
+	virtual ~K4AOfflineCapture();
 	virtual bool config_reload(const char* configFilename) override;
 	bool seek(uint64_t timestamp) override;
 
@@ -28,7 +28,7 @@ protected:
 	virtual bool _apply_default_config() override { return false; }
 private:
 	void _create_cameras(std::vector<Type_api_camera>& camera_handles);
-	bool _open_recording_files(std::vector<Type_api_camera>& camera_handles); // Open the recordings
+	bool _open_recording_files(std::vector<Type_api_camera>& camera_handles, const char *configFilename=nullptr); // Open the recordings
 private:
 	// variables
 	bool sync_inuse = false;

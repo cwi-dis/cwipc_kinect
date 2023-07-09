@@ -402,20 +402,8 @@ bool cwipc_k4a_xmlfile2config(const char* filename, K4ACaptureConfig* config, st
             cwipc_k4a_log_warning(std::string("Camera type mismatch: ") + cd->type + " versus " + config->type);
         }
 
-		auto camerafile_c = cameraElement->Attribute("filename");
-		if (camerafile_c != NULL && camerafile_c[0] != '\0') {
-			std::string camerafile(camerafile_c);
-			if (camerafile.substr(0, 1) != "/") {
-				// Relative path (so don''t use windows drive numbers;-)
-				std::string filename_cpp(filename);
-				size_t lastSlashPos = filename_cpp.find_last_of("/\\");
-				if (lastSlashPos != std::string::npos) {
-					camerafile = filename_cpp.substr(0, lastSlashPos + 1) + camerafile;
-				}
-			}
-			cd->filename = camerafile;
-
-		}
+		cd->filename = cameraElement->Attribute("filename");
+		
         
 		TiXmlElement *trafo = cameraElement->FirstChildElement("trafo");
 		if (trafo) {

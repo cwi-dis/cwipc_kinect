@@ -34,6 +34,13 @@ K4AOfflineCapture::K4AOfflineCapture()
 
 }
 
+K4AOfflineCapture::~K4AOfflineCapture() {
+	if (camera_count > 0) {
+		_unload_cameras();
+	}
+	numberOfCapturersActive--;
+}
+
 bool K4AOfflineCapture::config_reload(const char* configFilename) {
 	_unload_cameras();
 	//
@@ -55,7 +62,7 @@ bool K4AOfflineCapture::config_reload(const char* configFilename) {
 		}
 	}
 	std::vector<Type_api_camera> camera_handles(camera_count, nullptr);
-	if (!_open_recording_files(camera_handles)) {
+	if (!_open_recording_files(camera_handles, configFilename)) {
 		_unload_cameras();
 		return false;
 	}
@@ -76,7 +83,7 @@ bool K4AOfflineCapture::config_reload(const char* configFilename) {
 	return true;
 }
 
-bool K4AOfflineCapture::_open_recording_files(std::vector<Type_api_camera>& camera_handles) {
+bool K4AOfflineCapture::_open_recording_files(std::vector<Type_api_camera>& camera_handles, const char *configFilename) {
 	
 	if (camera_handles.size() == 0) {
 		// no camera connected, so we'll return nothing
@@ -90,26 +97,33 @@ bool K4AOfflineCapture::_open_recording_files(std::vector<Type_api_camera>& came
 	{
 		if (configuration.all_camera_configs[i].disabled == true) continue;
 
-		const char *filename = configuration.all_camera_configs[i].filename.c_str();
-
-		result = k4a_playback_open(filename, &camera_handles[i]);
+		std::string camerafile(configuration.all_camera_configs[i].filename);
+		if (camerafile.substr(0, 1) != "/") {
+			// Relative path (so don''t use windows drive numbers;-)
+			std::string filename_cpp(configFilename);
+			size_t lastSlashPos = filename_cpp.find_last_of("/\\");
+			if (lastSlashPos != std::string::npos) {
+				camerafile = filename_cpp.substr(0, lastSlashPos + 1) + camerafile;
+			}
+		}
+		result = k4a_playback_open(camerafile.c_str(), &camera_handles[i]);
 
 		if (result != K4A_RESULT_SUCCEEDED)
 		{
-			std::cerr << CLASSNAME << ": Failed to open file: " << filename << std::endl;
+			std::cerr << CLASSNAME << ": Failed to open file: " << camerafile << std::endl;
 			return false;
 		}
 		k4a_record_configuration_t file_config;
 		result = k4a_playback_get_record_configuration(camera_handles[i], &file_config);
 		if (result != K4A_RESULT_SUCCEEDED)
 		{
-			std::cerr << CLASSNAME << ": Failed to get record configuration for file: " << filename << std::endl;
+			std::cerr << CLASSNAME << ": Failed to get record configuration for file: " << camerafile << std::endl;
 			return false;
 		}
 
 		if (file_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_MASTER)
 		{
-			std::cerr << CLASSNAME << ": Opened master recording file: " << filename << std::endl;
+			std::cerr << CLASSNAME << ": Opened master recording file: " << camerafile << std::endl;
 			if (master_found)
 			{
 				std::cerr << CLASSNAME << ": ERROR: Multiple master recordings listed!" << std::endl;
@@ -124,11 +138,11 @@ bool K4AOfflineCapture::_open_recording_files(std::vector<Type_api_camera>& came
 		}
 		else if (file_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_SUBORDINATE)
 		{
-			std::cout << CLASSNAME << ": Opened subordinate recording file: " << filename << std::endl;
+			std::cout << CLASSNAME << ": Opened subordinate recording file: " << camerafile << std::endl;
 		}
 		else
 		{
-			std::cerr << CLASSNAME << ": ERROR: Recording file was not recorded in master/sub mode: " << filename << std::endl;
+			std::cerr << CLASSNAME << ": ERROR: Recording file was not recorded in master/sub mode: " << camerafile << std::endl;
 			result = K4A_RESULT_FAILED;
 			return false;
 		}
