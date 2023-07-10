@@ -171,7 +171,7 @@ void to_json(json& json_data, const K4ACaptureConfig& config) {
         cameras[camera_index] = camera;
         camera_index++;
     }
-    json_data["cameras"] = cameras;
+    json_data["camera"] = cameras;
     json depthfilterparameters;
     _MY_JSON_PUT(depthfilterparameters, do_threshold, config.camera_processing, do_threshold);
     _MY_JSON_PUT(depthfilterparameters, threshold_near, config.camera_processing, threshold_near);
