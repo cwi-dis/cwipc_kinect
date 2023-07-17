@@ -16,7 +16,6 @@ if 0:
     #
     # A similar procedure works for debugging with Visual Studio under windows.
     import _cwipc_kinect
-    #_cwipc_kinect._cwipc_kinect_dll('/Users/jack/src/VRTogether/cwipc_kinect/build-xcode/lib/Debug/libcwipc_kinect.dylib')
     _cwipc_kinect.cwipc_kinect_dll_load('C:/Users/VRTogether/VRTogether/cwipc_kinect/build/bin/RelWithDebInfo/cwipc_kinect.dll')
     print('Type return after attaching in XCode debugger (pid=%d) - ' % os.getpid())
     sys.stdout.flush()
