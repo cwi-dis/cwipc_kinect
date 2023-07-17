@@ -17,7 +17,7 @@ if 0:
     # A similar procedure works for debugging with Visual Studio under windows.
     import _cwipc_kinect
     #_cwipc_kinect._cwipc_kinect_dll('/Users/jack/src/VRTogether/cwipc_kinect/build-xcode/lib/Debug/libcwipc_kinect.dylib')
-    _cwipc_kinect._cwipc_kinect_dll('C:/Users/VRTogether/VRTogether/cwipc_kinect/build/bin/RelWithDebInfo/cwipc_kinect.dll')
+    _cwipc_kinect.cwipc_kinect_dll_load('C:/Users/VRTogether/VRTogether/cwipc_kinect/build/bin/RelWithDebInfo/cwipc_kinect.dll')
     print('Type return after attaching in XCode debugger (pid=%d) - ' % os.getpid())
     sys.stdout.flush()
     sys.stdin.readline()
@@ -27,7 +27,7 @@ if 0:
 #
 if 'CWIPC_TEST_DLL' in os.environ:
     filename = os.environ['CWIPC_TEST_DLL']
-    dllobj = _cwipc_kinect._cwipc_kinect_dll(filename)
+    dllobj = _cwipc_kinect.cwipc_kinect_dll_load(filename)
 
 #
 # Find directories for test inputs and outputs
@@ -40,7 +40,7 @@ TEST_FIXTURES_OFFLINE_CONFIG_XML=os.path.join(TEST_FIXTURES_DIR, "input", "recor
 print('xxxjack', _thisdir, _topdir, TEST_FIXTURES_DIR)
 TEST_OUTPUT_DIR=os.path.join(TEST_FIXTURES_DIR, "output")
 if not os.access(TEST_OUTPUT_DIR, os.W_OK):
-    TEST_OUTPUT_DIR=tempfile.mkdtemp('cwipc_kinect_test')
+    TEST_OUTPUT_DIR=tempfile.mkdtemp('cwipc_kinect_test') # type: ignore
 
 class TestApi(unittest.TestCase):
     
@@ -62,9 +62,13 @@ class TestApi(unittest.TestCase):
             self.assertFalse(grabber.eof())
             self.assertTrue(grabber.available(True))
             pc = grabber.get()
+            self.assertIsNotNone(pc)
+            assert pc # Only to keep linters happy
             # It seems the first pointcloud could be empty. Unsure why...
             if pc.count() == 0:
                 pc = grabber.get()
+                self.assertIsNotNone(pc)
+                assert pc # Only to keep linters happy
             self._verify_pointcloud(pc)
         finally:
             if grabber: grabber.free()
@@ -79,6 +83,8 @@ class TestApi(unittest.TestCase):
             self.assertGreaterEqual(nTile, 1)
             # Assure the non-tiled-tile exists and points nowhere.
             tileInfo = grabber.get_tileinfo_dict(0)
+            self.assertIsNotNone(tileInfo)
+            assert tileInfo # Only to keep linters happy
             self.assertIn('normal', tileInfo)
             self.assertIn('cameraName', tileInfo)
             self.assertIn('cameraMask', tileInfo)
@@ -87,6 +93,8 @@ class TestApi(unittest.TestCase):
             # Test some minimal conditions for other tiles
             for i in range(1, nTile):
                 tileInfo = grabber.get_tileinfo_dict(i)
+                self.assertIsNotNone(tileInfo)
+                assert tileInfo # Only to keep linters happy
                 if i in (1, 2, 4, 8, 16, 32, 64, 128):
                     # These tiles should exist and have a normal and camera ID (which may be None)
                     self.assertIn('normal', tileInfo)
@@ -104,6 +112,8 @@ class TestApi(unittest.TestCase):
             self.assertFalse(grabber.eof())
             self.assertTrue(grabber.available(True))
             pc = grabber.get()
+            self.assertIsNotNone(pc)
+            assert pc # Only to keep linters happy
             self._verify_pointcloud(pc)
         finally:
             if grabber: grabber.free()
@@ -119,6 +129,8 @@ class TestApi(unittest.TestCase):
             self.assertFalse(grabber.eof())
             self.assertTrue(grabber.available(True))
             pc = grabber.get()
+            self.assertIsNotNone(pc)
+            assert pc # Only to keep linters happy
             self._verify_pointcloud(pc)
         finally:
             if grabber: grabber.free()
@@ -138,12 +150,14 @@ class TestApi(unittest.TestCase):
             result = grabber.seek(5000000)
             self.assertFalse(result)
             pc = grabber.get()
+            self.assertIsNotNone(pc)
+            assert pc # Only to keep linters happy
             self._verify_pointcloud(pc)
         finally:
             if grabber: grabber.free()
             if pc: pc.free()
 
-    def _verify_pointcloud(self, pc):
+    def _verify_pointcloud(self, pc : cwipc.cwipc) -> None:
         points = pc.get_points()
         self.assertGreater(len(points), 1)
         halfway = int((len(points)+1)/2)
