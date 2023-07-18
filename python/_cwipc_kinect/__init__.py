@@ -3,7 +3,7 @@ import ctypes
 import ctypes.util
 import warnings
 from typing import Optional
-from cwipc.util import CwipcError, CWIPC_API_VERSION, cwipc_tiledsource
+from cwipc.util import CwipcError, CWIPC_API_VERSION, cwipc_tiledsource_wrapper
 from cwipc.util import cwipc_tiledsource_p
 from cwipc.util import _cwipc_dll_search_path_collection # type: ignore
 
@@ -66,7 +66,7 @@ def cwipc_kinect_dll_load(libname : Optional[str]=None) -> ctypes.CDLL:
 
     return _cwipc_kinect_dll_reference
         
-def cwipc_kinect(conffile : Optional[str]=None) -> cwipc_tiledsource:
+def cwipc_kinect(conffile : Optional[str]=None) -> cwipc_tiledsource_wrapper:
     """Returns a cwipc_source object that grabs from a kinect camera and returns cwipc object on every get() call."""
     errorString = ctypes.c_char_p()
     cconffile = None
@@ -78,10 +78,10 @@ def cwipc_kinect(conffile : Optional[str]=None) -> cwipc_tiledsource:
     if errorString and errorString.value:
         warnings.warn(errorString.value.decode('utf8'))
     if rv:
-        return cwipc_tiledsource(rv)
+        return cwipc_tiledsource_wrapper(rv)
     raise CwipcError("cwipc_kinect: no cwipc_tiledsource created, but no specific error returned from C library")
 
-def cwipc_k4aoffline(conffile : Optional[str]=None) -> cwipc_tiledsource:
+def cwipc_k4aoffline(conffile : Optional[str]=None) -> cwipc_tiledsource_wrapper:
     """Returns a cwipc_source object that grabs from kinect camera recordings and returns cwipc objects on every get() call."""
     errorString = ctypes.c_char_p()
     cconffile = None
@@ -93,5 +93,5 @@ def cwipc_k4aoffline(conffile : Optional[str]=None) -> cwipc_tiledsource:
     if errorString and errorString.value:
         warnings.warn(errorString.value.decode('utf8'))
     if rv:
-        return cwipc_tiledsource(rv)
+        return cwipc_tiledsource_wrapper(rv)
     raise CwipcError("cwipc_k4aoffline: no cwipc_tiledsource created, but no specific error returned from C library")

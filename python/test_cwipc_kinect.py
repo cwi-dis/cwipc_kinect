@@ -156,7 +156,7 @@ class TestApi(unittest.TestCase):
             if grabber: grabber.free()
             if pc: pc.free()
 
-    def _verify_pointcloud(self, pc : cwipc.cwipc) -> None:
+    def _verify_pointcloud(self, pc : cwipc.cwipc_wrapper) -> None:
         points = pc.get_points()
         self.assertGreater(len(points), 1)
         halfway = int((len(points)+1)/2)
