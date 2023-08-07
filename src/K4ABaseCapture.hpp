@@ -55,9 +55,6 @@ public:
 	}
 
 	virtual ~K4ABaseCapture() {
-		if (camera_count == 0) {
-			return;
-		}
 		uint64_t stopTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		
 		_unload_cameras();
@@ -69,7 +66,6 @@ public:
 	}
 
 	void _unload_cameras() {
-		if (camera_count == 0) return;
 		stop();
 
 		// Delete all cameras (which will stop their threads as well)
@@ -180,7 +176,7 @@ public:
 protected:
 	virtual bool _apply_default_config() = 0;
 	virtual bool _apply_config(const char *configFilename) final {
-		if (configFilename == NULL) {
+		if (configFilename == NULL || *configFilename == '\0') {
 			configFilename = "cameraconfig.json";
 		}
 		if (strcmp(configFilename, "auto") == 0) {
@@ -193,10 +189,10 @@ protected:
 		}
 		// Otherwise we check the extension. It can be .xml or .json.
 		const char* extension = strrchr(configFilename, '.');
-		if (strcmp(extension, ".xml") == 0) {
+		if (extension != nullptr && strcmp(extension, ".xml") == 0) {
 			return cwipc_k4a_xmlfile2config(configFilename, &configuration, type);
 		}
-		if (strcmp(extension, ".json") == 0) {
+		if (extension != nullptr && strcmp(extension, ".json") == 0) {
 			return cwipc_k4a_jsonfile2config(configFilename, &configuration, type);
 		}
 		return false;
