@@ -171,6 +171,7 @@ void K4AOfflineCamera::stop()
 	// Stop threads
 	if (processing_thread) processing_thread->join();
 	delete processing_thread;
+	processing_thread = nullptr;
 
 	if (camera_started) {
 		// Nothing to stop for reading from file

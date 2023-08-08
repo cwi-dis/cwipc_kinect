@@ -166,8 +166,10 @@ void K4ACamera::stop()
 	// Stop threads
 	if (grabber_thread) grabber_thread->join();
 	delete grabber_thread;
+	grabber_thread = nullptr;
 	if (processing_thread) processing_thread->join();
 	delete processing_thread;
+	processing_thread = nullptr;
 
 	if (tracker_handle) {
 		//Stop body tracker

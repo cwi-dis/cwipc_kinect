@@ -84,8 +84,9 @@ public:
 		mergedPC_want_new = true;
 		mergedPC_want_new_cv.notify_all();
 		std::cerr << CLASSNAME << ": stopped all cameras\n";
-		if (control_thread) control_thread->join();
+		if (control_thread && control_thread->joinable()) control_thread->join();
 		delete control_thread;
+		control_thread = nullptr;
 		// Stop all cameras
 		for (auto cam : cameras)
 			cam->stop();
