@@ -402,7 +402,8 @@ bool cwipc_k4a_xmlfile2config(const char* filename, K4ACaptureConfig* config, st
             cwipc_k4a_log_warning(std::string("Camera type mismatch: ") + cd->type + " versus " + config->type);
         }
 
-		cd->filename = cameraElement->Attribute("filename");
+		const char *filename_c = cameraElement->Attribute("filename");
+        if (filename_c) cd->filename = std::string(filename_c);
 		
         
 		TiXmlElement *trafo = cameraElement->FirstChildElement("trafo");
