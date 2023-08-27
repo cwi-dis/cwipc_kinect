@@ -90,6 +90,8 @@ public:
 		// Stop all cameras
 		for (auto cam : cameras)
 			cam->stop();
+		mergedPC_is_fresh = false;
+		mergedPC_want_new = false;
 	}
 	
 	virtual void request_image_auxdata(bool _rgb, bool _depth) final {
