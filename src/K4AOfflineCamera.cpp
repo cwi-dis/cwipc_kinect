@@ -105,7 +105,11 @@ bool K4AOfflineCamera::_prepare_next_valid_frame() {
 		} else {
 			succeeded = true;
 		}
+		// xxxjack stop-gap: suddenly sometimes color is missing from the first frame.
+		// Try to capture again.
+		if (!succeeded) continue;
 		current_frameset_timestamp = k4a_image_get_device_timestamp_usec(color);
+		// std::cerr << "xxxjack capture_id=" << capture_id << ", timestamp=" << current_frameset_timestamp << std::endl;
 		k4a_image_release(color);
 		k4a_image_release(depth);
 	}
