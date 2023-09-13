@@ -33,7 +33,7 @@
 /** \brief Abstract interface to a single pointcloud, C-compatible placeholder.
  */
 typedef struct _cwipc_offline {
-	int _dummy;
+    int _dummy;
 } cwipc_offline;
 
 #endif

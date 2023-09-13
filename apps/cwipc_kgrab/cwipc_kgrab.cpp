@@ -13,23 +13,24 @@
 int main(int argc, char** argv) {
     if (argc < 3) {
         std::cerr << "Usage: " << argv[0] << " count directory [configfile]" << std::endl;
-		std::cerr << "Creates COUNT pointclouds from a kinect4a camera and stores the PLY files in the given DIRECTORY" << std::endl;
-		std::cerr << "If directory is - then drop the pointclouds on the floor" << std::endl;
-		return 2;
+        std::cerr << "Creates COUNT pointclouds from a kinect4a camera and stores the PLY files in the given DIRECTORY" << std::endl;
+        std::cerr << "If directory is - then drop the pointclouds on the floor" << std::endl;
+
+        return 2;
     }
 
     int countWanted = atoi(argv[1]);
     char filename[500];
     char *error = NULL;
-	cwipc_tiledsource *generator;
+    cwipc_tiledsource *generator;
     char *outputdir = argv[2];
-	char *configFile = NULL;
+    char *configFile = NULL;
 
-	if (argc == 4) {
-		configFile = argv[3];
-	}
+    if (argc == 4) {
+        configFile = argv[3];
+    }
 
-	generator = cwipc_kinect(configFile, &error, CWIPC_API_VERSION);
+    generator = cwipc_kinect(configFile, &error, CWIPC_API_VERSION);
 
     if (generator == NULL) {
         std::cerr << argv[0] << ": creating kinect grabber failed: " << error << std::endl;
@@ -56,6 +57,7 @@ int main(int argc, char** argv) {
     char* configBuf = (char *)malloc(configSize + 1);
     memset(configBuf, 0, configSize + 1);
     generator->get_config(configBuf, configSize);
+
     std::cerr << "cameraconfig as json:\n=================\n" << configBuf << "\n======================\n";
 #endif
 
@@ -99,13 +101,13 @@ int main(int argc, char** argv) {
 #endif
         framenum++;
 
-		if (strcmp(outputdir, "-") != 0) {
-			snprintf(filename, sizeof(filename), "%s/pointcloud-%" PRIu64 ".ply", outputdir, pc->timestamp());
-	        std::cout << "-> Writing frame " << framenum << " with " << pc->count() << " points to "<< filename << std::endl;
-			ok = cwipc_write(filename, pc, &error);
-		} else {
-	        std::cout << "-> Dropping frame " << framenum << " with " << pc->count() << " points" << std::endl;
-		}
+        if (strcmp(outputdir, "-") != 0) {
+            snprintf(filename, sizeof(filename), "%s/pointcloud-%" PRIu64 ".ply", outputdir, pc->timestamp());
+            std::cout << "-> Writing frame " << framenum << " with " << pc->count() << " points to "<< filename << std::endl;
+            ok = cwipc_write(filename, pc, &error);
+        } else {
+            std::cout << "-> Dropping frame " << framenum << " with " << pc->count() << " points" << std::endl;
+        }
 
         pc->free();
         nGrabbedSuccessfully++;
@@ -114,8 +116,8 @@ int main(int argc, char** argv) {
     generator->free();
 
     if (ok < 0) {
-    	std::cerr << "Error: " << error << std::endl;
-    	return 1;
+        std::cerr << "Error: " << error << std::endl;
+        return 1;
     }
 
     if (countWanted != 0 && nGrabbedSuccessfully != countWanted) {

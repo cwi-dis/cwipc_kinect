@@ -9,10 +9,10 @@
 #include <k4arecord/playback.h>
 
 typedef struct {
-	char* filename;
-	k4a_playback_t handle;
-	k4a_record_configuration_t record_config;
-	k4a_capture_t capture;
+    char* filename;
+    k4a_playback_t handle;
+    k4a_record_configuration_t record_config;
+    k4a_capture_t capture;
     uint64_t current_capture_timestamp;
     int capture_id = 0;
 } recording_t;
@@ -139,25 +139,25 @@ int prepare_cond_next_valid_frame(recording_t* file, uint64_t master_timestamp, 
 int main(int argc, char* argv[]) {
     bool ok;
 
-	if (argc < 3) {
+    if (argc < 3) {
         std::cerr << "Usage: cwipc_k4aoffline_check <master.mkv> <sub1.mkv> ..." << std::endl;
-		std::cerr << "Convert multiple mkvfiles into pointclouds" << std::endl;
-		return 1;
-	}
+        std::cerr << "Convert multiple mkvfiles into pointclouds" << std::endl;
+        return 1;
+    }
 
-	size_t file_count = (size_t)(argc - 1);
-	bool master_found = false;
-	k4a_result_t result = K4A_RESULT_SUCCEEDED;
+    size_t file_count = (size_t)(argc - 1);
+    bool master_found = false;
+    k4a_result_t result = K4A_RESULT_SUCCEEDED;
 
-	// Allocate memory to store the state of N recordings.
+    // Allocate memory to store the state of N recordings.
 
-	recording_t* files = (recording_t*) malloc(sizeof(recording_t) * file_count);
-	if (files == NULL) {
-		std::cerr << "Failed to allocate memory for playback (" << sizeof(recording_t) * file_count << " bytes)" << std::endl;
-		return 1;
-	}
+    recording_t* files = (recording_t*) malloc(sizeof(recording_t) * file_count);
+    if (files == NULL) {
+        std::cerr << "Failed to allocate memory for playback (" << sizeof(recording_t) * file_count << " bytes)" << std::endl;
+        return 1;
+    }
 
-	memset(files, 0, sizeof(recording_t) * file_count);
+    memset(files, 0, sizeof(recording_t) * file_count);
 
     // Open each recording file and validate they were recorded in master/subordinate mode.
     for (size_t i = 0; i < file_count; i++) {

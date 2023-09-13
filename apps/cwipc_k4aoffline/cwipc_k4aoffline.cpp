@@ -95,13 +95,13 @@ int main(int argc, char** argv) {
 
         framenum++;
 
-		if (strcmp(outputdir, "-") != 0) {
-			snprintf(filename, sizeof(filename), "%s/pointcloud-%08.8" PRIu64 ".ply", outputdir, pc->timestamp());
-	        std::cout << "-> Writing frame " << framenum << " with " << pc->count() << " points to "<< filename << std::endl;
-			ok = cwipc_write_ext(filename, pc, 1, &error);
-		} else {
-	        std::cout << "-> Dropping frame " << framenum << " with " << pc->count() << " points" << std::endl;
-		}
+        if (strcmp(outputdir, "-") != 0) {
+            snprintf(filename, sizeof(filename), "%s/pointcloud-%08.8" PRIu64 ".ply", outputdir, pc->timestamp());
+            std::cout << "-> Writing frame " << framenum << " with " << pc->count() << " points to "<< filename << std::endl;
+            ok = cwipc_write_ext(filename, pc, 1, &error);
+        } else {
+            std::cout << "-> Dropping frame " << framenum << " with " << pc->count() << " points" << std::endl;
+        }
 
         pc->free();
         nGrabbedSuccessfully++;
