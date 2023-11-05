@@ -52,6 +52,7 @@ endif()
 include_directories(include)
 
 add_subdirectory(src)
+add_subdirectory(apps/cwipc_kinect_install_check)
 add_subdirectory(apps/cwipc_kgrab)
 add_subdirectory(apps/cwipc_kmultigrab)
 add_subdirectory(apps/cwipc_k4aoffline)
