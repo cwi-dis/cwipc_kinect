@@ -108,7 +108,7 @@ int prepare_cond_next_valid_frame(recording_t* file, uint64_t master_timestamp, 
 
     //check if there is a current frame that already satisfies the condition
     if (file->capture != NULL && (file->current_capture_timestamp > master_timestamp)) {
-        if (file->current_capture_timestamp < (master_timestamp + max_delay)) //satisfies {
+        if (file->current_capture_timestamp < (master_timestamp + max_delay)) { //satisfies
             return 1;
         } else { //update master
             return 2;
