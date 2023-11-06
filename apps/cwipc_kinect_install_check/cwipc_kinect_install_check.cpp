@@ -12,10 +12,16 @@ int main(int argc, char** argv) {
     if (generator == NULL) {
         char* expectedError = strstr(error, "no kinect cameras found");
         if (expectedError == NULL) {
+            expectedError = strstr(error, "k4a_device_open failed");
+        }
+        if (expectedError == NULL) {
             // Any other error is unexpected.
             std::cerr << argv[0] << ": Error: " << error << std::endl;
             return 1;
         }
+    }
+    else {
+        generator->free();
     }
     return 0;
 }
