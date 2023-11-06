@@ -53,7 +53,9 @@ public:
 
         // Print some minimal statistics of this run
         float deltaT = (stopTime - starttime) / 1000.0;
+#ifdef CWIPC_DEBUG
         std::cerr << CLASSNAME << ": ran for " << deltaT << " seconds, produced " << numberOfPCsProduced << " pointclouds at " << numberOfPCsProduced / deltaT << " fps." << std::endl;
+#endif
     }
 
     void _unload_cameras() {
@@ -63,7 +65,9 @@ public:
         for (auto cam : cameras)
           delete cam;
         cameras.clear();
+#ifdef CWIPC_DEBUG
         std::cerr << CLASSNAME << ": deleted all cameras\n";
+#endif
         camera_count = 0;
     }
 
@@ -75,7 +79,9 @@ public:
         mergedPC_want_new = true;
         mergedPC_want_new_cv.notify_all();
 
+#ifdef CWIPC_DEBUG
         std::cerr << CLASSNAME << ": stopped all cameras\n";
+#endif
 
         if (control_thread && control_thread->joinable()) {
             control_thread->join();
@@ -362,7 +368,9 @@ protected:
             cwipc* newPC = cwipc_from_pcl(pcl_pointcloud, timestamp, &error_str, CWIPC_API_VERSION);
 
             if (newPC == nullptr) {
+#ifdef CWIPC_DEBUG
                 std::cerr << CLASSNAME << ": cwipc_from_pcl returned error: " << error_str << std::endl;
+#endif
                 break;
             }
 
