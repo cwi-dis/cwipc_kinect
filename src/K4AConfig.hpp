@@ -59,7 +59,7 @@ struct K4ACaptureConfig : CwipcBaseCaptureConfig {
     int single_tile = -1;       // if singletile >=0 all the points will be the specified integer
 
     std::string sync_master_serial = "";  // If empty run without sync. If non-empty this camera is the sync master
-
+    bool ignore_sync = false;  // If true dont look at camera master/sub mode in files.
     K4ACameraProcessingParameters camera_processing;
     int bt_sensor_orientation = -1; // Override k4abt sensor_orientation (if >= 0)
     int bt_processing_mode = -1;  // Override k4abt processing_mode (if >= 0)

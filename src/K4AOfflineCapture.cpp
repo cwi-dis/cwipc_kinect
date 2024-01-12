@@ -120,27 +120,32 @@ bool K4AOfflineCapture::_open_recording_files(std::vector<Type_api_camera>& came
             std::cerr << CLASSNAME << ": Failed to get record configuration for file: " << camerafile << std::endl;
             return false;
         }
+        if (!configuration.ignore_sync) {
+            if (file_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_MASTER) {
+                std::cerr << CLASSNAME << ": Opened master recording file: " << camerafile << std::endl;
 
-        if (file_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_MASTER) {
-            std::cerr << CLASSNAME << ": Opened master recording file: " << camerafile << std::endl;
+                if (master_found) {
+                    std::cerr << CLASSNAME << ": ERROR: Multiple master recordings listed!" << std::endl;
+                    result = K4A_RESULT_FAILED;
 
-            if (master_found) {
-                std::cerr << CLASSNAME << ": ERROR: Multiple master recordings listed!" << std::endl;
+                    return false;
+                }
+                else {
+                    master_found = true;
+                    master_id = i;
+                }
+            }
+            else if (file_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_SUBORDINATE) {
+                std::cout << CLASSNAME << ": Opened subordinate recording file: " << camerafile << std::endl;
+            }
+            else {
+                std::cerr << CLASSNAME << ": ERROR: Recording file was not recorded in master/sub mode: " << camerafile << std::endl;
                 result = K4A_RESULT_FAILED;
 
                 return false;
-            } else {
-                master_found = true;
-                master_id = i;
             }
-        } else if (file_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_SUBORDINATE) {
-            std::cout << CLASSNAME << ": Opened subordinate recording file: " << camerafile << std::endl;
-        } else {
-            std::cerr << CLASSNAME << ": ERROR: Recording file was not recorded in master/sub mode: " << camerafile << std::endl;
-            result = K4A_RESULT_FAILED;
-
-            return false;
         }
+        
 
         //initialize cameradata attributes:
         configuration.all_camera_configs[i].cameraposition = { 0, 0, 0 };
