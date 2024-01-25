@@ -428,7 +428,7 @@ protected:
 
             if (mergedPC->access_pcl_pointcloud()->size() > 0) {
 #ifdef CWIPC_DEBUG
-                std::cerr << CLASSNAME << ": capturer produced a merged cloud of " << mergedPC->size() << " points" << std::endl;
+                std::cerr << CLASSNAME << ": capturer produced a merged cloud of " << mergedPC->count() << " points" << std::endl;
 #endif
             } else {
 #ifdef CWIPC_DEBUG

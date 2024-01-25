@@ -8,6 +8,8 @@
 #include "K4AOfflineCamera.hpp"
 #include "turbojpeg.h"
 
+#define CWIPC_DEBUG
+
 K4AOfflineCamera::K4AOfflineCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraConfig& _camData) :
     K4ABaseCamera("cwipc_kinect: K4AOfflineCamera", _handle, configuration, _camera_index, _camData),
     capture_id(-1),
@@ -95,7 +97,7 @@ bool K4AOfflineCamera::_prepare_next_valid_frame() {
             if (current_frameset_timestamp == 0) {
                 std::cerr << CLASSNAME << ": Recording file is empty: " << camData.filename << std::endl;
             } else {
-                std::cout << CLASSNAME << ": Recording file " << camData.filename << " reached EOF" << std::endl;
+                std::cout << CLASSNAME << ": Recording file " << camData.filename << " reached EOF at frame " << capture_id << std::endl;
             }
 #endif
 
@@ -126,6 +128,9 @@ bool K4AOfflineCamera::_prepare_next_valid_frame() {
         }
 
         current_frameset_timestamp = k4a_image_get_device_timestamp_usec(color);
+#ifdef CWIPC_DEBUG
+        std::cerr << CLASSNAME << ": file=" << camData.filename << ", id=" << capture_id << ", timestamp=" << current_frameset_timestamp << std::endl;
+#endif
         // std::cerr << "xxxjack capture_id=" << capture_id << ", timestamp=" << current_frameset_timestamp << std::endl;
         k4a_image_release(color);
         k4a_image_release(depth);

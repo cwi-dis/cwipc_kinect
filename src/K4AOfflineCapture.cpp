@@ -8,7 +8,7 @@
 #define WITH_INTER_CAM_SYNC
 
 // Define to get (a little) debug prints
-#undef CWIPC_DEBUG
+#define CWIPC_DEBUG
 #undef CWIPC_DEBUG_THREAD
 
 #include <chrono>
@@ -163,12 +163,12 @@ void K4AOfflineCapture::_create_cameras(std::vector<Type_api_camera>& camera_han
     for (uint32_t i = 0; i < camera_handles.size(); i++) {
         assert (camera_handles[i] != nullptr);
 
-#ifdef CWIPC_DEBUG
-        std::cout << CLASSNAME << ": opening camera " << serials[i] << std::endl;
-#endif
 
         // Found a kinect camera. Create a default data entry for it.
         K4ACameraConfig& cd = configuration.all_camera_configs[i];
+#ifdef CWIPC_DEBUG
+        std::cout << CLASSNAME << ": opening camera " << cd.serial << std::endl;
+#endif
         if (cd.type != "kinect_offline") {
             cwipc_k4a_log_warning("Camera " + cd.serial + " is type " + cd.type + " in stead of kinect_offline");
         }

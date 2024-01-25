@@ -25,8 +25,8 @@
 #endif
 
 // Define to get (a little) debug prints
-#undef CWIPC_DEBUG
-#undef CWIPC_DEBUG_THREAD
+#define CWIPC_DEBUG
+#define CWIPC_DEBUG_THREAD
 #undef CWIPC_MEMORY_DEBUG
 #undef CWIPC_PC_GENERATION_OLD
 
@@ -397,7 +397,7 @@ protected:
             bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(10000));
             if (processing_frameset == NULL) {
 #ifdef CWIPC_DEBUG_THREAD
-            std::cerr << CLASSNAME << ": processing thread: null frameset" << std::endl;
+            std::cerr << CLASSNAME << ": processing thread: null frameset, camera " << serial << std::endl;
 #endif
                 continue;
             }
@@ -843,7 +843,7 @@ protected:
             }
         }
 #ifdef CWIPC_DEBUG_THREAD
-        std::cerr << "cwipc_kinect: camera " << serial << " produced " << camData.cloud->size() << " point" << std::endl;
+        std::cerr << "cwipc_kinect: camera " << serial << " produced " << new_cloud->size() << " point" << std::endl;
 #endif
         return new_cloud;
     }
@@ -956,7 +956,7 @@ protected:
             }
         }
 #ifdef CWIPC_DEBUG_THREAD
-        std::cerr << "cwipc_kinect: camera " << serial << " produced " << camData.cloud->size() << " point" << std::endl;
+        std::cerr << "cwipc_kinect: camera " << serial << " produced " << new_cloud->size() << " point" << std::endl;
 #endif
         return new_cloud;
     }
