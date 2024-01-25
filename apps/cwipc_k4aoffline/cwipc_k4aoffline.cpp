@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     char *outputdir = argv[2];
 
     std::string configFile(inputdir);
-    configFile += "/cameraconfig.xml";
+    configFile += "/cameraconfig.json";
 
     generator = cwipc_k4aoffline(configFile.c_str(), &error, CWIPC_API_VERSION);
 
