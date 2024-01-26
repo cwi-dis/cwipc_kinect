@@ -17,7 +17,7 @@ K4AOfflineCamera::K4AOfflineCamera(Type_api_camera _handle, K4ACaptureConfig& co
     max_delay(0)
 {
 #ifdef CWIPC_DEBUG
-    std::cout << CLASSNAME << "creating camera " << serial << std::endl;
+    std::cout << CLASSNAME << ": creating camera " << serial << std::endl;
 #endif
     _init_filters();
 }

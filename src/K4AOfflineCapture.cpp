@@ -145,10 +145,22 @@ bool K4AOfflineCapture::_open_recording_files(std::vector<Type_api_camera>& came
                 return false;
             }
         }
-        
+        char serial_buf[100];
+        size_t serial_buf_size = 100;
+        k4a_buffer_result_t result2 = k4a_playback_get_tag(camera_handles[i], "K4A_DEVICE_SERIAL_NUMBER", serial_buf, &serial_buf_size);
+        if (result2 == K4A_BUFFER_RESULT_SUCCEEDED) {
+            configuration.all_camera_configs[i].serial = std::string(serial_buf);
+        }
+        else
+        {
+            std::cerr << CLASSNAME << ": Could not get camera serial from recording " << camerafile << std::endl;
+        }
 
         //initialize cameradata attributes:
         configuration.all_camera_configs[i].cameraposition = { 0, 0, 0 };
+    }
+    if (configuration.sync_master_serial == "" && master_id >= 0) {
+        configuration.sync_master_serial = configuration.all_camera_configs[master_id].serial;
     }
     // xxxjack we should chack that configuration.sync_master_serial matches master_id...
 
