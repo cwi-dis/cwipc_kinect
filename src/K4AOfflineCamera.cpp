@@ -8,7 +8,7 @@
 #include "K4AOfflineCamera.hpp"
 #include "turbojpeg.h"
 
-#define CWIPC_DEBUG
+#undef CWIPC_DEBUG
 
 K4AOfflineCamera::K4AOfflineCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraConfig& _camData) :
     K4ABaseCamera("cwipc_kinect: K4AOfflineCamera", _handle, configuration, _camera_index, _camData),
@@ -143,7 +143,7 @@ bool K4AOfflineCamera::_prepare_cond_next_valid_frame(uint64_t master_timestamp)
     //check if current frame already satisfies the condition
     if (current_frameset != NULL && (current_frameset_timestamp > master_timestamp)) {
         // Even if the current frame is too far in the future we use it.
-        // Jack is unsure why this is (unlike in the next test)
+        std::cout << CLASSNAME << ": serial=" << camData.serial << ": returning old frame, timestamp = " << current_frameset_timestamp << ", too early by " << current_frameset_timestamp - master_timestamp << std::endl;
         return true;
     }
 

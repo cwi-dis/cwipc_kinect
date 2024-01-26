@@ -25,8 +25,8 @@
 #endif
 
 // Define to get (a little) debug prints
-#define CWIPC_DEBUG
-#define CWIPC_DEBUG_THREAD
+#undef CWIPC_DEBUG
+#undef CWIPC_DEBUG_THREAD
 #undef CWIPC_MEMORY_DEBUG
 #undef CWIPC_PC_GENERATION_OLD
 
