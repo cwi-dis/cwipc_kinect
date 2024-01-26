@@ -201,22 +201,25 @@ bool K4AOfflineCapture::_capture_all_cameras() {
     //f irst capture master frame (it is the referrence to sync).
     // For the master we simply get the next frame available (indicated by timestamp==0)
     //
-    uint64_t wanted_timestamp = 0;
-    for (auto cam : cameras) { //MASTER
+   for (auto cam : cameras) { //MASTER
         if (!cam->is_sync_master()) {
             continue;
         }
 
-        if (!cam->capture_frameset(wanted_timestamp)) {
+        if (!cam->capture_frameset(0)) {
+#ifdef CWIPC_DEBUG
+            std::cout << CLASSNAME << ": master capture_frameset() failed for " << cam->serial << std::endl;
+#endif
             all_captures_ok = false;
-            break;
         }
-    }
+        break;
+   }
 
-    //
-    // If we have a sync master we now know the timestamp we want from the other cameras.
-    //
-    if (sync_inuse) {
+   //
+   // If we have a sync master we now know the timestamp we want from the other cameras.
+   //
+   uint64_t wanted_timestamp = 0;
+   if (sync_inuse) {
         wanted_timestamp = cameras[master_id]->current_frameset_timestamp;
     }
 
@@ -229,10 +232,15 @@ bool K4AOfflineCapture::_capture_all_cameras() {
         }
 
         if (!cam->capture_frameset(wanted_timestamp)) {
+#ifdef CWIPC_DEBUG
+            std::cout << CLASSNAME << ": sub capture_frameset() failed for " << cam->serial << std::endl;
+#endif
             all_captures_ok = false;
-            break;
         }
     }
+#ifdef CWIPC_DEBUG
+    std::cout << CLASSNAME << ": capture_all_cameras: timestamp=" << wanted_timestamp << " all_captures_ok=" << all_captures_ok << std::endl;
+#endif
 
     return all_captures_ok;
 }

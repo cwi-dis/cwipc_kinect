@@ -91,7 +91,7 @@ bool K4AOfflineCamera::_prepare_next_valid_frame() {
 
         stream_result = k4a_playback_get_next_capture(camera_handle, &current_frameset);
         if (stream_result == K4A_STREAM_RESULT_EOF) {
-            eof = true;
+            eof = true; // xxxjack note that this means eof is true *after all frames have been processed*.
 
 #ifdef CWIPC_DEBUG
             if (current_frameset_timestamp == 0) {
@@ -114,9 +114,9 @@ bool K4AOfflineCamera::_prepare_next_valid_frame() {
         k4a_image_t depth = k4a_capture_get_depth_image(current_frameset);
 
         if (color == NULL) {
-            std::cerr << CLASSNAME << ": Color is missing in capture " << capture_id << " from " << camData.filename << std::endl;
+            std::cerr << CLASSNAME << ": Color is missing in capture " << capture_id << " serial " << camData.serial << " from " << camData.filename << std::endl;
         } else if (depth == NULL) {
-            std::cerr << CLASSNAME << ": Depth is missing in capture " << capture_id << " from " << camData.filename << std::endl;
+            std::cerr << CLASSNAME << ": Depth is missing in capture " << capture_id << " serial " << camData.serial << " from " << camData.filename << std::endl;
         } else {
             succeeded = true;
         }
@@ -129,7 +129,7 @@ bool K4AOfflineCamera::_prepare_next_valid_frame() {
 
         current_frameset_timestamp = k4a_image_get_device_timestamp_usec(color);
 #ifdef CWIPC_DEBUG
-        std::cerr << CLASSNAME << ": file=" << camData.filename << ", id=" << capture_id << ", timestamp=" << current_frameset_timestamp << std::endl;
+        std::cerr << CLASSNAME << ": file=" << camData.filename << ", serial=" << camData.serial << ", id=" << capture_id << ", timestamp=" << current_frameset_timestamp << std::endl;
 #endif
         // std::cerr << "xxxjack capture_id=" << capture_id << ", timestamp=" << current_frameset_timestamp << std::endl;
         k4a_image_release(color);
@@ -154,10 +154,12 @@ bool K4AOfflineCamera::_prepare_cond_next_valid_frame(uint64_t master_timestamp)
         }
 
         if (current_frameset_timestamp > master_timestamp) {
-            if (current_frameset_timestamp < (master_timestamp + max_delay)) {
-              return true;
-            } else {  //it is a future frame, we need to update master frame
-              return false;
+            if (current_frameset_timestamp > (master_timestamp + max_delay)) {
+                // it is a future frame, we need to update master frame
+                std::cerr << CLASSNAME << ": Warning: serial=" << camData.serial << " return frame " << current_frameset_timestamp << ", too early by " << current_frameset_timestamp - master_timestamp << std::endl;
+                return true;
+            } else {  
+                return true;
             }
         }
     }
