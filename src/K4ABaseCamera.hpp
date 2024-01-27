@@ -222,62 +222,116 @@ public:
     }
 
     virtual void save_auxdata_images(cwipc* pc, bool rgb, bool depth) final {
+        k4a_image_t color_image = k4a_capture_get_color_image(current_frameset);
+        k4a_image_t depth_image = k4a_capture_get_depth_image(current_frameset);
+        if (color_image == nullptr || depth_image == nullptr) return;
+        int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
+        int color_image_height_pixels = k4a_image_get_height_pixels(color_image);
+        int depth_image_width_pixels = k4a_image_get_width_pixels(depth_image);
+        int depth_image_height_pixels = k4a_image_get_height_pixels(depth_image);
         if (rgb) {
             std::string name = "rgb." + serial;
-            k4a_image_t image = k4a_capture_get_color_image(current_frameset);
-            image = _uncompress_color_image(current_frameset, image);
+            color_image = _uncompress_color_image(current_frameset, color_image);
+            if (configuration.camera_processing.map_color_to_depth) {
+                k4a_image_t transformed_color_image = NULL;
+                k4a_result_t status;
 
-            if (image != NULL) {
-                uint8_t* data_pointer = k4a_image_get_buffer(image);
-                const size_t size = k4a_image_get_size(image);
-                int width = k4a_image_get_width_pixels(image);
-                int height = k4a_image_get_height_pixels(image);
-                int stride = k4a_image_get_stride_bytes(image);
-                int format = k4a_image_get_format(image);
+                status = k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
+                    depth_image_width_pixels,
+                    depth_image_height_pixels,
+                    depth_image_width_pixels * 4 * (int)sizeof(uint8_t),
+                    &transformed_color_image
+                );
 
-                std::string description =
-                  "width=" + std::to_string(width) +
-                  ",height=" + std::to_string(height) +
-                  ",stride=" + std::to_string(stride) +
-                  ",format=" + std::to_string(format);
-
-                void* pointer = malloc(size);
-
-                if (pointer) {
-                    memcpy(pointer, data_pointer, size);
-                    cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
-                    ap->_add(name, description, pointer, size, ::free);
+                if (status != K4A_RESULT_SUCCEEDED) {
+                    std::cerr << "cwipc_kinect: Failed to create transformed color image: " << status << std::endl;
+                    return;
                 }
+
+                status = k4a_transformation_color_image_to_depth_camera(transformation_handle,
+                    depth_image,
+                    color_image,
+                    transformed_color_image
+                );
+
+                if (status != K4A_RESULT_SUCCEEDED) {
+                    std::cerr << "cwipc_kinect: Failed to compute transformed color image: " << status << std::endl;
+                    return;
+                }
+
+
+                k4a_image_release(color_image);
+                color_image = transformed_color_image;
+            }
+            uint8_t* data_pointer = k4a_image_get_buffer(color_image);
+            const size_t size = k4a_image_get_size(color_image);
+            int width = k4a_image_get_width_pixels(color_image);
+            int height = k4a_image_get_height_pixels(color_image);
+            int stride = k4a_image_get_stride_bytes(color_image);
+            int format = k4a_image_get_format(color_image);
+
+            std::string description =
+                "width=" + std::to_string(width) +
+                ",height=" + std::to_string(height) +
+                ",stride=" + std::to_string(stride) +
+                ",format=" + std::to_string(format);
+
+            void* pointer = malloc(size);
+
+            if (pointer) {
+                memcpy(pointer, data_pointer, size);
+                cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
+                ap->_add(name, description, pointer, size, ::free);
             }
 
-            k4a_image_release(image);
+            k4a_image_release(color_image);
         }
 
         if (depth) {
             std::string name = "depth." + serial;
-            k4a_image_t image = k4a_capture_get_depth_image(current_frameset);
+           if (!configuration.camera_processing.map_color_to_depth) {
+               k4a_image_t transformed_depth_image = NULL;
+               k4a_result_t status;
+               status = k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16,
+                   color_image_width_pixels,
+                   color_image_height_pixels,
+                   color_image_width_pixels * (int)sizeof(uint16_t),
+                   &transformed_depth_image
+               );
 
-            if (image != NULL) {
-                uint8_t* data_pointer = k4a_image_get_buffer(image);
-                const size_t size = k4a_image_get_size(image);
-                int width = k4a_image_get_width_pixels(image);
-                int height = k4a_image_get_height_pixels(image);
-                int stride = k4a_image_get_stride_bytes(image);
-                int format = k4a_image_get_format(image);
+               if (status != K4A_RESULT_SUCCEEDED) {
+                   std::cerr << "cwipc_kinect: Failed to create transformed depth image: " << status << std::endl;
+                   return;
+               }
 
-                std::string description =
-                  "width=" + std::to_string(width) +
-                  ",height=" + std::to_string(height) +
-                  ",stride=" + std::to_string(stride) +
-                  ",format=" + std::to_string(format);
+               status = k4a_transformation_depth_image_to_color_camera(transformation_handle, depth_image, transformed_depth_image);
+               if (status != K4A_RESULT_SUCCEEDED) {
+                   std::cerr << "cwipc_kinect: Failed to compute transformed depth image: " << status << std::endl;
+                   return;
+               }
+               k4a_image_release(depth_image);
+               depth_image = transformed_depth_image;
+            }
+ 
+            uint8_t* data_pointer = k4a_image_get_buffer(depth_image);
+            const size_t size = k4a_image_get_size(depth_image);
+            int width = k4a_image_get_width_pixels(depth_image);
+            int height = k4a_image_get_height_pixels(depth_image);
+            int stride = k4a_image_get_stride_bytes(depth_image);
+            int format = k4a_image_get_format(depth_image);
 
-                void* pointer = malloc(size);
+            std::string description =
+                "width=" + std::to_string(width) +
+                ",height=" + std::to_string(height) +
+                ",stride=" + std::to_string(stride) +
+                ",format=" + std::to_string(format);
 
-                if (pointer) {
-                    memcpy(pointer, data_pointer, size);
-                    cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
-                    ap->_add(name, description, pointer, size, ::free);
-                }
+            void* pointer = malloc(size);
+
+            if (pointer) {
+                memcpy(pointer, data_pointer, size);
+                cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
+                ap->_add(name, description, pointer, size, ::free);
             }
         }
     }
