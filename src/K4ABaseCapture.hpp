@@ -112,6 +112,18 @@ public:
         }
     }
 
+
+
+    virtual bool map2d3d(int tile, int x_2d, int y_2d, int d_2d, float* out3d)
+    {
+        for (auto cam : cameras) {
+            if (tile == (1 << cam->camera_index)) {
+                return cam->map2d3d(x_2d, y_2d, d_2d, out3d);
+            }
+        }
+        return false;
+    }
+
     virtual Type_our_camera* get_camera(std::string serial) final {
         for (auto cam : cameras) {
             if (cam->serial == serial) {

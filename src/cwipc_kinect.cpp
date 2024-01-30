@@ -232,6 +232,22 @@ public:
         m_grabber->request_skeleton_auxdata(auxiliary_data_requested("skeleton"));
         std::cout << "cwipc_kinect: Requested auxdata rgb=" << auxiliary_data_requested("rgb") << ", depth=" << auxiliary_data_requested("depth") << ", skeleton=" << auxiliary_data_requested("skeleton") << std::endl;
     }
+
+    bool auxiliary_operation(const std::string op, const void* inbuf, size_t insize, void* outbuf, size_t outsize) override {
+        // For test purposes, really...
+        std::cerr << "xxxjack cwipc_kinect aux-op " << op << std::endl;
+        if (op != "map2d3d") return false;
+        if (inbuf == nullptr || insize != 4 * sizeof(float)) return false;
+        if (outbuf == nullptr || outsize != 3 * sizeof(float)) return false;
+        float* infloat = (float*)inbuf;
+        float* outfloat = (float*)outbuf;
+        int tilenum = (int)infloat[0];
+        int x_2d = (int)infloat[1];
+        int y_2d = (int)infloat[2];
+        float d_2d = infloat[3];
+
+        return m_grabber->map2d3d(tilenum, x_2d, y_2d, d_2d, outfloat);
+    }
 };
 
 class cwipc_source_k4aoffline_impl : public cwipc_tiledsource {
@@ -398,6 +414,22 @@ public:
         m_offline->request_skeleton_auxdata(auxiliary_data_requested("skeleton"));
 
         std::cout << "cwipc_kinect: Requested auxdata rgb=" << auxiliary_data_requested("rgb") << ", depth=" << auxiliary_data_requested("depth") << ", skeleton=" << auxiliary_data_requested("skeleton") << std::endl;
+    }
+
+    bool auxiliary_operation(const std::string op, const void* inbuf, size_t insize, void* outbuf, size_t outsize) override {
+        // For test purposes, really...
+        std::cerr << "xxxjack cwipc_kinect aux-op " << op << std::endl;
+        if (op != "map2d3d") return false;
+        if (inbuf == nullptr || insize != 4 * sizeof(float)) return false;
+        if (outbuf == nullptr || outsize != 3 * sizeof(float)) return false;
+        float* infloat = (float*)inbuf;
+        float* outfloat = (float*)outbuf;
+        int tilenum = (int)infloat[0];
+        int x_2d = (int)infloat[1];
+        int y_2d = (int)infloat[2];
+        float d_2d = infloat[3];
+
+        return m_offline->map2d3d(tilenum, x_2d, y_2d, d_2d, outfloat);
     }
 };
 

@@ -115,12 +115,12 @@ public:
     float pointSize = 0;  //<! (Approximate) 3D cellsize of pointclouds captured by this camera
     std::string serial; //<! Serial number for this camera
     bool eof = false; //<! True when end of file reached on this camera stream
+    int camera_index;
 
 protected:
     std::string CLASSNAME;
     K4ACaptureConfig& configuration;
     Type_api_camera camera_handle;
-    int camera_index; //<! For messages only
     bool stopped = true;  //<! True when stopping
     bool camera_started = false;  //<! True when camera hardware is grabbing
     std::thread* processing_thread = nullptr; //<! Handle for thread that runs processing loop
@@ -365,6 +365,14 @@ public:
         }
     }
 
+    bool map2d3d(int x_2d, int y_2d, int d_2d, float* out3d)
+    {
+        out3d[0] = x_2d;
+        out3d[1] = y_2d;
+        out3d[2] = d_2d;
+        std::cerr << "RS2Camera: xxxjack: map2d3d: not yet implemented for kinect" << std::endl;
+        return true;
+    }
 protected:
   virtual void _init_filters() final {}
 
