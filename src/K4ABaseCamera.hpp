@@ -147,17 +147,17 @@ protected:
 
 public:
     K4ABaseCamera(const std::string& _Classname, Type_api_camera _handle, K4ACaptureConfig& _configuration, int _camera_index, K4ACameraConfig& _camData) :
-      CLASSNAME(_Classname),
-      configuration(_configuration),
-      camera_handle(_handle),
-      camData(_camData),
-      camera_index(_camera_index),
-      serial(_camData.serial),
-      captured_frame_queue(1),
-      processing_frame_queue(1),
-      camera_sync_ismaster(serial == configuration.sync_master_serial),
-      camera_sync_inuse(configuration.sync_master_serial != ""),
-      do_height_filtering(configuration.height_min != configuration.height_max)
+        CLASSNAME(_Classname),
+        configuration(_configuration),
+        camera_handle(_handle),
+        camData(_camData),
+        camera_index(_camera_index),
+        serial(_camData.serial),
+        captured_frame_queue(1),
+        processing_frame_queue(1),
+        camera_sync_ismaster(serial == configuration.sync_master_serial),
+        camera_sync_inuse(configuration.sync_master_serial != ""),
+        do_height_filtering(configuration.height_min != configuration.height_max)
     {
 
 #ifdef CWIPC_PC_GENERATION_OLD
@@ -183,7 +183,8 @@ public:
 
         if (want_auxdata_skeleton) {
             return _init_tracker();
-        } else {
+        }
+        else {
             return false;
         }
     }
@@ -209,7 +210,7 @@ public:
 
     virtual void wait_for_pc() final {
         std::unique_lock<std::mutex> lock(processing_mutex);
-        processing_done_cv.wait(lock, [this]{ return processing_done; });
+        processing_done_cv.wait(lock, [this] { return processing_done; });
         processing_done = false;
     }
 
@@ -289,30 +290,30 @@ public:
 
         if (depth) {
             std::string name = "depth." + serial;
-           if (!configuration.camera_processing.map_color_to_depth) {
-               k4a_image_t transformed_depth_image = NULL;
-               k4a_result_t status;
-               status = k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16,
-                   color_image_width_pixels,
-                   color_image_height_pixels,
-                   color_image_width_pixels * (int)sizeof(uint16_t),
-                   &transformed_depth_image
-               );
+            if (!configuration.camera_processing.map_color_to_depth) {
+                k4a_image_t transformed_depth_image = NULL;
+                k4a_result_t status;
+                status = k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16,
+                    color_image_width_pixels,
+                    color_image_height_pixels,
+                    color_image_width_pixels * (int)sizeof(uint16_t),
+                    &transformed_depth_image
+                );
 
-               if (status != K4A_RESULT_SUCCEEDED) {
-                   std::cerr << "cwipc_kinect: Failed to create transformed depth image: " << status << std::endl;
-                   return;
-               }
+                if (status != K4A_RESULT_SUCCEEDED) {
+                    std::cerr << "cwipc_kinect: Failed to create transformed depth image: " << status << std::endl;
+                    return;
+                }
 
-               status = k4a_transformation_depth_image_to_color_camera(transformation_handle, depth_image, transformed_depth_image);
-               if (status != K4A_RESULT_SUCCEEDED) {
-                   std::cerr << "cwipc_kinect: Failed to compute transformed depth image: " << status << std::endl;
-                   return;
-               }
-               k4a_image_release(depth_image);
-               depth_image = transformed_depth_image;
+                status = k4a_transformation_depth_image_to_color_camera(transformation_handle, depth_image, transformed_depth_image);
+                if (status != K4A_RESULT_SUCCEEDED) {
+                    std::cerr << "cwipc_kinect: Failed to compute transformed depth image: " << status << std::endl;
+                    return;
+                }
+                k4a_image_release(depth_image);
+                depth_image = transformed_depth_image;
             }
- 
+
             uint8_t* data_pointer = k4a_image_get_buffer(depth_image);
             const size_t size = k4a_image_get_size(depth_image);
             int width = k4a_image_get_width_pixels(depth_image);
@@ -367,10 +368,53 @@ public:
 
     bool map2d3d(int x_2d, int y_2d, int d_2d, float* out3d)
     {
-        out3d[0] = x_2d;
-        out3d[1] = y_2d;
-        out3d[2] = d_2d;
-        std::cerr << "RS2Camera: xxxjack: map2d3d: not yet implemented for kinect" << std::endl;
+        float depth = d_2d; // 1000.0; // Note: this comes out of the Depth image, so it is in millimeters
+#ifdef xxxjack_bad
+        k4a_float2_t pt_2d;
+        pt_2d.xy.x = x_2d;
+        pt_2d.xy.y = y_2d;
+        k4a_float3_t pt_3d;
+        k4a_result_t ok;
+        int valid;
+
+        if (configuration.camera_processing.map_color_to_depth) {
+            ok = k4a_calibration_2d_to_3d(
+                &sensor_calibration, &pt_2d, depth, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_DEPTH, &pt_3d, &valid
+            );
+        }
+        else {
+            ok = k4a_calibration_2d_to_3d(
+                &sensor_calibration, &pt_2d, depth, K4A_CALIBRATION_TYPE_COLOR, K4A_CALIBRATION_TYPE_COLOR, &pt_3d, &valid
+            );
+        }
+        if (!valid || ok != K4A_RESULT_SUCCEEDED) {
+            std::cerr << CLASSNAME << ": error mapping 2D point to 3D" << std::endl;
+        }
+        out3d[0] = pt_3d.xyz.x;
+        out3d[1] = pt_3d.xyz.y;
+        out3d[2] = pt_3d.xyz.z;
+#else
+        k4a_float2_t* xy_table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(xy_table);
+        int width = k4a_image_get_width_pixels(xy_table);
+        int height = k4a_image_get_height_pixels(xy_table);
+        if (y_2d < 0 || y_2d >= height || x_2d < 0 || x_2d >= width) {
+            std::cerr << CLASSNAME << ": map2d3d: illegal coordinate" << std::endl;
+            return false;
+        }
+        int idx = y_2d * width + x_2d;
+        cwipc_pcl_point point;
+        point.x = xy_table_data[idx].xy.x * depth;
+        point.y = xy_table_data[idx].xy.y * depth;
+        point.z = depth;
+        if (configuration.camera_processing.map_color_to_depth) {
+            transformDepthToColorPoint(point);
+        }
+        transformPoint(point); //transforming from camera to world coordinates
+        out3d[0] = point.x;
+        out3d[1] = point.y;
+        out3d[2] = point.z;
+
+#endif
         return true;
     }
 protected:
