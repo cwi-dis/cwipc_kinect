@@ -28,8 +28,6 @@ endif()
 find_package(k4a REQUIRED)
 find_package(k4abt REQUIRED)
 
-find_package(libjpeg-turbo REQUIRED)
-
 # We need OpenCV for some image filtering
 
 find_package( OpenCV REQUIRED
