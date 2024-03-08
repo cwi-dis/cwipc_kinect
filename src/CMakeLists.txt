@@ -75,5 +75,8 @@ install(FILES ${PROJECT_SOURCE_DIR}/CMakeFiles/cwipc_kinect-config.cmake DESTINA
 install(EXPORT cwipc_kinect DESTINATION lib/cmake/cwipc_kinect)
 
 if(WIN32)
+	# Copy the dependent DLLs that cmake/vcpkg have created
+	install(FILES $<TARGET_RUNTIME_DLLS:cwipc_kinect> DESTINATION ${CMAKE_INSTALL_BINDIR})
+	# Copy the PDB file, if it exists
 	install(FILES $<TARGET_PDB_FILE:cwipc_kinect> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
 endif()
