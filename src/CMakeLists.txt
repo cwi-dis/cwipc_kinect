@@ -34,7 +34,12 @@ target_sources(cwipc_kinect
 )
 
 target_link_libraries(cwipc_kinect PUBLIC cwipc_util)
-target_link_libraries(cwipc_kinect PRIVATE ${PCL_LIBRARIES} k4a::k4a k4a::k4arecord k4a::k4abt ${OpenCV_LIBS} libjpeg-turbo::turbojpeg)
+target_link_libraries(cwipc_kinect PRIVATE ${PCL_LIBRARIES})
+target_link_libraries(cwipc_kinect PRIVATE k4a::k4a k4a::k4arecord)
+target_link_libraries(cwipc_kinect PRIVATE k4a::k4abt)
+target_link_libraries(cwipc_kinect PRIVATE opencv_core opencv_imgproc)
+target_link_libraries(cwipc_kinect PRIVATE ZLIB::ZLIB) # Workaround for vcpkg
+target_link_libraries(cwipc_kinect PRIVATE libjpeg-turbo::turbojpeg)
 target_link_libraries(cwipc_kinect PRIVATE nlohmann_json::nlohmann_json)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" AND CMAKE_BUILD_TYPE MATCHES "Release")
@@ -77,6 +82,9 @@ install(EXPORT cwipc_kinect DESTINATION lib/cmake/cwipc_kinect)
 if(WIN32)
 	# Copy the dependent DLLs that cmake/vcpkg have created
 	install(FILES $<TARGET_RUNTIME_DLLS:cwipc_kinect> DESTINATION ${CMAKE_INSTALL_BINDIR})
+	# Hack to also copy the zlib and zstd DLLs (which are not picked up by cmake/vcpkg)
+	install(FILES ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/zlib1.dll DESTINATION ${CMAKE_INSTALL_BINDIR})
+	install(FILES ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/zstd.dll DESTINATION ${CMAKE_INSTALL_BINDIR})
 	# Copy the PDB file, if it exists
 	install(FILES $<TARGET_PDB_FILE:cwipc_kinect> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
 endif()
