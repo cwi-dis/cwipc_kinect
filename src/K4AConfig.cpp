@@ -223,7 +223,7 @@ void to_json(json& json_data, const K4ACaptureConfig& config) {
     json_data["skeleton"] = skeleton;
     json_data["system"] = system_data;
     json_data["version"] = 3;
-    json_data["type"] = "kinect";
+    json_data["type"] = config.type;
 }
 
 bool cwipc_k4a_jsonfile2config(const char* filename, K4ACaptureConfig* config, std::string typeWanted) {
