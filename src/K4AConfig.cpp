@@ -76,6 +76,7 @@ void from_json(const json& json_data, K4ACaptureConfig& config) {
     _MY_JSON_GET(system_data, single_tile, config, single_tile);
     _MY_JSON_GET(system_data, sync_master_serial, config, sync_master_serial);
     _MY_JSON_GET(system_data, ignore_sync, config, ignore_sync);
+    _MY_JSON_GET(system_data, record_to_directory, config, record_to_directory);
     _MY_JSON_GET(system_data, color_exposure_time, config.camera_processing, color_exposure_time);
     _MY_JSON_GET(system_data, color_whitebalance, config.camera_processing, color_whitebalance);
     _MY_JSON_GET(system_data, color_brightness, config.camera_processing, color_brightness);
@@ -84,7 +85,7 @@ void from_json(const json& json_data, K4ACaptureConfig& config) {
     _MY_JSON_GET(system_data, color_gain, config.camera_processing, color_gain);
     _MY_JSON_GET(system_data, color_powerline_frequency, config.camera_processing, color_powerline_frequency);
     _MY_JSON_GET(system_data, map_color_to_depth, config.camera_processing, map_color_to_depth);
-
+    
     json postprocessing = json_data.at("postprocessing");
     _MY_JSON_GET(postprocessing, greenscreenremoval, config, greenscreen_removal);
     _MY_JSON_GET(postprocessing, height_min, config, height_min);
@@ -206,6 +207,7 @@ void to_json(json& json_data, const K4ACaptureConfig& config) {
     _MY_JSON_PUT(system_data, single_tile, config, single_tile);
     _MY_JSON_PUT(system_data, sync_master_serial, config, sync_master_serial);
     _MY_JSON_PUT(system_data, ignore_sync, config, ignore_sync);
+    _MY_JSON_PUT(system_data, record_to_directory, config, record_to_directory);
     _MY_JSON_PUT(system_data, color_exposure_time, config.camera_processing, color_exposure_time);
     _MY_JSON_PUT(system_data, color_whitebalance, config.camera_processing, color_whitebalance);
     _MY_JSON_PUT(system_data, color_brightness, config.camera_processing, color_brightness);

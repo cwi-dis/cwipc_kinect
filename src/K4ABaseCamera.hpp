@@ -7,6 +7,7 @@
 
 #include <k4a/k4a.h>
 #include <k4arecord/playback.h>
+#include <k4arecord/record.h>
 #include <k4abt.h>
 
 #include "cwipc_util/api_pcl.h"
@@ -144,6 +145,7 @@ protected:
     k4a_calibration_t sensor_calibration; //<! k4a calibration data read from hardware camera or recording
     k4a_calibration_extrinsics_t depth_to_color_extrinsics; //<! k4a calibration data read from hardware camera or recording
     k4a_image_t xy_table = NULL;
+    std::string record_to_file; //<! If non-empty: file to record the captured streams to.
 
 public:
     K4ABaseCamera(const std::string& _Classname, Type_api_camera _handle, K4ACaptureConfig& _configuration, int _camera_index, K4ACameraConfig& _camData) :

@@ -20,6 +20,9 @@ K4ACamera::K4ACamera(Type_api_camera _handle, K4ACaptureConfig& configuration, i
 #ifdef CWIPC_DEBUG
     std::cout << CLASSNAME << "creating camera " << serial << std::endl;
 #endif
+    if (configuration.record_to_directory != "") {
+        record_to_file = configuration.record_to_directory + "/" + serial + ".mkv";
+    }
     _init_filters();
 }
 
@@ -82,6 +85,21 @@ bool K4ACamera::start() {
     if (res != K4A_RESULT_SUCCEEDED) {
         std::cerr << "cwipc_kinect: failed to start camera " << serial << std::endl;
         return false;
+    }
+     if (record_to_file != "") {
+        k4a_record_t _recorder;
+        std::cerr << "cwipc_kinect: start: recording to " << record_to_file << std::endl;
+        res = k4a_record_create(record_to_file.c_str(), camera_handle, device_config, &_recorder);
+        if (res != K4A_RESULT_SUCCEEDED) {
+            std::cerr << "cwipc_kinect: failed to start recording to " << record_to_file << std::endl;
+            return false;
+        }
+        res = k4a_record_write_header(_recorder);
+        if (res != K4A_RESULT_SUCCEEDED) {
+            std::cerr << "cwipc_kinect: failed to write header to " << record_to_file << std::endl;
+            return false;
+        }
+        recorder = _recorder;
     }
 #ifdef CWIPC_DEBUG
     std::cerr << "cwipc_kinect: starting camera " << camera_index << " with serial="<< serial << ". color_height=" << configuration.color_height << ", depth_height=" << configuration.depth_height << " map_color_to_depth=" << configuration.camera_processing.map_color_to_depth << " @" << configuration.fps << "fps as " << (camera_sync_inuse ? (camera_sync_ismaster? "Master" : "Subordinate") : "Standalone") << std::endl;
@@ -202,6 +220,15 @@ void K4ACamera::stop() {
         camera_started = false;
     }
 
+    if (recorder) {
+        auto res = k4a_record_flush(recorder);
+        if (res != K4A_RESULT_SUCCEEDED) {
+            std::cerr << "cwipc_kinect: stop: k4a_record_flush failed" << std::endl;
+        }
+        k4a_record_close(recorder);
+        recorder = nullptr;
+    }
+    
     if (camera_handle) {
         k4a_device_close(camera_handle);
         camera_handle = nullptr;
@@ -263,6 +290,12 @@ void K4ACamera::_capture_thread_main() {
 
         assert(capture_handle != NULL);
 
+        if (recorder != nullptr) {
+            auto res = k4a_record_write_capture(recorder, capture_handle);
+            if (res != K4A_RESULT_SUCCEEDED) {
+                cwipc_k4a_log_warning("k4a_record_write_capture failed");
+            }
+        }
 #ifdef CWIPC_DEBUG_THREAD
         k4a_image_t color = k4a_capture_get_color_image(capture_handle);
         uint64_t tsRGB = k4a_image_get_device_timestamp_usec(color);

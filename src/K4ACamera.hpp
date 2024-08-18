@@ -22,6 +22,7 @@ protected:
     virtual void _capture_thread_main() override;
     k4a_image_t _uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) override;
 
+    k4a_record_t recorder = nullptr;
 private:
     bool _setup_device(k4a_device_configuration_t& device_config);
 };
