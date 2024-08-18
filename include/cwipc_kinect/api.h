@@ -1,5 +1,5 @@
-#ifndef cwipc_realsense_api_h
-#define cwipc_realsense_api_h
+#ifndef cwipc_kinect_api_h
+#define cwipc_kinect_api_h
 
 #include "cwipc_util/api.h"
 
@@ -88,4 +88,4 @@ _CWIPC_KINECT_EXPORT cwipc_tiledsource* cwipc_k4aoffline(const char* configFilen
 #endif
 
 
-#endif /* cwipc_realsense_api_h */
+#endif /* cwipc_kinect_api_h */
