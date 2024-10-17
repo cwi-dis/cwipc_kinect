@@ -64,6 +64,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" AND CMAKE_BUILD_TYPE MATCHES "Release")
 endif()
 
 install(TARGETS cwipc_kinect
+	RUNTIME_DEPENDENCIES
+	PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-" "k4a"
+	POST_EXCLUDE_REGEXES ".*system32/.*\\.dll"
     EXPORT cwipc_kinect
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -81,10 +84,10 @@ install(EXPORT cwipc_kinect DESTINATION lib/cmake/cwipc_kinect)
 
 if(WIN32)
 	# Copy the dependent DLLs that cmake/vcpkg have created
-	install(FILES $<TARGET_RUNTIME_DLLS:cwipc_kinect> DESTINATION ${CMAKE_INSTALL_BINDIR})
+	#install(FILES $<TARGET_RUNTIME_DLLS:cwipc_kinect> DESTINATION ${CMAKE_INSTALL_BINDIR})
 	# Hack to also copy the zlib and zstd DLLs (which are not picked up by cmake/vcpkg)
-	install(FILES ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/zlib1.dll DESTINATION ${CMAKE_INSTALL_BINDIR})
-	install(FILES ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/zstd.dll DESTINATION ${CMAKE_INSTALL_BINDIR})
+	#install(FILES ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/zlib1.dll DESTINATION ${CMAKE_INSTALL_BINDIR})
+	#install(FILES ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/zstd.dll DESTINATION ${CMAKE_INSTALL_BINDIR})
 	# Copy the PDB file, if it exists
 	install(FILES $<TARGET_PDB_FILE:cwipc_kinect> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
 endif()
