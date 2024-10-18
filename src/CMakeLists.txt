@@ -63,7 +63,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" AND CMAKE_BUILD_TYPE MATCHES "Release")
 	)
 endif()
 
-if(WINDOWS)
+if(WIN32)
 	install(TARGETS cwipc_kinect
 	RUNTIME_DEPENDENCIES
 	PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-" "k4a"
