@@ -13,7 +13,7 @@
 
 template<typename Type_api_camera, class Type_our_camera> class K4ABaseCapture : public CwipcBaseCapture {
 public:
-    K4ACaptureConfig configuration; //!< Complete configuration read from cameraconfig.xml
+    K4ACaptureConfig configuration; //!< Complete configuration read from cameraconfig.json
     int camera_count = 0;
     bool eof = false; //<! True when end-of-file seen on pointcloud source
 
