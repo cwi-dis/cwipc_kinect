@@ -12,7 +12,7 @@
 int main(int argc, char** argv) {
     if (argc < 3) {
         std::cerr << "ERROR. Usage: " << argv[0] << " inputdirectory outputdirectory [count]" << std::endl;
-        std::cerr << "Generates pointclouds from kinect4a camera recordings using the cameraconfig.xml" << std::endl;
+        std::cerr << "Generates pointclouds from kinect4a camera recordings using the cameraconfig.json" << std::endl;
         std::cerr << "If no outputdirectory a subfolder is created in the current folder" << std::endl;
         return 2;
     }
