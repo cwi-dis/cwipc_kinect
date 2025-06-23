@@ -77,6 +77,7 @@ void from_json(const json& json_data, K4ACaptureConfig& config) {
     _MY_JSON_GET(system_data, sync_master_serial, config, sync_master_serial);
     _MY_JSON_GET(system_data, ignore_sync, config, ignore_sync);
     _MY_JSON_GET(system_data, record_to_directory, config, record_to_directory);
+    _MY_JSON_GET(system_data, new_timestamps, config, new_timestamps);
     _MY_JSON_GET(system_data, color_exposure_time, config.camera_processing, color_exposure_time);
     _MY_JSON_GET(system_data, color_whitebalance, config.camera_processing, color_whitebalance);
     _MY_JSON_GET(system_data, color_brightness, config.camera_processing, color_brightness);
@@ -208,6 +209,7 @@ void to_json(json& json_data, const K4ACaptureConfig& config) {
     _MY_JSON_PUT(system_data, sync_master_serial, config, sync_master_serial);
     _MY_JSON_PUT(system_data, ignore_sync, config, ignore_sync);
     _MY_JSON_PUT(system_data, record_to_directory, config, record_to_directory);
+    _MY_JSON_PUT(system_data, new_timestamps, config, new_timestamps);
     _MY_JSON_PUT(system_data, color_exposure_time, config.camera_processing, color_exposure_time);
     _MY_JSON_PUT(system_data, color_whitebalance, config.camera_processing, color_whitebalance);
     _MY_JSON_PUT(system_data, color_brightness, config.camera_processing, color_brightness);

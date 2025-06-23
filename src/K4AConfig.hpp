@@ -65,6 +65,7 @@ struct K4ACaptureConfig : CwipcBaseCaptureConfig {
     int bt_processing_mode = -1;  // Override k4abt processing_mode (if >= 0)
     std::string bt_model_path = "";     // Override k4abt model path
     std::string record_to_directory = ""; // If non-empty all camera streams will be recorded to this directory.
+    bool new_timestamps = false; // If true new timestamps are generated (otherwise original timestamps from capture time)
     // We could probably also allow overriding GPU id and model path, but no need for now.
     // per camera data
     std::vector<K4ACameraConfig> all_camera_configs;

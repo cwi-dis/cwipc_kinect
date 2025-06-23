@@ -372,6 +372,9 @@ protected:
 
             // And get the best timestamp
             uint64_t timestamp = _get_best_timestamp();
+            if (configuration.new_timestamps) {
+                timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+            }
             // xxxjack current_ts = timestamp;
 
             // Step 2 - Create pointcloud, and save rgb/depth images if wanted
