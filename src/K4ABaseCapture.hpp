@@ -245,12 +245,7 @@ protected:
             return cwipc_k4a_jsonbuffer2config(configFilename, &configuration, type);
         }
 
-        // Otherwise we check the extension. It can be .xml or .json.
-        const char* extension = strrchr(configFilename, '.');
-        if (extension != nullptr && strcmp(extension, ".xml") == 0) {
-            return cwipc_k4a_xmlfile2config(configFilename, &configuration, type);
-        }
-
+        // Otherwise we check the extension. It can be .json.
         if (extension != nullptr && strcmp(extension, ".json") == 0) {
             return cwipc_k4a_jsonfile2config(configFilename, &configuration, type);
         }

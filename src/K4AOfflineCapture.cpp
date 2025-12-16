@@ -51,7 +51,7 @@ bool K4AOfflineCapture::config_reload(const char* configFilename) {
 
     for (std::vector<K4ACameraConfig>::iterator it = configuration.all_camera_configs.begin(); it != configuration.all_camera_configs.end();) {
         if (it->disabled) {
-            std::cout << CLASSNAME << ": Camera " << it->serial << " is disabled in cameraconfig.xml" << std::endl;
+            std::cout << CLASSNAME << ": Camera " << it->serial << " is disabled in cameraconfig.json" << std::endl;
             it = configuration.all_camera_configs.erase(it); // we remove the cameradata from config as we don't plan to use it in this session.
         } else {
             camera_count++;

@@ -36,10 +36,6 @@ find_package( OpenCV REQUIRED
 	)
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
-# we need the thirdparty tinyXML
-include(third-party/tinyXML/CMakeLists.txt)
-include_directories(third-party/tinyXML)
-
 # If we are on Linux we should skip tests if we have no X11 server
 if(NOT WIN32 AND NOT APPLE)
 	if(NOT DEFINED ENV{DISPLAY})

@@ -76,7 +76,6 @@ struct K4ACaptureConfig;
 void cwipc_k4a_log_warning(std::string warning);
 extern char** cwipc_k4a_warning_store;
 
-bool cwipc_k4a_xmlfile2config(const char* filename, K4ACaptureConfig* config, std::string typeWanted);
 bool cwipc_k4a_jsonfile2config(const char* filename, K4ACaptureConfig* config, std::string typeWanted);
 bool cwipc_k4a_jsonbuffer2config(const char* filename, K4ACaptureConfig* config, std::string typeWanted);
 std::string cwipc_k4a_config2string(K4ACaptureConfig* config);
