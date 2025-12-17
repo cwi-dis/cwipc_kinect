@@ -28,18 +28,6 @@ void K4ACameraConfig::_from_json(const json& json_data) {
         }
     }
 
-    if (json_data.contains("intrinsicTrafo")) {
-        if (config.intrinsicTrafo == nullptr) {
-            pcl::shared_ptr<Eigen::Affine3d> intrinsic_trafo(new Eigen::Affine3d());
-            config.intrinsicTrafo = intrinsic_trafo;
-        }
-
-        for (int x = 0; x < 4; x++) {
-            for (int y = 0; y < 4; y++) {
-                (*config.intrinsicTrafo)(x, y) = json_data["intrinsicTrafo"][x][y];
-            }
-        }
-    }
 }
 
 void K4ACameraConfig::_to_json(json& json_data) {
@@ -47,7 +35,14 @@ void K4ACameraConfig::_to_json(json& json_data) {
     _MY_JSON_PUT(json_data, serial, config, serial);
     _MY_JSON_PUT(json_data, type, config, type);
     _MY_JSON_PUT(json_data, disabled, config, disabled);
-
+    // Only write cameraposition if not zero, and ensure we never read it back.
+    if (config.cameraposition.x != 0.0 || config.cameraposition.y != 0.0 || config.cameraposition.z != 0.0) {
+        json_data["_cameraposition"] = {
+            config.cameraposition.x,
+            config.cameraposition.y,
+            config.cameraposition.z
+        };
+    }
     if (config.filename != "") {
         _MY_JSON_PUT(json_data, filename, config, filename);
     }
@@ -58,15 +53,6 @@ void K4ACameraConfig::_to_json(json& json_data) {
         {(*config.trafo)(2, 0), (*config.trafo)(2, 1), (*config.trafo)(2, 2), (*config.trafo)(2, 3)},
         {(*config.trafo)(3, 0), (*config.trafo)(3, 1), (*config.trafo)(3, 2), (*config.trafo)(3, 3)}
     };
-
-    if (config.intrinsicTrafo != nullptr) {
-        json_data["intrinsicTrafo"] = {
-            {(*config.intrinsicTrafo)(0, 0), (*config.intrinsicTrafo)(0, 1), (*config.intrinsicTrafo)(0, 2), (*config.intrinsicTrafo)(0, 3)},
-            {(*config.intrinsicTrafo)(1, 0), (*config.intrinsicTrafo)(1, 1), (*config.intrinsicTrafo)(1, 2), (*config.intrinsicTrafo)(1, 3)},
-            {(*config.intrinsicTrafo)(2, 0), (*config.intrinsicTrafo)(2, 1), (*config.intrinsicTrafo)(2, 2), (*config.intrinsicTrafo)(2, 3)},
-            {(*config.intrinsicTrafo)(3, 0), (*config.intrinsicTrafo)(3, 1), (*config.intrinsicTrafo)(3, 2), (*config.intrinsicTrafo)(3, 3)}
-        };
-    }
 }
 
 void K4ACaptureConfig::_from_json(const json& json_data) {
