@@ -280,7 +280,7 @@ k4a_image_t K4APlaybackCamera::_uncompress_color_image(k4a_capture_t capture, k4
         color_image_width_pixels * 4 * (int)sizeof(uint8_t),
         &uncompressed_color_image))
     {
-      cwipc_k4a_log_warning("Failed to create image buffer for image decompression");
+      cwipc_log(LOG_WARNING, "cwipc_kinect", "Failed to create image buffer for image decompression");
       return color_image;
     }
 
@@ -296,11 +296,11 @@ k4a_image_t K4APlaybackCamera::_uncompress_color_image(k4a_capture_t capture, k4
         TJPF_BGRA,
         TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE) != 0)
     {
-        cwipc_k4a_log_warning("Failed to decompress color frame");
+        cwipc_log(LOG_WARNING, "cwipc_kinect", "Failed to decompress color frame");
     }
 
     if (tjDestroy(tjHandle)) {
-        cwipc_k4a_log_warning("Failed to destroy turboJPEG handle");
+        cwipc_log(LOG_WARNING, "cwipc_kinect", "Failed to destroy turboJPEG handle");
     }
 
     assert(uncompressed_color_image);

@@ -173,7 +173,7 @@ public:
 
     virtual cwipc* get_pointcloud() final {
         if (camera_count == 0) {
-          cwipc_k4a_log_warning("get_pointcloud: returning NULL, no cameras");
+          cwipc_log(LOG_WARNING, "cwipc_kinect", "get_pointcloud: returning NULL, no cameras");
           return nullptr;
         }
 
@@ -195,7 +195,7 @@ public:
             mergedPC = nullptr;
 
             if (rv == nullptr) {
-              cwipc_k4a_log_warning("get_pointcloud: returning NULL, even though mergedPC_is_fresh");
+              cwipc_log(LOG_WARNING, "cwipc_kinect", "get_pointcloud: returning NULL, even though mergedPC_is_fresh");
             }
         }
 
@@ -223,7 +223,7 @@ public:
             }
         }
 
-        cwipc_k4a_log_warning("Unknown camera " + serial);
+        cwipc_log(LOG_WARNING, "cwipc_kinect", "Unknown camera " + serial);
         return nullptr;
     }
 
@@ -298,7 +298,7 @@ protected:
         }
 
         if (start_error) {
-            cwipc_k4a_log_warning("Not all cameras could be started");
+            cwipc_log(LOG_WARNING, "cwipc_kinect", "Not all cameras could be started");
             _unload_cameras();
             return;
         }
@@ -476,7 +476,7 @@ protected:
         for (auto cam : cameras) {
             cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
             if (cam_cld == nullptr) {
-                cwipc_k4a_log_warning("Camera " + cam->serial + " returned NULL cloud, ignoring");
+                cwipc_log(LOG_WARNING, "cwipc_kinect", "Camera " + cam->serial + " returned NULL cloud, ignoring");
                 continue;
             }
 
@@ -565,7 +565,7 @@ protected:
 #endif // xxNacho_skeleton_DEBUG
 
         if (aligned_cld->size() != nPoints) {
-            cwipc_k4a_log_warning("Combined pointcloud has different number of points than expected");
+            cwipc_log(LOG_WARNING, "cwipc_kinect", "Combined pointcloud has different number of points than expected");
         }
     }
 

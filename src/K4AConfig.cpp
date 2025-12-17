@@ -18,18 +18,6 @@ using json = nlohmann::json;
 #include "psapi.h"
 #endif
 
-static std::string k4a_most_recent_warning;
-char **cwipc_k4a_warning_store;
-
-void cwipc_k4a_log_warning(std::string warning) {
-    std::cerr << "cwipc_kinect: Warning: " << warning << std::endl;
-
-    if (cwipc_k4a_warning_store) {
-        k4a_most_recent_warning = warning;
-        *cwipc_k4a_warning_store = (char *)k4a_most_recent_warning.c_str();
-    }
-}
-
 #ifdef MEMORY_DEBUG
 void print_stats(std::string header) { 
     //This function can help debugging memory problems. Code taken from: https://stackoverflow.com/questions/63166/how-to-determine-cpu-and-memory-consumption-from-inside-a-process
@@ -236,7 +224,7 @@ bool cwipc_k4a_jsonfile2config(const char* filename, K4ACaptureConfig* config, s
         std::ifstream f(filename);
 
         if (!f.is_open()) {
-            cwipc_k4a_log_warning(std::string("CameraConfig ") + filename + " not found");
+            cwipc_log(LOG_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + " not found");
             return false;
         }
 
@@ -246,7 +234,7 @@ bool cwipc_k4a_jsonfile2config(const char* filename, K4ACaptureConfig* config, s
         json_data.at("version").get_to(version);
 
         if (version != 3) {
-            cwipc_k4a_log_warning(std::string("CameraConfig ") + filename + " ignored, is not version 3");
+            cwipc_log(LOG_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + " ignored, is not version 3");
             return false;
         }
 
@@ -254,13 +242,13 @@ bool cwipc_k4a_jsonfile2config(const char* filename, K4ACaptureConfig* config, s
         json_data.at("type").get_to(type);
 
         if (type != typeWanted) {
-            cwipc_k4a_log_warning(std::string("CameraConfig ") + filename + " ignored, is not " + typeWanted + " but " + type);
+            cwipc_log(LOG_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + " ignored, is not " + typeWanted + " but " + type);
             return false;
         }
 
         from_json(json_data, *config);
     } catch (const std::exception& e) {
-        cwipc_k4a_log_warning(std::string("CameraConfig ") + filename + ": exception " + e.what());
+        cwipc_log(LOG_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + ": exception " + e.what());
         return false;
     }
 
@@ -277,7 +265,7 @@ bool cwipc_k4a_jsonbuffer2config(const char* jsonBuffer, K4ACaptureConfig* confi
         json_data.at("version").get_to(version);
 
         if (version != 3) {
-            cwipc_k4a_log_warning(std::string("CameraConfig ") + "(inline buffer) " + "ignored, is not version 3");
+            cwipc_log(LOG_WARNING, "cwipc_kinect", std::string("CameraConfig ") + "(inline buffer) " + "ignored, is not version 3");
             return false;
         }
 
@@ -285,13 +273,13 @@ bool cwipc_k4a_jsonbuffer2config(const char* jsonBuffer, K4ACaptureConfig* confi
         json_data.at("type").get_to(type);
 
         if (type != "kinect") {
-            cwipc_k4a_log_warning(std::string("CameraConfig ") + "(inline buffer) " + "ignored, is not kinect but " + type);
+            cwipc_log(LOG_WARNING, "cwipc_kinect", std::string("CameraConfig ") + "(inline buffer) " + "ignored, is not kinect but " + type);
             return false;
         }
 
         from_json(json_data, *config);
     } catch (const std::exception& e) {
-        cwipc_k4a_log_warning(std::string("CameraConfig ") + "(inline buffer) " + ": exception " + e.what());
+        cwipc_log(LOG_WARNING, "cwipc_kinect", std::string("CameraConfig ") + "(inline buffer) " + ": exception " + e.what());
         return false;
     }
 

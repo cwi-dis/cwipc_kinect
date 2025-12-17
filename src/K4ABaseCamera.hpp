@@ -529,9 +529,9 @@ protected:
                 k4a_wait_result_t queue_capture_result = k4abt_tracker_enqueue_capture(tracker_handle, processing_frameset, K4A_WAIT_INFINITE);
                 if (queue_capture_result == K4A_WAIT_RESULT_TIMEOUT) {
                   // It should never hit timeout when K4A_WAIT_INFINITE is set.
-                  cwipc_k4a_log_warning("k4abt_tracker_enqueue_capture: timeout");
+                  cwipc_log(LOG_WARNING, "cwipc_kinect", "k4abt_tracker_enqueue_capture: timeout");
                 } else if (queue_capture_result == K4A_WAIT_RESULT_FAILED) {
-                  cwipc_k4a_log_warning("k4abt_tracker_enqueue_capture: failed");
+                  cwipc_log(LOG_WARNING, "cwipc_kinect", "k4abt_tracker_enqueue_capture: failed");
                 }
 
                 //
@@ -554,7 +554,7 @@ protected:
                             auto sts = k4abt_frame_get_body_skeleton(body_frame, i, &skeleton);
 
                             if (sts != K4A_RESULT_SUCCEEDED) {
-                                cwipc_k4a_log_warning("Get body from body frame failed");
+                                cwipc_log(LOG_WARNING, "cwipc_kinect", "Get body from body frame failed");
                                 break;
                             }
 
@@ -583,9 +583,9 @@ protected:
                         }
                     }
                 } else if (pop_frame_result == K4A_WAIT_RESULT_TIMEOUT) {
-                    cwipc_k4a_log_warning("k4abt_tracker_pop_result: timeout");
+                    cwipc_log(LOG_WARNING, "cwipc_kinect", "k4abt_tracker_pop_result: timeout");
                 } else {
-                    cwipc_k4a_log_warning("k4abt_tracker_pop_result: failed");
+                    cwipc_log(LOG_WARNING, "cwipc_kinect", "k4abt_tracker_pop_result: failed");
                 }
 
                 if (body_frame != nullptr) {

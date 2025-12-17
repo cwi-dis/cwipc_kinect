@@ -12,6 +12,19 @@
 #include "K4APlaybackCapture.hpp"
 
 
+static bool _api_versioncheck(char **errorMessage, uint64_t apiVersion) {
+    if (apiVersion < CWIPC_API_VERSION_OLD || apiVersion > CWIPC_API_VERSION) {
+        char* msgbuf = (char*)malloc(1024);
+        snprintf(msgbuf, 1024, "cwipc_kinect: incorrect apiVersion 0x%08" PRIx64 " expected 0x%08" PRIx64 "..0x%08" PRIx64 "", apiVersion, CWIPC_API_VERSION_OLD, CWIPC_API_VERSION);
+        if (errorMessage) {
+            *errorMessage = msgbuf;
+        }
+        cwipc_log(LOG_ERROR, "cwipc_kinect", msgbuf + 13);
+        return false;
+    }
+    return true;
+}
+
 // Global variables (constants, really)
 
 
@@ -405,20 +418,10 @@ public:
 //
 
 cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage, uint64_t apiVersion) {
-    if (apiVersion < CWIPC_API_VERSION_OLD || apiVersion > CWIPC_API_VERSION) {
-        if (errorMessage) {
-            char* msgbuf = (char*)malloc(1024);
-            snprintf(msgbuf, 1024, "cwipc_kinect: incorrect apiVersion 0x%08" PRIx64 " expected 0x%08" PRIx64 "..0x%08" PRIx64 "", apiVersion, CWIPC_API_VERSION_OLD, CWIPC_API_VERSION);
-            *errorMessage = msgbuf;
-        }
-
+    if (! _api_versioncheck(errorMessage,  apiVersion)) {
         return NULL;
     }
-
-    //xxxjack   if (!MFCapture_versionCheck(errorMessage)) return NULL;
-    cwipc_k4a_warning_store = errorMessage;
     cwipc_source_kinect_impl *rv = new cwipc_source_kinect_impl(configFilename);
-    cwipc_k4a_warning_store = NULL;
 
     // If the grabber found cameras everything is fine
     if (rv && rv->is_valid()) {
@@ -426,7 +429,7 @@ cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage,
     }
 
     delete rv;
-
+    cwipc_log(LOG_ERROR, "cwipc_kinect", "no kinect cameras found");
     if (errorMessage && *errorMessage == NULL) {
         *errorMessage = (char *)"cwipc_kinect: no kinect cameras found";
     }
@@ -435,19 +438,10 @@ cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage,
 }
 
 cwipc_tiledsource* cwipc_k4aplayback(const char* configFilename, char** errorMessage, uint64_t apiVersion) {
-    if (apiVersion < CWIPC_API_VERSION_OLD || apiVersion > CWIPC_API_VERSION) {
-        if (errorMessage) {
-            char* msgbuf = (char*)malloc(1024);
-            snprintf(msgbuf, 1024, "cwipc_k4aplayback: incorrect apiVersion 0x%08" PRIx64 " expected 0x%08" PRIx64 "..0x%08" PRIx64 "", apiVersion, CWIPC_API_VERSION_OLD, CWIPC_API_VERSION);
-            *errorMessage = msgbuf;
-        }
-
+    if (! _api_versioncheck(errorMessage,  apiVersion)) {
         return NULL;
     }
-
-    cwipc_k4a_warning_store = errorMessage;
     cwipc_source_k4aplayback_impl* rv = new cwipc_source_k4aplayback_impl(configFilename);
-    cwipc_k4a_warning_store = NULL;
 
     // If the grabber found cameras everything is fine
     if (rv && rv->is_valid()) {
@@ -456,10 +450,10 @@ cwipc_tiledsource* cwipc_k4aplayback(const char* configFilename, char** errorMes
 
     delete rv;
 
+    cwipc_log(LOG_ERROR, "cwipc_k4aplayback", "cannot open recording");
     if (errorMessage && *errorMessage == NULL) {
-        *errorMessage = (char*)"cwipc_k4aplayback: cannot open recording";
+        *errorMessage = (char *)"cwipc_k4aplayback: cannot open recording";
     }
-
     return NULL;
 }
 

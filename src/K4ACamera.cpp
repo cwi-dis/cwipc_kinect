@@ -274,7 +274,7 @@ void K4ACamera::_capture_thread_main() {
         k4a_capture_t capture_handle;
         if (k4a_capture_create(&capture_handle) != K4A_RESULT_SUCCEEDED) {
             std::cerr << "cwipc_kinect: camera " << serial << ": k4a_capture_create failed" << std::endl;
-            cwipc_k4a_log_warning("k4a_capture_create failed");
+            cwipc_log(LOG_WARNING, "cwipc_kinect", "k4a_capture_create failed");
 
             break;
         }
@@ -282,7 +282,7 @@ void K4ACamera::_capture_thread_main() {
         k4a_wait_result_t ok = k4a_device_get_capture(camera_handle, &capture_handle, 5000);
         if (ok != K4A_WAIT_RESULT_SUCCEEDED) {
             std::cerr << "cwipc_kinect: camera " << serial << ": error " << ok << std::endl;
-            cwipc_k4a_log_warning("k4a_device_get_capture failed");
+            cwipc_log(LOG_WARNING, "cwipc_kinect", "k4a_device_get_capture failed");
             k4a_capture_release(capture_handle);
 
             continue;
@@ -293,7 +293,7 @@ void K4ACamera::_capture_thread_main() {
         if (recorder != nullptr) {
             auto res = k4a_record_write_capture(recorder, capture_handle);
             if (res != K4A_RESULT_SUCCEEDED) {
-                cwipc_k4a_log_warning("k4a_record_write_capture failed");
+                cwipc_log(LOG_WARNING, "cwipc_kinect", "k4a_record_write_capture failed");
             }
         }
 #ifdef CWIPC_DEBUG_THREAD
