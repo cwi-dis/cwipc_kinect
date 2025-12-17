@@ -69,22 +69,8 @@ struct K4ACaptureConfig : CwipcBaseCaptureConfig {
     // We could probably also allow overriding GPU id and model path, but no need for now.
     // per camera data
     std::vector<K4ACameraConfig> all_camera_configs;
+
+    std::string to_string();
+    bool from_string(const char* buffer, std::string typeWanted);
+    bool from_file(const char* filename, std::string typeWanted);
 };
-
-struct K4ACaptureConfig;
-
-bool cwipc_k4a_jsonfile2config(const char* filename, K4ACaptureConfig* config, std::string typeWanted);
-bool cwipc_k4a_jsonbuffer2config(const char* filename, K4ACaptureConfig* config, std::string typeWanted);
-std::string cwipc_k4a_config2string(K4ACaptureConfig* config);
-
-#ifdef _WIN32
-#include <Windows.h>
-
-inline void _cwipc_setThreadName(std::thread* thr, const wchar_t* name) {
-    HANDLE threadHandle = static_cast<HANDLE>(thr->native_handle());
-    SetThreadDescription(threadHandle, name);
-}
-
-#else
-inline void _cwipc_setThreadName(std::thread* thr, const wchar_t* name) {}
-#endif

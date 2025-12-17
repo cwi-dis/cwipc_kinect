@@ -12,48 +12,7 @@ using json = nlohmann::json;
 #define _MY_JSON_GET(jsonobj, name, config, attr) if (jsonobj.contains(#name)) jsonobj.at(#name).get_to(config.attr)
 #define _MY_JSON_PUT(jsonobj, name, config, attr) jsonobj[#name] = config.attr
 
-//enable this to print memory statistics
-#undef MEMORY_DEBUG 
-#ifdef MEMORY_DEBUG
-#include "psapi.h"
-#endif
-
-#ifdef MEMORY_DEBUG
-void print_stats(std::string header) { 
-    //This function can help debugging memory problems. Code taken from: https://stackoverflow.com/questions/63166/how-to-determine-cpu-and-memory-consumption-from-inside-a-process
-    //More info here: https://docs.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-memorystatusex
-    //VALUES COME IN BYTES
-
-    Sleep(500); //give time to the system to update
-    //Total virtual memory
-    MEMORYSTATUSEX memInfo;
-    memInfo.dwLength = sizeof(MEMORYSTATUSEX);
-    GlobalMemoryStatusEx(&memInfo);
-    DWORDLONG totalVirtualMem = memInfo.ullTotalPageFile; // Note: The name "TotalPageFile" is a bit misleading here. In reality this parameter gives the "Virtual Memory Size", which is size of swap file plus installed RAM.
-
-    //Virtual memory currently used:
-    DWORDLONG virtualMemUsed = memInfo.ullTotalPageFile - memInfo.ullAvailPageFile;
-
-    //Virtual Memory currently used by current process:
-    PROCESS_MEMORY_COUNTERS_EX pmc;
-    GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc));
-    SIZE_T virtualMemUsedByMe = pmc.PrivateUsage;
-
-    //Total Physical Memory(RAM) :
-    DWORDLONG totalPhysMem = memInfo.ullTotalPhys;
-
-    //Physical Memory currently used :
-    DWORDLONG physMemUsed = memInfo.ullTotalPhys - memInfo.ullAvailPhys;
-
-    //Physical Memory currently used by current process:
-    SIZE_T physMemUsedByMe = pmc.WorkingSetSize;
-    std::cout << "STATS : " << header << std::endl;
-    std::cout << "\t## RAM(MB): Total:" << totalPhysMem / 1000000 << " | Used:" << physMemUsed / 1000000 << "| UsedByMe:" << physMemUsedByMe / 1000000 << std::endl;
-    std::cout << "\t## VRAM(MB): Total:" << totalVirtualMem / 1000000 << " | Used:" << virtualMemUsed / 1000000 << "| UsedByMe:" << virtualMemUsedByMe / 1000000 << std::endl;
-}
-#endif // MEMORY_DEBUG
-
-void from_json(const json& json_data, K4ACaptureConfig& config) {
+void _from_json(const json& json_data, K4ACaptureConfig& config) {
     // version and type should already have been checked.
 
     json system_data = json_data.at("system");
@@ -135,7 +94,7 @@ void from_json(const json& json_data, K4ACaptureConfig& config) {
     }
 }
 
-void to_json(json& json_data, const K4ACaptureConfig& config) {
+void _to_json(json& json_data, const K4ACaptureConfig& config) {
     json cameras;
     int camera_index = 0;
 
@@ -217,7 +176,7 @@ void to_json(json& json_data, const K4ACaptureConfig& config) {
     json_data["type"] = config.type;
 }
 
-bool cwipc_k4a_jsonfile2config(const char* filename, K4ACaptureConfig* config, std::string typeWanted) {
+bool K4ACaptureConfig::from_file(const char* filename, std::string typeWanted) {
     json json_data;
 
     try {
@@ -246,7 +205,7 @@ bool cwipc_k4a_jsonfile2config(const char* filename, K4ACaptureConfig* config, s
             return false;
         }
 
-        from_json(json_data, *config);
+        _from_json(json_data, *this);
     } catch (const std::exception& e) {
         cwipc_log(LOG_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + ": exception " + e.what());
         return false;
@@ -255,7 +214,7 @@ bool cwipc_k4a_jsonfile2config(const char* filename, K4ACaptureConfig* config, s
     return true;
 }
 
-bool cwipc_k4a_jsonbuffer2config(const char* jsonBuffer, K4ACaptureConfig* config, std::string typeWanted) {
+bool K4ACaptureConfig::from_string(const char* jsonBuffer, std::string typeWanted) {
     json json_data;
 
     try {
@@ -277,22 +236,18 @@ bool cwipc_k4a_jsonbuffer2config(const char* jsonBuffer, K4ACaptureConfig* confi
             return false;
         }
 
-        from_json(json_data, *config);
+        _from_json(json_data, *this);
     } catch (const std::exception& e) {
         cwipc_log(LOG_WARNING, "cwipc_kinect", std::string("CameraConfig ") + "(inline buffer) " + ": exception " + e.what());
         return false;
     }
 
-    json dbg_result;
-    to_json(dbg_result, *config);
-    std::cerr << "xxxjack debug json parse result: \n" << dbg_result << "\n";
-
     return true;
 }
 
-std::string cwipc_k4a_config2string(K4ACaptureConfig* config) {
+std::string K4ACaptureConfig::to_string() {
     json result;
-    to_json(result, *config);
+    _to_json(result, *this);
 
     return result.dump();
 }

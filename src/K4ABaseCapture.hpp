@@ -44,7 +44,7 @@ public:
     virtual bool config_reload(const char* configFilename) = 0;
 
     virtual std::string config_get() {
-        return cwipc_k4a_config2string(&configuration);
+        return configuration.to_string();
     }
 
     virtual ~K4ABaseCapture() {
@@ -242,13 +242,13 @@ protected:
 
         if (configFilename[0] == '{') {
             // Special case 2: a string starting with { is considered a JSON literal
-            return cwipc_k4a_jsonbuffer2config(configFilename, &configuration, type);
+            return configuration.from_string(configFilename, type);
         }
 
         // Otherwise we check the extension. It can be .json.
         const char *extension = strrchr(configFilename, '.');
         if (extension != nullptr && strcmp(extension, ".json") == 0) {
-            return cwipc_k4a_jsonfile2config(configFilename, &configuration, type);
+            return configuration.from_file(configFilename, type);
         }
 
         return false;
