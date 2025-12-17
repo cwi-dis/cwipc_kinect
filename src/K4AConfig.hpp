@@ -17,7 +17,6 @@
 //
 #include "cwipc_util/api_pcl.h"
 #include "cwipc_util/internal.h"
-#include <k4abt.h>
 
 #ifdef _CWIPC_NLOHMANN_JSON
 #include <nlohmann/json.hpp>

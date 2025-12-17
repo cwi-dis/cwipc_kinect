@@ -11,6 +11,64 @@
 #define _MY_JSON_GET(jsonobj, name, config, attr) if (jsonobj.contains(#name)) jsonobj.at(#name).get_to(config.attr)
 #define _MY_JSON_PUT(jsonobj, name, config, attr) jsonobj[#name] = config.attr
 
+void K4ACameraConfig::_from_json(const json& json_data) {
+    K4ACameraConfig& config = *this;
+    // version and type should already have been checked.
+
+    _MY_JSON_GET(json_data, serial, config, serial);
+    _MY_JSON_GET(json_data, type, config, type);
+    _MY_JSON_GET(json_data, disabled, config, disabled);
+    _MY_JSON_GET(json_data, filename, config, filename);
+
+    if (json_data.contains("trafo")) {
+        for (int x = 0; x < 4; x++) {
+            for (int y = 0; y < 4; y++) {
+                (*config.trafo)(x, y) = json_data["trafo"][x][y];
+            }
+        }
+    }
+
+    if (json_data.contains("intrinsicTrafo")) {
+        if (config.intrinsicTrafo == nullptr) {
+            pcl::shared_ptr<Eigen::Affine3d> intrinsic_trafo(new Eigen::Affine3d());
+            config.intrinsicTrafo = intrinsic_trafo;
+        }
+
+        for (int x = 0; x < 4; x++) {
+            for (int y = 0; y < 4; y++) {
+                (*config.intrinsicTrafo)(x, y) = json_data["intrinsicTrafo"][x][y];
+            }
+        }
+    }
+}
+
+void K4ACameraConfig::_to_json(json& json_data) {
+    K4ACameraConfig& config = *this;
+    _MY_JSON_PUT(json_data, serial, config, serial);
+    _MY_JSON_PUT(json_data, type, config, type);
+    _MY_JSON_PUT(json_data, disabled, config, disabled);
+
+    if (config.filename != "") {
+        _MY_JSON_PUT(json_data, filename, config, filename);
+    }
+
+    json_data["trafo"] = {
+        {(*config.trafo)(0, 0), (*config.trafo)(0, 1), (*config.trafo)(0, 2), (*config.trafo)(0, 3)},
+        {(*config.trafo)(1, 0), (*config.trafo)(1, 1), (*config.trafo)(1, 2), (*config.trafo)(1, 3)},
+        {(*config.trafo)(2, 0), (*config.trafo)(2, 1), (*config.trafo)(2, 2), (*config.trafo)(2, 3)},
+        {(*config.trafo)(3, 0), (*config.trafo)(3, 1), (*config.trafo)(3, 2), (*config.trafo)(3, 3)}
+    };
+
+    if (config.intrinsicTrafo != nullptr) {
+        json_data["intrinsicTrafo"] = {
+            {(*config.intrinsicTrafo)(0, 0), (*config.intrinsicTrafo)(0, 1), (*config.intrinsicTrafo)(0, 2), (*config.intrinsicTrafo)(0, 3)},
+            {(*config.intrinsicTrafo)(1, 0), (*config.intrinsicTrafo)(1, 1), (*config.intrinsicTrafo)(1, 2), (*config.intrinsicTrafo)(1, 3)},
+            {(*config.intrinsicTrafo)(2, 0), (*config.intrinsicTrafo)(2, 1), (*config.intrinsicTrafo)(2, 2), (*config.intrinsicTrafo)(2, 3)},
+            {(*config.intrinsicTrafo)(3, 0), (*config.intrinsicTrafo)(3, 1), (*config.intrinsicTrafo)(3, 2), (*config.intrinsicTrafo)(3, 3)}
+        };
+    }
+}
+
 void K4ACaptureConfig::_from_json(const json& json_data) {
     K4ACaptureConfig& config = *this;
     // version and type should already have been checked.
@@ -56,40 +114,11 @@ void K4ACaptureConfig::_from_json(const json& json_data) {
     config.all_camera_configs.clear();
 
     for (json::iterator it = cameras.begin(); it != cameras.end(); it++) {
-        json camera = *it;
-        K4ACameraConfig cd;
-        pcl::shared_ptr<Eigen::Affine3d> default_trafo(new Eigen::Affine3d());
-        default_trafo->setIdentity();
-        cd.trafo = default_trafo;
-
-        _MY_JSON_GET(camera, serial, cd, serial);
-        _MY_JSON_GET(camera, type, cd, type);
-        _MY_JSON_GET(camera, disabled, cd, disabled);
-        _MY_JSON_GET(camera, filename, cd, filename);
-
-        if (camera.contains("trafo")) {
-            for (int x = 0; x < 4; x++) {
-                for (int y = 0; y < 4; y++) {
-                    (*cd.trafo)(x, y) = camera["trafo"][x][y];
-                }
-            }
-        }
-
-        if (camera.contains("intrinsicTrafo")) {
-            if (cd.intrinsicTrafo == nullptr) {
-                pcl::shared_ptr<Eigen::Affine3d> intrinsic_trafo(new Eigen::Affine3d());
-                cd.intrinsicTrafo = intrinsic_trafo;
-            }
-
-            for (int x = 0; x < 4; x++) {
-                for (int y = 0; y < 4; y++) {
-                    (*cd.intrinsicTrafo)(x, y) = camera["intrinsicTrafo"][x][y];
-                }
-            }
-        }
-
+        json camera_config_json = *it;
+        K4ACameraConfig camera_config;
+        camera_config._from_json(camera_config_json);
         // xxxjack should check whether the camera with this serial already exists
-        config.all_camera_configs.push_back(cd);
+        config.all_camera_configs.push_back(camera_config);
         camera_index++;
     }
 }
@@ -99,33 +128,10 @@ void K4ACaptureConfig::_to_json(json& json_data) {
     json cameras;
     int camera_index = 0;
 
-    for (K4ACameraConfig cd : config.all_camera_configs) {
-        json camera;
-        _MY_JSON_PUT(camera, serial, cd, serial);
-        _MY_JSON_PUT(camera, type, cd, type);
-        _MY_JSON_PUT(camera, disabled, cd, disabled);
-
-        if (cd.filename != "") {
-            _MY_JSON_PUT(camera, filename, cd, filename);
-        }
-
-        camera["trafo"] = {
-            {(*cd.trafo)(0, 0), (*cd.trafo)(0, 1), (*cd.trafo)(0, 2), (*cd.trafo)(0, 3)},
-            {(*cd.trafo)(1, 0), (*cd.trafo)(1, 1), (*cd.trafo)(1, 2), (*cd.trafo)(1, 3)},
-            {(*cd.trafo)(2, 0), (*cd.trafo)(2, 1), (*cd.trafo)(2, 2), (*cd.trafo)(2, 3)},
-            {(*cd.trafo)(3, 0), (*cd.trafo)(3, 1), (*cd.trafo)(3, 2), (*cd.trafo)(3, 3)},
-        };
-
-        if (cd.intrinsicTrafo != nullptr) {
-            camera["intrinsicTrafo"] = {
-               {(*cd.intrinsicTrafo)(0, 0), (*cd.intrinsicTrafo)(0, 1), (*cd.intrinsicTrafo)(0, 2), (*cd.intrinsicTrafo)(0, 3)},
-               {(*cd.intrinsicTrafo)(1, 0), (*cd.intrinsicTrafo)(1, 1), (*cd.intrinsicTrafo)(1, 2), (*cd.intrinsicTrafo)(1, 3)},
-               {(*cd.intrinsicTrafo)(2, 0), (*cd.intrinsicTrafo)(2, 1), (*cd.intrinsicTrafo)(2, 2), (*cd.intrinsicTrafo)(2, 3)},
-               {(*cd.intrinsicTrafo)(3, 0), (*cd.intrinsicTrafo)(3, 1), (*cd.intrinsicTrafo)(3, 2), (*cd.intrinsicTrafo)(3, 3)},
-            };
-        }
-
-        cameras[camera_index] = camera;
+    for (K4ACameraConfig camera_config : config.all_camera_configs) {
+        json camera_config_json;
+        camera_config._to_json(camera_config_json);
+        cameras[camera_index] = camera_config_json;
         camera_index++;
     }
 
