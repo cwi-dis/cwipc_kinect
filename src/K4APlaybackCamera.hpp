@@ -2,20 +2,20 @@
 
 #include "K4ABaseCamera.hpp"
 
-class K4AOfflineCamera : public K4ABaseCamera<k4a_playback_t> {
+class K4APlaybackCamera : public K4ABaseCamera<k4a_playback_t> {
     typedef k4a_playback_t Type_api_camera;
-    const std::string CLASSNAME = "cwipc_kinect: K4AOfflineCamera";
+    const std::string CLASSNAME = "cwipc_kinect: K4APlaybackCamera";
 
 public:
     uint64_t current_frameset_timestamp = 0; //!< Unsure? How is this different from get_capture_timestamp()?
 
 private:
-    K4AOfflineCamera(const K4AOfflineCamera&);  // Disable copy constructor
-    K4AOfflineCamera& operator=(const K4AOfflineCamera&); // Disable assignment
+    K4APlaybackCamera(const K4APlaybackCamera&);  // Disable copy constructor
+    K4APlaybackCamera& operator=(const K4APlaybackCamera&); // Disable assignment
 
 public:
-    K4AOfflineCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraConfig& _camData);
-    virtual ~K4AOfflineCamera() {}
+    K4APlaybackCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraConfig& _camData);
+    virtual ~K4APlaybackCamera() {}
 
     bool start() override;
     void start_capturer() override;

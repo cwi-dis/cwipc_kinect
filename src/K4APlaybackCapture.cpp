@@ -13,15 +13,15 @@
 
 #include <chrono>
 
-#include "K4AOfflineCapture.hpp"
+#include "K4APlaybackCapture.hpp"
 
-// Static variable used to print a warning message when we re-create an K4AOfflineCapture
+// Static variable used to print a warning message when we re-create an K4APlaybackCapture
 // if there is another one open.
 static int numberOfCapturersActive = 0;
 
-K4AOfflineCapture::K4AOfflineCapture() : K4ABaseCapture("cwipc_kinect: K4AOfflineCapture"), sync_inuse(false), master_id(-1) {
-    type = "kinect_offline";
-    // First check that no other K4AOfflineCapture is active within this process (trying to catch programmer errors)
+K4APlaybackCapture::K4APlaybackCapture() : K4ABaseCapture("cwipc_kinect: K4APlaybackCapture"), sync_inuse(false), master_id(-1) {
+    type = "kinect_playback";
+    // First check that no other K4APlaybackCapture is active within this process (trying to catch programmer errors)
     numberOfCapturersActive++;
 
     if (numberOfCapturersActive > 1) {
@@ -29,7 +29,7 @@ K4AOfflineCapture::K4AOfflineCapture() : K4ABaseCapture("cwipc_kinect: K4AOfflin
     }
 }
 
-K4AOfflineCapture::~K4AOfflineCapture() {
+K4APlaybackCapture::~K4APlaybackCapture() {
     if (camera_count > 0) {
         _unload_cameras();
     }
@@ -37,7 +37,7 @@ K4AOfflineCapture::~K4AOfflineCapture() {
     numberOfCapturersActive--;
 }
 
-bool K4AOfflineCapture::config_reload(const char* configFilename) {
+bool K4APlaybackCapture::config_reload(const char* configFilename) {
     _unload_cameras();
 
     //
@@ -73,13 +73,13 @@ bool K4AOfflineCapture::config_reload(const char* configFilename) {
     // start our run thread (which will drive the capturers and merge the pointclouds)
     //
     stopped = false;
-    control_thread = new std::thread(&K4AOfflineCapture::_control_thread_main, this);
-    _cwipc_setThreadName(control_thread, L"cwipc_kinect::K4AOfflineCapture::control_thread");
+    control_thread = new std::thread(&K4APlaybackCapture::_control_thread_main, this);
+    _cwipc_setThreadName(control_thread, L"cwipc_kinect::K4APlaybackCapture::control_thread");
 
     return true;
 }
 
-bool K4AOfflineCapture::_open_recording_files(std::vector<Type_api_camera>& camera_handles, const char *configFilename) {
+bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& camera_handles, const char *configFilename) {
     if (camera_handles.size() == 0) {
         // no camera connected, so we'll return nothing
         return false;
@@ -171,7 +171,7 @@ bool K4AOfflineCapture::_open_recording_files(std::vector<Type_api_camera>& came
     return true;
 }
 
-void K4AOfflineCapture::_create_cameras(std::vector<Type_api_camera>& camera_handles) {
+void K4APlaybackCapture::_create_cameras(std::vector<Type_api_camera>& camera_handles) {
     for (uint32_t i = 0; i < camera_handles.size(); i++) {
         assert (camera_handles[i] != nullptr);
 
@@ -181,20 +181,24 @@ void K4AOfflineCapture::_create_cameras(std::vector<Type_api_camera>& camera_han
 #ifdef CWIPC_DEBUG
         std::cout << CLASSNAME << ": opening camera " << cd.serial << std::endl;
 #endif
-        if (cd.type != "kinect_offline") {
-            cwipc_k4a_log_warning("Camera " + cd.serial + " is type " + cd.type + " in stead of kinect_offline");
+        if (cd.type == "kinect_offline") {
+            cwipc_k4a_log_warning("Camera type kinect_offline converted to kinect_playback");
+            cd.type = "kinect_playback";
+        }
+        if (cd.type != "kinect_playback") {
+            cwipc_k4a_log_warning("Camera " + cd.serial + " is type " + cd.type + " in stead of kinect_playback");
         }
 
         int camera_index = cameras.size();
 
         if (!cd.disabled) {
-            auto cam = new K4AOfflineCapture::Type_our_camera(camera_handles[i], configuration, camera_index, cd);
+            auto cam = new K4APlaybackCapture::Type_our_camera(camera_handles[i], configuration, camera_index, cd);
             cameras.push_back(cam);
         }
     }
 }
 
-bool K4AOfflineCapture::_capture_all_cameras() {
+bool K4APlaybackCapture::_capture_all_cameras() {
     bool all_captures_ok = true;
 
     //
@@ -245,7 +249,7 @@ bool K4AOfflineCapture::_capture_all_cameras() {
     return all_captures_ok;
 }
 
-uint64_t K4AOfflineCapture::_get_best_timestamp() {
+uint64_t K4APlaybackCapture::_get_best_timestamp() {
     int timestamp = 0;
 
     if (sync_inuse) { //sync on
@@ -267,7 +271,7 @@ uint64_t K4AOfflineCapture::_get_best_timestamp() {
     return timestamp;
 }
 
-bool K4AOfflineCapture::seek(uint64_t timestamp) {
+bool K4APlaybackCapture::seek(uint64_t timestamp) {
     for (auto cam : cameras) { //SUBORDINATE or STANDALONE
         if (cam->seek(timestamp) != true) {
             std::cerr << "Camera " << cam->serial << " failed to seek to timestamp " << timestamp << std::endl;

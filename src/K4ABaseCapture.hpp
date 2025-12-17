@@ -246,6 +246,7 @@ protected:
         }
 
         // Otherwise we check the extension. It can be .json.
+        const char *extension = strrchr(configFilename, '.');
         if (extension != nullptr && strcmp(extension, ".json") == 0) {
             return cwipc_k4a_jsonfile2config(configFilename, &configuration, type);
         }

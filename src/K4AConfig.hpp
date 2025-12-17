@@ -42,9 +42,9 @@ struct K4ACameraConfig : CwipcBaseCameraConfig {
     void* handle = nullptr; // Will be set if camera is opened
     std::string serial;   // Serial number of this camera
     std::string type = "kinect";       // Camera type (must be realsense)
-    std::string filename;   // Filename for offline captures
+    std::string filename;   // Filename for playback captures
     pcl::shared_ptr<Eigen::Affine3d> trafo; //!< Transformation matrix from camera coorindates to world coordinates
-    pcl::shared_ptr<Eigen::Affine3d> intrinsicTrafo;  //!< offline only: matrix to convert color to depth coordinates
+    pcl::shared_ptr<Eigen::Affine3d> intrinsicTrafo;  //!< playback only: matrix to convert color to depth coordinates
     cwipc_vector cameraposition = { 0, 0, 0 };  //!< Position of this camera in real world coordinates
 };
 

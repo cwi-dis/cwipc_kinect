@@ -33,10 +33,10 @@ int main(int argc, char** argv) {
     std::string configFile(inputdir);
     configFile += "/cameraconfig.json";
 
-    generator = cwipc_k4aoffline(configFile.c_str(), &error, CWIPC_API_VERSION);
+    generator = cwipc_k4aplayback(configFile.c_str(), &error, CWIPC_API_VERSION);
 
     if (generator == NULL) {
-        std::cerr << argv[0] << ": creating offlinekinect grabber failed: " << error << std::endl;
+        std::cerr << argv[0] << ": creating k4aplayback grabber failed: " << error << std::endl;
         //if (getenv("CWIPC_KINECT_TESTING") != NULL) return 0; // No failure while running tests, so we can at least test linking, etc.
 
         return 1;
@@ -110,16 +110,16 @@ int main(int argc, char** argv) {
     generator->free();
 
     if (ok < 0) {
-        std::cerr << "cwipc_k4aoffline: Error: " << error << std::endl;
+        std::cerr << "cwipc_k4aplayback: Error: " << error << std::endl;
         return 1;
     }
 
     if (countWanted != 0 && nGrabbedSuccessfully != countWanted) {
-        std::cerr << "cwipc_k4aoffline: Wanted " << countWanted << " pointclouds but got only " << nGrabbedSuccessfully << std::endl;
+        std::cerr << "cwipc_k4aplayback: Wanted " << countWanted << " pointclouds but got only " << nGrabbedSuccessfully << std::endl;
         return 1;
     }
 
-    std::cerr << "cwipc_k4aoffline: Saved " << nGrabbedSuccessfully << " pointclouds" << std::endl;
+    std::cerr << "cwipc_k4aplayback: Saved " << nGrabbedSuccessfully << " pointclouds" << std::endl;
     return 0;
 }
 

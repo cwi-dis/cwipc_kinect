@@ -6,28 +6,28 @@
 #include <k4a/k4a.h>
 
 #include "K4ABaseCapture.hpp"
-#include "K4AOfflineCamera.hpp"
+#include "K4APlaybackCamera.hpp"
 
-class K4AOfflineCapture : public K4ABaseCapture<k4a_playback_t, K4AOfflineCamera> {
+class K4APlaybackCapture : public K4ABaseCapture<k4a_playback_t, K4APlaybackCamera> {
     typedef k4a_playback_t Type_api_camera;
-    typedef K4AOfflineCamera Type_our_camera;
+    typedef K4APlaybackCamera Type_our_camera;
 
 public:
     static int count_devices() {
         return 0;
     }
 
-    static K4AOfflineCapture* factory() {
-        return new K4AOfflineCapture();
+    static K4APlaybackCapture* factory() {
+        return new K4APlaybackCapture();
     }
 
     // methods
-    virtual ~K4AOfflineCapture();
+    virtual ~K4APlaybackCapture();
     virtual bool config_reload(const char* configFilename) override;
     bool seek(uint64_t timestamp) override;
 
 protected:
-    K4AOfflineCapture();
+    K4APlaybackCapture();
     bool _capture_all_cameras() override;
     uint64_t _get_best_timestamp() override;
     virtual bool _apply_default_config() override { return false; }

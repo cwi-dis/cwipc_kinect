@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
     }
 
     if (countWanted != 0 && nGrabbedSuccessfully != countWanted) {
-        std::cerr << "cwipc_k4aoffline: Wanted " << countWanted << " pointclouds but got only " << nGrabbedSuccessfully << std::endl;
+        std::cerr << "cwipc_k4agrab: Wanted " << countWanted << " pointclouds but got only " << nGrabbedSuccessfully << std::endl;
         return 1;
     }
 

@@ -140,7 +140,7 @@ int main(int argc, char* argv[]) {
     bool ok;
 
     if (argc < 3) {
-        std::cerr << "Usage: cwipc_k4aoffline_check <master.mkv> <sub1.mkv> ..." << std::endl;
+        std::cerr << "Usage: cwipc_k4aplayback_check <master.mkv> <sub1.mkv> ..." << std::endl;
         std::cerr << "Convert multiple mkvfiles into pointclouds" << std::endl;
         return 1;
     }

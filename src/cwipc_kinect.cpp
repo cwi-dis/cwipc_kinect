@@ -9,7 +9,7 @@
 #include "cwipc_kinect/api.h"
 #include "K4AConfig.hpp"
 #include "K4ACapture.hpp"
-#include "K4AOfflineCapture.hpp"
+#include "K4APlaybackCapture.hpp"
 
 
 // Global variables (constants, really)
@@ -218,65 +218,65 @@ public:
     }
 };
 
-class cwipc_source_k4aoffline_impl : public cwipc_tiledsource {
+class cwipc_source_k4aplayback_impl : public cwipc_tiledsource {
 protected:
-    K4AOfflineCapture *m_offline;
+    K4APlaybackCapture *m_grabber;
 
 public:
-    cwipc_source_k4aoffline_impl(const char* configFilename = NULL) : m_offline(K4AOfflineCapture::factory()) {
-        m_offline->config_reload(configFilename);
+    cwipc_source_k4aplayback_impl(const char* configFilename = NULL) : m_grabber(K4APlaybackCapture::factory()) {
+        m_grabber->config_reload(configFilename);
     }
 
-    ~cwipc_source_k4aoffline_impl() {
-        delete m_offline;
-        m_offline = NULL;
+    ~cwipc_source_k4aplayback_impl() {
+        delete m_grabber;
+        m_grabber = NULL;
     }
 
     bool is_valid() {
-        return m_offline->camera_count > 0;
+        return m_grabber->camera_count > 0;
     }
 
     void free() {
-        delete m_offline;
-        m_offline = NULL;
+        delete m_grabber;
+        m_grabber = NULL;
     }
 
     bool eof() {
-        return m_offline->eof;
+        return m_grabber->eof;
     }
 
     bool available(bool wait) {
-        if (m_offline == NULL) {
+        if (m_grabber == NULL) {
             return false;
         }
 
-        return m_offline->pointcloud_available(wait);
+        return m_grabber->pointcloud_available(wait);
     }
 
     cwipc *get() {
-        if (m_offline == NULL) {
+        if (m_grabber == NULL) {
             return NULL;
         }
 
-        cwipc *rv = m_offline->get_pointcloud();
+        cwipc *rv = m_grabber->get_pointcloud();
         return rv;
     }
 
     bool seek(uint64_t timestamp) {
-        if (m_offline == NULL) {
+        if (m_grabber == NULL) {
             return NULL;
         }
 
-        bool rv = m_offline->seek(timestamp);
+        bool rv = m_grabber->seek(timestamp);
         return rv;
     }
 
     int maxtile() {
-        if (m_offline == NULL) {
+        if (m_grabber == NULL) {
             return 0;
         }
 
-        int nCamera = m_offline->configuration.all_camera_configs.size();
+        int nCamera = m_grabber->configuration.all_camera_configs.size();
 
         if (nCamera <= 1) {
             // Using a single camera or no camera.
@@ -287,11 +287,11 @@ public:
     }
 
     bool get_tileinfo(int tilenum, struct cwipc_tileinfo *tileinfo) {
-        if (m_offline == NULL) {
+        if (m_grabber == NULL) {
             return false;
         }
 
-        int nCamera = m_offline->configuration.all_camera_configs.size();
+        int nCamera = m_grabber->configuration.all_camera_configs.size();
 
         // No camera
         if (nCamera == 0) {
@@ -306,7 +306,7 @@ public:
         cwipc_vector camcenter = {0, 0, 0};
 
         // calculate the center of all cameras
-        for (auto camdat : m_offline->configuration.all_camera_configs) {
+        for (auto camdat : m_grabber->configuration.all_camera_configs) {
             add_vectors(camcenter, camdat.cameraposition, &camcenter);
         }
 
@@ -314,7 +314,7 @@ public:
 
         // calculate normalized direction vectors from the center towards each camera
         std::vector<cwipc_vector> camera_directions;
-        for (auto camdat : m_offline->configuration.all_camera_configs) {
+        for (auto camdat : m_grabber->configuration.all_camera_configs) {
             cwipc_vector normal;
             diff_vectors(camdat.cameraposition, camcenter, &normal);
             norm_vector(&normal);
@@ -326,7 +326,7 @@ public:
         int lastcontribcamid = 0;
         cwipc_vector tile_direction = {0, 0, 0};
 
-        for (int i = 0; i < m_offline->configuration.all_camera_configs.size(); i++) {
+        for (int i = 0; i < m_grabber->configuration.all_camera_configs.size(); i++) {
             uint8_t camera_label = (uint8_t)1 << i;
 
             if (tilenum == 0 || (tilenum & camera_label)) {
@@ -346,7 +346,7 @@ public:
 
             if (ncontribcam == 1) {
                 // A single camera contributed to this
-                tileinfo->cameraName = (char *)m_offline->configuration.all_camera_configs[lastcontribcamid].serial.c_str();
+                tileinfo->cameraName = (char *)m_grabber->configuration.all_camera_configs[lastcontribcamid].serial.c_str();
             }
         }
 
@@ -354,11 +354,11 @@ public:
     }
 
     virtual bool reload_config(const char* configFile) override {
-        return m_offline->config_reload(configFile);
+        return m_grabber->config_reload(configFile);
     }
 
     virtual size_t get_config(char* buffer, size_t size) override {
-        auto config = m_offline->config_get();
+        auto config = m_grabber->config_get();
 
         if (buffer == nullptr) {
             return config.length();
@@ -375,11 +375,11 @@ public:
     void request_auxiliary_data(const std::string& name) override {
         cwipc_tiledsource::request_auxiliary_data(name);
 
-        m_offline->request_image_auxdata(
+        m_grabber->request_image_auxdata(
             auxiliary_data_requested("rgb"),
             auxiliary_data_requested("depth")
         );
-        m_offline->request_skeleton_auxdata(auxiliary_data_requested("skeleton"));
+        m_grabber->request_skeleton_auxdata(auxiliary_data_requested("skeleton"));
 
         std::cout << "cwipc_kinect: Requested auxdata rgb=" << auxiliary_data_requested("rgb") << ", depth=" << auxiliary_data_requested("depth") << ", skeleton=" << auxiliary_data_requested("skeleton") << std::endl;
     }
@@ -396,7 +396,7 @@ public:
         int y_2d = (int)infloat[2];
         float d_2d = infloat[3];
 
-        return m_offline->map2d3d(tilenum, x_2d, y_2d, d_2d, outfloat);
+        return m_grabber->map2d3d(tilenum, x_2d, y_2d, d_2d, outfloat);
     }
 };
 
@@ -434,11 +434,11 @@ cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage,
     return NULL;
 }
 
-cwipc_tiledsource* cwipc_k4aoffline(const char* configFilename, char** errorMessage, uint64_t apiVersion) {
+cwipc_tiledsource* cwipc_k4aplayback(const char* configFilename, char** errorMessage, uint64_t apiVersion) {
     if (apiVersion < CWIPC_API_VERSION_OLD || apiVersion > CWIPC_API_VERSION) {
         if (errorMessage) {
             char* msgbuf = (char*)malloc(1024);
-            snprintf(msgbuf, 1024, "cwipc_k4aoffline: incorrect apiVersion 0x%08" PRIx64 " expected 0x%08" PRIx64 "..0x%08" PRIx64 "", apiVersion, CWIPC_API_VERSION_OLD, CWIPC_API_VERSION);
+            snprintf(msgbuf, 1024, "cwipc_k4aplayback: incorrect apiVersion 0x%08" PRIx64 " expected 0x%08" PRIx64 "..0x%08" PRIx64 "", apiVersion, CWIPC_API_VERSION_OLD, CWIPC_API_VERSION);
             *errorMessage = msgbuf;
         }
 
@@ -446,7 +446,7 @@ cwipc_tiledsource* cwipc_k4aoffline(const char* configFilename, char** errorMess
     }
 
     cwipc_k4a_warning_store = errorMessage;
-    cwipc_source_k4aoffline_impl* rv = new cwipc_source_k4aoffline_impl(configFilename);
+    cwipc_source_k4aplayback_impl* rv = new cwipc_source_k4aplayback_impl(configFilename);
     cwipc_k4a_warning_store = NULL;
 
     // If the grabber found cameras everything is fine
@@ -457,7 +457,7 @@ cwipc_tiledsource* cwipc_k4aoffline(const char* configFilename, char** errorMess
     delete rv;
 
     if (errorMessage && *errorMessage == NULL) {
-        *errorMessage = (char*)"cwipc_k4aoffline: cannot open recording";
+        *errorMessage = (char*)"cwipc_k4aplayback: cannot open recording";
     }
 
     return NULL;
@@ -467,4 +467,6 @@ cwipc_tiledsource* cwipc_k4aoffline(const char* configFilename, char** errorMess
 // These static variables only exist to ensure the initializer is called, which registers our camera type.
 //
 int _cwipc_dummy_kinect_initializer = _cwipc_register_capturer("kinect", K4ACapture::count_devices, cwipc_kinect);
-int _cwipc_dummy_kinect_offline_initializer = _cwipc_register_capturer("kinect_offline", nullptr, cwipc_k4aoffline);
+int _cwipc_dummy_kinect_playback_initializer = _cwipc_register_capturer("kinect_playback", nullptr, cwipc_k4aplayback);
+// For backward compatibility
+int _cwipc_dummy_kinect_offline_initializer = _cwipc_register_capturer("kinect_offline", nullptr, cwipc_k4aplayback);

@@ -12,8 +12,8 @@ add_library(cwipc_kinect
 	cwipc_kinect.cpp 
 	K4ACapture.cpp 
 	K4ACamera.cpp 
-	K4AOfflineCapture.cpp 
-	K4AOfflineCamera.cpp 
+	K4APlaybackCapture.cpp 
+	K4APlaybackCamera.cpp 
 	K4AConfig.cpp 
 	cwipc_pcl_additions.cpp 
 	${TINY_SRC}
@@ -26,8 +26,8 @@ target_sources(cwipc_kinect
 	"K4ABaseCamera.hpp"
 	"K4ACapture.hpp"
 	"K4ACamera.hpp"
-	"K4AOfflineCapture.hpp"
-	"K4AOfflineCamera.hpp"
+	"K4APlaybackCapture.hpp"
+	"K4APlaybackCamera.hpp"
 	"readerwriterqueue.h"
 	"atomicops.h"
 	"../include/cwipc_kinect/api.h"

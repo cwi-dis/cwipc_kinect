@@ -5,13 +5,13 @@
 //
 #include <cstdlib>
 
-#include "K4AOfflineCamera.hpp"
+#include "K4APlaybackCamera.hpp"
 #include "turbojpeg.h"
 
 #undef CWIPC_DEBUG
 
-K4AOfflineCamera::K4AOfflineCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraConfig& _camData) :
-    K4ABaseCamera("cwipc_kinect: K4AOfflineCamera", _handle, configuration, _camera_index, _camData),
+K4APlaybackCamera::K4APlaybackCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraConfig& _camData) :
+    K4ABaseCamera("cwipc_kinect: K4APlaybackCamera", _handle, configuration, _camera_index, _camData),
     capture_id(-1),
     current_frameset_timestamp(0),
     max_delay(0)
@@ -22,7 +22,7 @@ K4AOfflineCamera::K4AOfflineCamera(Type_api_camera _handle, K4ACaptureConfig& co
     _init_filters();
 }
 
-bool K4AOfflineCamera::capture_frameset(uint64_t master_timestamp) {
+bool K4APlaybackCamera::capture_frameset(uint64_t master_timestamp) {
     if (stopped) {
         return false;
     }
@@ -56,7 +56,7 @@ bool K4AOfflineCamera::capture_frameset(uint64_t master_timestamp) {
     return rv;
 }
 
-bool K4AOfflineCamera::seek(uint64_t timestamp) {
+bool K4APlaybackCamera::seek(uint64_t timestamp) {
     uint64_t first_t = file_config.start_timestamp_offset_usec;
     uint64_t last_t = k4a_playback_get_recording_length_usec(camera_handle);
 
@@ -72,7 +72,7 @@ bool K4AOfflineCamera::seek(uint64_t timestamp) {
     }
 }
 
-bool K4AOfflineCamera::_prepare_next_valid_frame() {
+bool K4APlaybackCamera::_prepare_next_valid_frame() {
     k4a_stream_result_t stream_result;
     // Read the next capture into memory
     bool succeeded = false;
@@ -139,7 +139,7 @@ bool K4AOfflineCamera::_prepare_next_valid_frame() {
     return succeeded;
 }
 
-bool K4AOfflineCamera::_prepare_cond_next_valid_frame(uint64_t master_timestamp) {
+bool K4APlaybackCamera::_prepare_cond_next_valid_frame(uint64_t master_timestamp) {
     //check if current frame already satisfies the condition
     if (current_frameset != NULL && (current_frameset_timestamp > master_timestamp)) {
         // Even if the current frame is too far in the future we use it.
@@ -165,7 +165,7 @@ bool K4AOfflineCamera::_prepare_cond_next_valid_frame(uint64_t master_timestamp)
     }
 }
 
-bool K4AOfflineCamera::start() {
+bool K4APlaybackCamera::start() {
     // We don't have to start anything (opening the file did that) but
     // we do have to get the RGB<->D transformation.
     if (K4A_RESULT_SUCCEEDED != k4a_playback_get_calibration(camera_handle, &sensor_calibration)) {
@@ -194,7 +194,7 @@ bool K4AOfflineCamera::start() {
     return true;
 }
 
-void K4AOfflineCamera::stop() {
+void K4APlaybackCamera::stop() {
     if (stopped) {
         return;
     }
@@ -240,26 +240,26 @@ void K4AOfflineCamera::stop() {
     }
 }
 
-void K4AOfflineCamera::start_capturer() {
+void K4APlaybackCamera::start_capturer() {
     if (!camera_started) {
         return;
     }
 
     assert(stopped);
     stopped = false;
-    processing_thread = new std::thread(&K4AOfflineCamera::_processing_thread_main, this);
-    _cwipc_setThreadName(processing_thread, L"cwipc_kinect::K4AOfflineCamera::processing_thread");
+    processing_thread = new std::thread(&K4APlaybackCamera::_processing_thread_main, this);
+    _cwipc_setThreadName(processing_thread, L"cwipc_kinect::K4APlaybackCamera::processing_thread");
 }
 
-void K4AOfflineCamera::_start_capture_thread() {
-    // Not needed for offline camera
+void K4APlaybackCamera::_start_capture_thread() {
+    // Not needed for playback camera
 }
 
-void K4AOfflineCamera::_capture_thread_main() {
-    // Not needed for offline camera
+void K4APlaybackCamera::_capture_thread_main() {
+    // Not needed for playback camera
 }
 
-k4a_image_t K4AOfflineCamera::_uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) {
+k4a_image_t K4APlaybackCamera::_uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) {
     assert(capture);
     assert(color_image);
 
