@@ -3,16 +3,16 @@
 //
 //  Created by Fons Kuijk on 12-12-18.
 //
+#define _CWIPC_NLOHMANN_JSON
 #include "K4AConfig.hpp"
 
 #include <fstream>
-#include <nlohmann/json.hpp>
-using json = nlohmann::json;
 
 #define _MY_JSON_GET(jsonobj, name, config, attr) if (jsonobj.contains(#name)) jsonobj.at(#name).get_to(config.attr)
 #define _MY_JSON_PUT(jsonobj, name, config, attr) jsonobj[#name] = config.attr
 
-void _from_json(const json& json_data, K4ACaptureConfig& config) {
+void K4ACaptureConfig::_from_json(const json& json_data) {
+    K4ACaptureConfig& config = *this;
     // version and type should already have been checked.
 
     json system_data = json_data.at("system");
@@ -94,7 +94,8 @@ void _from_json(const json& json_data, K4ACaptureConfig& config) {
     }
 }
 
-void _to_json(json& json_data, const K4ACaptureConfig& config) {
+void K4ACaptureConfig::_to_json(json& json_data) {
+    K4ACaptureConfig& config = *this;
     json cameras;
     int camera_index = 0;
 
@@ -205,7 +206,7 @@ bool K4ACaptureConfig::from_file(const char* filename, std::string typeWanted) {
             return false;
         }
 
-        _from_json(json_data, *this);
+        _from_json(json_data);
     } catch (const std::exception& e) {
         cwipc_log(LOG_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + ": exception " + e.what());
         return false;
@@ -236,7 +237,7 @@ bool K4ACaptureConfig::from_string(const char* jsonBuffer, std::string typeWante
             return false;
         }
 
-        _from_json(json_data, *this);
+        _from_json(json_data);
     } catch (const std::exception& e) {
         cwipc_log(LOG_WARNING, "cwipc_kinect", std::string("CameraConfig ") + "(inline buffer) " + ": exception " + e.what());
         return false;
@@ -247,7 +248,7 @@ bool K4ACaptureConfig::from_string(const char* jsonBuffer, std::string typeWante
 
 std::string K4ACaptureConfig::to_string() {
     json result;
-    _to_json(result, *this);
+    _to_json(result);
 
     return result.dump();
 }

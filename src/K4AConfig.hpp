@@ -19,6 +19,13 @@
 #include "cwipc_util/internal.h"
 #include <k4abt.h>
 
+#ifdef _CWIPC_NLOHMANN_JSON
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+#else
+class json;
+#endif
+
 struct K4ACameraProcessingParameters {
     bool do_threshold = true;
     double threshold_near = 0.15;         // float, near point for distance threshold
@@ -46,6 +53,9 @@ struct K4ACameraConfig : CwipcBaseCameraConfig {
     pcl::shared_ptr<Eigen::Affine3d> trafo; //!< Transformation matrix from camera coorindates to world coordinates
     pcl::shared_ptr<Eigen::Affine3d> intrinsicTrafo;  //!< playback only: matrix to convert color to depth coordinates
     cwipc_vector cameraposition = { 0, 0, 0 };  //!< Position of this camera in real world coordinates
+
+    void _from_json(const json& json_data);
+    void _to_json(json& json_data);
 };
 
 struct K4ACaptureConfig : CwipcBaseCaptureConfig {
@@ -73,4 +83,7 @@ struct K4ACaptureConfig : CwipcBaseCaptureConfig {
     std::string to_string();
     bool from_string(const char* buffer, std::string typeWanted);
     bool from_file(const char* filename, std::string typeWanted);
+
+    void _from_json(const json& json_data);
+    void _to_json(json& json_data);
 };
