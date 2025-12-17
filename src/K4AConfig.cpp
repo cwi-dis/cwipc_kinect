@@ -3,22 +3,22 @@
 //
 //  Created by Fons Kuijk on 12-12-18.
 //
-#define _CWIPC_NLOHMANN_JSON
+#define _CWIPC_CONFIG_IMPLEMENTATION
 #include "K4AConfig.hpp"
 
 #include <fstream>
 
-#define _MY_JSON_GET(jsonobj, name, config, attr) if (jsonobj.contains(#name)) jsonobj.at(#name).get_to(config.attr)
-#define _MY_JSON_PUT(jsonobj, name, config, attr) jsonobj[#name] = config.attr
+#define _CWIPC_CONFIG_JSON_GET(jsonobj, name, config, attr) if (jsonobj.contains(#name)) jsonobj.at(#name).get_to(config.attr)
+#define _CWIPC_CONFIG_JSON_PUT(jsonobj, name, config, attr) jsonobj[#name] = config.attr
 
 void K4ACameraConfig::_from_json(const json& json_data) {
+    CwipcBaseCameraConfig::_from_json(json_data);
     K4ACameraConfig& config = *this;
     // version and type should already have been checked.
 
-    _MY_JSON_GET(json_data, serial, config, serial);
-    _MY_JSON_GET(json_data, type, config, type);
-    _MY_JSON_GET(json_data, disabled, config, disabled);
-    _MY_JSON_GET(json_data, filename, config, filename);
+    _CWIPC_CONFIG_JSON_GET(json_data, serial, config, serial);
+    _CWIPC_CONFIG_JSON_GET(json_data, disabled, config, disabled);
+    _CWIPC_CONFIG_JSON_GET(json_data, filename, config, filename);
 
     if (json_data.contains("trafo")) {
         for (int x = 0; x < 4; x++) {
@@ -31,10 +31,10 @@ void K4ACameraConfig::_from_json(const json& json_data) {
 }
 
 void K4ACameraConfig::_to_json(json& json_data) {
+    CwipcBaseCameraConfig::_to_json(json_data);
     K4ACameraConfig& config = *this;
-    _MY_JSON_PUT(json_data, serial, config, serial);
-    _MY_JSON_PUT(json_data, type, config, type);
-    _MY_JSON_PUT(json_data, disabled, config, disabled);
+    _CWIPC_CONFIG_JSON_PUT(json_data, serial, config, serial);
+    _CWIPC_CONFIG_JSON_PUT(json_data, disabled, config, disabled);
     // Only write cameraposition if not zero, and ensure we never read it back.
     if (config.cameraposition.x != 0.0 || config.cameraposition.y != 0.0 || config.cameraposition.z != 0.0) {
         json_data["_cameraposition"] = {
@@ -44,7 +44,7 @@ void K4ACameraConfig::_to_json(json& json_data) {
         };
     }
     if (config.filename != "") {
-        _MY_JSON_PUT(json_data, filename, config, filename);
+        _CWIPC_CONFIG_JSON_PUT(json_data, filename, config, filename);
     }
 
     json_data["trafo"] = {
@@ -56,44 +56,45 @@ void K4ACameraConfig::_to_json(json& json_data) {
 }
 
 void K4ACaptureConfig::_from_json(const json& json_data) {
+    CwipcBaseCaptureConfig::_from_json(json_data);
     K4ACaptureConfig& config = *this;
     // version and type should already have been checked.
 
     json system_data = json_data.at("system");
-    _MY_JSON_GET(system_data, color_height, config, color_height);
-    _MY_JSON_GET(system_data, depth_height, config, depth_height);
-    _MY_JSON_GET(system_data, fps, config, fps);
-    _MY_JSON_GET(system_data, single_tile, config, single_tile);
-    _MY_JSON_GET(system_data, sync_master_serial, config, sync_master_serial);
-    _MY_JSON_GET(system_data, ignore_sync, config, ignore_sync);
-    _MY_JSON_GET(system_data, record_to_directory, config, record_to_directory);
-    _MY_JSON_GET(system_data, new_timestamps, config, new_timestamps);
-    _MY_JSON_GET(system_data, color_exposure_time, config.camera_processing, color_exposure_time);
-    _MY_JSON_GET(system_data, color_whitebalance, config.camera_processing, color_whitebalance);
-    _MY_JSON_GET(system_data, color_brightness, config.camera_processing, color_brightness);
-    _MY_JSON_GET(system_data, color_contrast, config.camera_processing, color_contrast);
-    _MY_JSON_GET(system_data, color_saturation, config.camera_processing, color_saturation);
-    _MY_JSON_GET(system_data, color_gain, config.camera_processing, color_gain);
-    _MY_JSON_GET(system_data, color_powerline_frequency, config.camera_processing, color_powerline_frequency);
-    _MY_JSON_GET(system_data, map_color_to_depth, config.camera_processing, map_color_to_depth);
+    _CWIPC_CONFIG_JSON_GET(system_data, color_height, config, color_height);
+    _CWIPC_CONFIG_JSON_GET(system_data, depth_height, config, depth_height);
+    _CWIPC_CONFIG_JSON_GET(system_data, fps, config, fps);
+    _CWIPC_CONFIG_JSON_GET(system_data, single_tile, config, single_tile);
+    _CWIPC_CONFIG_JSON_GET(system_data, sync_master_serial, config, sync_master_serial);
+    _CWIPC_CONFIG_JSON_GET(system_data, ignore_sync, config, ignore_sync);
+    _CWIPC_CONFIG_JSON_GET(system_data, record_to_directory, config, record_to_directory);
+    _CWIPC_CONFIG_JSON_GET(system_data, new_timestamps, config, new_timestamps);
+    _CWIPC_CONFIG_JSON_GET(system_data, color_exposure_time, config.camera_processing, color_exposure_time);
+    _CWIPC_CONFIG_JSON_GET(system_data, color_whitebalance, config.camera_processing, color_whitebalance);
+    _CWIPC_CONFIG_JSON_GET(system_data, color_brightness, config.camera_processing, color_brightness);
+    _CWIPC_CONFIG_JSON_GET(system_data, color_contrast, config.camera_processing, color_contrast);
+    _CWIPC_CONFIG_JSON_GET(system_data, color_saturation, config.camera_processing, color_saturation);
+    _CWIPC_CONFIG_JSON_GET(system_data, color_gain, config.camera_processing, color_gain);
+    _CWIPC_CONFIG_JSON_GET(system_data, color_powerline_frequency, config.camera_processing, color_powerline_frequency);
+    _CWIPC_CONFIG_JSON_GET(system_data, map_color_to_depth, config.camera_processing, map_color_to_depth);
     
     json postprocessing = json_data.at("postprocessing");
-    _MY_JSON_GET(postprocessing, greenscreenremoval, config, greenscreen_removal);
-    _MY_JSON_GET(postprocessing, height_min, config, height_min);
-    _MY_JSON_GET(postprocessing, height_max, config, height_max);
-    _MY_JSON_GET(postprocessing, radius_filter, config, radius_filter);
+    _CWIPC_CONFIG_JSON_GET(postprocessing, greenscreenremoval, config, greenscreen_removal);
+    _CWIPC_CONFIG_JSON_GET(postprocessing, height_min, config, height_min);
+    _CWIPC_CONFIG_JSON_GET(postprocessing, height_max, config, height_max);
+    _CWIPC_CONFIG_JSON_GET(postprocessing, radius_filter, config, radius_filter);
 
     json depthfilterparameters = postprocessing.at("depthfilterparameters");
-    _MY_JSON_GET(depthfilterparameters, do_threshold, config.camera_processing, do_threshold);
-    _MY_JSON_GET(depthfilterparameters, threshold_near, config.camera_processing, threshold_near);
-    _MY_JSON_GET(depthfilterparameters, threshold_far, config.camera_processing, threshold_far);
-    _MY_JSON_GET(depthfilterparameters, depth_x_erosion, config.camera_processing, depth_x_erosion);
-    _MY_JSON_GET(depthfilterparameters, depth_y_erosion, config.camera_processing, depth_y_erosion);
+    _CWIPC_CONFIG_JSON_GET(depthfilterparameters, do_threshold, config.camera_processing, do_threshold);
+    _CWIPC_CONFIG_JSON_GET(depthfilterparameters, threshold_near, config.camera_processing, threshold_near);
+    _CWIPC_CONFIG_JSON_GET(depthfilterparameters, threshold_far, config.camera_processing, threshold_far);
+    _CWIPC_CONFIG_JSON_GET(depthfilterparameters, depth_x_erosion, config.camera_processing, depth_x_erosion);
+    _CWIPC_CONFIG_JSON_GET(depthfilterparameters, depth_y_erosion, config.camera_processing, depth_y_erosion);
 
     json skeleton = json_data.at("skeleton");
-    _MY_JSON_GET(skeleton, sensor_orientation, config, bt_sensor_orientation);
-    _MY_JSON_GET(skeleton, processing_mode, config, bt_processing_mode);
-    _MY_JSON_GET(skeleton, model_path, config, bt_model_path);
+    _CWIPC_CONFIG_JSON_GET(skeleton, sensor_orientation, config, bt_sensor_orientation);
+    _CWIPC_CONFIG_JSON_GET(skeleton, processing_mode, config, bt_processing_mode);
+    _CWIPC_CONFIG_JSON_GET(skeleton, model_path, config, bt_model_path);
 
     json cameras = json_data.at("camera");
     int camera_index = 0;
@@ -110,6 +111,7 @@ void K4ACaptureConfig::_from_json(const json& json_data) {
 }
 
 void K4ACaptureConfig::_to_json(json& json_data) {
+    CwipcBaseCaptureConfig::_to_json(json_data);
     K4ACaptureConfig& config = *this;
     json cameras;
     int camera_index = 0;
@@ -124,49 +126,47 @@ void K4ACaptureConfig::_to_json(json& json_data) {
     json_data["camera"] = cameras;
     json depthfilterparameters;
 
-    _MY_JSON_PUT(depthfilterparameters, do_threshold, config.camera_processing, do_threshold);
-    _MY_JSON_PUT(depthfilterparameters, threshold_near, config.camera_processing, threshold_near);
-    _MY_JSON_PUT(depthfilterparameters, threshold_far, config.camera_processing, threshold_far);
-    _MY_JSON_PUT(depthfilterparameters, depth_x_erosion, config.camera_processing, depth_x_erosion);
-    _MY_JSON_PUT(depthfilterparameters, depth_y_erosion, config.camera_processing, depth_y_erosion);
+    _CWIPC_CONFIG_JSON_PUT(depthfilterparameters, do_threshold, config.camera_processing, do_threshold);
+    _CWIPC_CONFIG_JSON_PUT(depthfilterparameters, threshold_near, config.camera_processing, threshold_near);
+    _CWIPC_CONFIG_JSON_PUT(depthfilterparameters, threshold_far, config.camera_processing, threshold_far);
+    _CWIPC_CONFIG_JSON_PUT(depthfilterparameters, depth_x_erosion, config.camera_processing, depth_x_erosion);
+    _CWIPC_CONFIG_JSON_PUT(depthfilterparameters, depth_y_erosion, config.camera_processing, depth_y_erosion);
 
     json postprocessing;
     postprocessing["depthfilterparameters"] = depthfilterparameters;
 
-    _MY_JSON_PUT(postprocessing, greenscreenremoval, config, greenscreen_removal);
-    _MY_JSON_PUT(postprocessing, height_min, config, height_min);
-    _MY_JSON_PUT(postprocessing, height_max, config, height_max);
-    _MY_JSON_PUT(postprocessing, radius_filter, config, radius_filter);
+    _CWIPC_CONFIG_JSON_PUT(postprocessing, greenscreenremoval, config, greenscreen_removal);
+    _CWIPC_CONFIG_JSON_PUT(postprocessing, height_min, config, height_min);
+    _CWIPC_CONFIG_JSON_PUT(postprocessing, height_max, config, height_max);
+    _CWIPC_CONFIG_JSON_PUT(postprocessing, radius_filter, config, radius_filter);
 
     json_data["postprocessing"] = postprocessing;
 
     json system_data;
-    _MY_JSON_PUT(system_data, color_height, config, color_height);
-    _MY_JSON_PUT(system_data, depth_height, config, depth_height);
-    _MY_JSON_PUT(system_data, fps, config, fps);
-    _MY_JSON_PUT(system_data, single_tile, config, single_tile);
-    _MY_JSON_PUT(system_data, sync_master_serial, config, sync_master_serial);
-    _MY_JSON_PUT(system_data, ignore_sync, config, ignore_sync);
-    _MY_JSON_PUT(system_data, record_to_directory, config, record_to_directory);
-    _MY_JSON_PUT(system_data, new_timestamps, config, new_timestamps);
-    _MY_JSON_PUT(system_data, color_exposure_time, config.camera_processing, color_exposure_time);
-    _MY_JSON_PUT(system_data, color_whitebalance, config.camera_processing, color_whitebalance);
-    _MY_JSON_PUT(system_data, color_brightness, config.camera_processing, color_brightness);
-    _MY_JSON_PUT(system_data, color_contrast, config.camera_processing, color_contrast);
-    _MY_JSON_PUT(system_data, color_saturation, config.camera_processing, color_saturation);
-    _MY_JSON_PUT(system_data, color_gain, config.camera_processing, color_gain);
-    _MY_JSON_PUT(system_data, color_powerline_frequency, config.camera_processing, color_powerline_frequency);
-    _MY_JSON_PUT(system_data, map_color_to_depth, config.camera_processing, map_color_to_depth);
+    _CWIPC_CONFIG_JSON_PUT(system_data, color_height, config, color_height);
+    _CWIPC_CONFIG_JSON_PUT(system_data, depth_height, config, depth_height);
+    _CWIPC_CONFIG_JSON_PUT(system_data, fps, config, fps);
+    _CWIPC_CONFIG_JSON_PUT(system_data, single_tile, config, single_tile);
+    _CWIPC_CONFIG_JSON_PUT(system_data, sync_master_serial, config, sync_master_serial);
+    _CWIPC_CONFIG_JSON_PUT(system_data, ignore_sync, config, ignore_sync);
+    _CWIPC_CONFIG_JSON_PUT(system_data, record_to_directory, config, record_to_directory);
+    _CWIPC_CONFIG_JSON_PUT(system_data, new_timestamps, config, new_timestamps);
+    _CWIPC_CONFIG_JSON_PUT(system_data, color_exposure_time, config.camera_processing, color_exposure_time);
+    _CWIPC_CONFIG_JSON_PUT(system_data, color_whitebalance, config.camera_processing, color_whitebalance);
+    _CWIPC_CONFIG_JSON_PUT(system_data, color_brightness, config.camera_processing, color_brightness);
+    _CWIPC_CONFIG_JSON_PUT(system_data, color_contrast, config.camera_processing, color_contrast);
+    _CWIPC_CONFIG_JSON_PUT(system_data, color_saturation, config.camera_processing, color_saturation);
+    _CWIPC_CONFIG_JSON_PUT(system_data, color_gain, config.camera_processing, color_gain);
+    _CWIPC_CONFIG_JSON_PUT(system_data, color_powerline_frequency, config.camera_processing, color_powerline_frequency);
+    _CWIPC_CONFIG_JSON_PUT(system_data, map_color_to_depth, config.camera_processing, map_color_to_depth);
 
     json skeleton;
-    _MY_JSON_PUT(skeleton, sensor_orientation, config, bt_sensor_orientation);
-    _MY_JSON_PUT(skeleton, processing_mode, config, bt_processing_mode);
-    _MY_JSON_PUT(skeleton, model_path, config, bt_model_path);
+    _CWIPC_CONFIG_JSON_PUT(skeleton, sensor_orientation, config, bt_sensor_orientation);
+    _CWIPC_CONFIG_JSON_PUT(skeleton, processing_mode, config, bt_processing_mode);
+    _CWIPC_CONFIG_JSON_PUT(skeleton, model_path, config, bt_model_path);
 
     json_data["skeleton"] = skeleton;
     json_data["system"] = system_data;
-    json_data["version"] = 3;
-    json_data["type"] = config.type;
 }
 
 bool K4ACaptureConfig::from_file(const char* filename, std::string typeWanted) {
@@ -185,8 +185,8 @@ bool K4ACaptureConfig::from_file(const char* filename, std::string typeWanted) {
         int version = 0;
         json_data.at("version").get_to(version);
 
-        if (version != 3) {
-            cwipc_log(LOG_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + " ignored, is not version 3");
+        if (version != 3 && version != 4) {
+            cwipc_log(LOG_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + " ignored, is not version 3 or 4");
             return false;
         }
 

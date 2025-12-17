@@ -18,12 +18,6 @@
 #include "cwipc_util/api_pcl.h"
 #include "cwipc_util/internal.h"
 
-#ifdef _CWIPC_NLOHMANN_JSON
-#include <nlohmann/json.hpp>
-using json = nlohmann::json;
-#else
-class json;
-#endif
 
 struct K4ACameraProcessingParameters {
     bool do_threshold = true;
