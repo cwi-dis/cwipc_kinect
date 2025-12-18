@@ -7,7 +7,7 @@
 #include <k4a/k4a.h>
 #include <k4abt.h>
 
-#include <cwipc_util/internal.h>
+#include "cwipc_util/capturers.hpp"
 
 #include "K4AConfig.hpp"
 

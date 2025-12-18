@@ -12,7 +12,7 @@
 
 #include "cwipc_util/api_pcl.h"
 #include "cwipc_kinect/api.h"
-#include <cwipc_util/internal.h>
+#include "cwipc_util/capturers.hpp"
 
 #include "K4AConfig.hpp"
 #include "readerwriterqueue.h"
