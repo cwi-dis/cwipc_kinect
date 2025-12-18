@@ -8,52 +8,6 @@
 
 #include <fstream>
 
-#define _CWIPC_CONFIG_JSON_GET(jsonobj, name, config, attr) if (jsonobj.contains(#name)) jsonobj.at(#name).get_to(config.attr)
-#define _CWIPC_CONFIG_JSON_PUT(jsonobj, name, config, attr) jsonobj[#name] = config.attr
-
-void K4ACameraConfig::_from_json(const json& json_data) {
-    CwipcBaseCameraConfig::_from_json(json_data);
-    K4ACameraConfig& config = *this;
-    // version and type should already have been checked.
-
-    _CWIPC_CONFIG_JSON_GET(json_data, serial, config, serial);
-    _CWIPC_CONFIG_JSON_GET(json_data, disabled, config, disabled);
-    _CWIPC_CONFIG_JSON_GET(json_data, filename, config, filename);
-
-    if (json_data.contains("trafo")) {
-        for (int x = 0; x < 4; x++) {
-            for (int y = 0; y < 4; y++) {
-                (*config.trafo)(x, y) = json_data["trafo"][x][y];
-            }
-        }
-    }
-
-}
-
-void K4ACameraConfig::_to_json(json& json_data) {
-    CwipcBaseCameraConfig::_to_json(json_data);
-    K4ACameraConfig& config = *this;
-    _CWIPC_CONFIG_JSON_PUT(json_data, serial, config, serial);
-    _CWIPC_CONFIG_JSON_PUT(json_data, disabled, config, disabled);
-    // Only write cameraposition if not zero, and ensure we never read it back.
-    if (config.cameraposition.x != 0.0 || config.cameraposition.y != 0.0 || config.cameraposition.z != 0.0) {
-        json_data["_cameraposition"] = {
-            config.cameraposition.x,
-            config.cameraposition.y,
-            config.cameraposition.z
-        };
-    }
-    if (config.filename != "") {
-        _CWIPC_CONFIG_JSON_PUT(json_data, filename, config, filename);
-    }
-
-    json_data["trafo"] = {
-        {(*config.trafo)(0, 0), (*config.trafo)(0, 1), (*config.trafo)(0, 2), (*config.trafo)(0, 3)},
-        {(*config.trafo)(1, 0), (*config.trafo)(1, 1), (*config.trafo)(1, 2), (*config.trafo)(1, 3)},
-        {(*config.trafo)(2, 0), (*config.trafo)(2, 1), (*config.trafo)(2, 2), (*config.trafo)(2, 3)},
-        {(*config.trafo)(3, 0), (*config.trafo)(3, 1), (*config.trafo)(3, 2), (*config.trafo)(3, 3)}
-    };
-}
 
 void K4ACaptureConfig::_from_json(const json& json_data) {
     CwipcBaseCaptureConfig::_from_json(json_data);

@@ -38,16 +38,7 @@ struct K4ACameraProcessingParameters {
 };
 
 struct K4ACameraConfig : CwipcBaseCameraConfig {
-    bool disabled = false;  // to easily disable cameras without altering to much the cameraconfig.
-    void* handle = nullptr; // Will be set if camera is opened
-    std::string serial;   // Serial number of this camera
-    std::string type = "kinect";       // Camera type (must be realsense)
-    std::string filename;   // Filename for playback captures
-    pcl::shared_ptr<Eigen::Affine3d> trafo; //!< Transformation matrix from camera coorindates to world coordinates
-    cwipc_vector cameraposition = { 0, 0, 0 };  //!< Position of this camera in real world coordinates
-
-    void _from_json(const json& json_data);
-    void _to_json(json& json_data);
+    void *handle = nullptr; // K4A device handle. xxxjack needs to go.
 };
 
 struct K4ACaptureConfig : CwipcBaseCaptureConfig {
@@ -72,10 +63,10 @@ struct K4ACaptureConfig : CwipcBaseCaptureConfig {
     // per camera data
     std::vector<K4ACameraConfig> all_camera_configs;
 
-    std::string to_string();
-    bool from_string(const char* buffer, std::string typeWanted);
-    bool from_file(const char* filename, std::string typeWanted);
+    std::string to_string() override;
+    bool from_string(const char* buffer, std::string typeWanted) override;
+    bool from_file(const char* filename, std::string typeWanted) override;
 
-    void _from_json(const json& json_data);
-    void _to_json(json& json_data);
+    void _from_json(const json& json_data) override;
+    void _to_json(json& json_data) override;
 };

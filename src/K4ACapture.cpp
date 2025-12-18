@@ -148,12 +148,13 @@ bool K4ACapture::_open_cameras() {
             handle = nullptr;
         }
 
-        cd->handle = (void*)handle;
+        cd->handle = handle;
+        cd->connected = (handle != nullptr);
     }
 
     // Check that all configured cameras have been opened.
     for (auto& cd : configuration.all_camera_configs) {
-        if (!cd.disabled && cd.handle == nullptr) {
+        if (!cd.disabled && !cd.connected) {
             cwipc_log(LOG_WARNING, "cwipc_kinect", "Camera " + cd.serial + " is not connected");
             return false;
         }
