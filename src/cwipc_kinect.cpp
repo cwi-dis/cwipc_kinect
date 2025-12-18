@@ -26,123 +26,17 @@ static bool _api_versioncheck(char **errorMessage, uint64_t apiVersion) {
     return true;
 }
 
-// Global variables (constants, really)
-
-template<class GrabberClass>
-class cwipc_source_kinect_impl_base : public cwipc_tiledsource {
+/** Base class for Kinect capturer implementations
+ * 
+ * Used for both live Kinect and Kinect playback, implements functionality 
+ * common to both types of capturers.
+ */
+template<class GrabberClass, class CameraConfigClass=K4ACameraConfig>
+class cwipc_source_kinect_impl_base : public cwipc_capturer_impl_base<GrabberClass, CameraConfigClass> {
 protected:
     GrabberClass *m_grabber; 
 public:
-    cwipc_source_kinect_impl_base(const char* configFilename) 
-    : m_grabber(GrabberClass::factory())
-    {
-        m_grabber->config_reload(configFilename);
-    }
-
-    virtual ~cwipc_source_kinect_impl_base() {
-        delete m_grabber;
-        m_grabber = NULL;
-    }
-
-    bool is_valid() {
-        return m_grabber->camera_count > 0;
-    }
-
-    void free() {
-        delete m_grabber;
-        m_grabber = NULL;
-    }
-
-    virtual size_t get_config(char* buffer, size_t size) override
-    {
-        auto config = m_grabber->config_get();
-
-        if (buffer == nullptr) {
-            return config.length();
-        }
-
-        if (size < config.length()) {
-            return 0;
-        }
-
-        memcpy(buffer, config.c_str(), config.length());
-        return config.length();
-    }
-
-    virtual bool reload_config(const char* configFile) override {
-        return m_grabber->config_reload(configFile);
-    }
-
-    bool eof() {
-        return m_grabber->eof;
-    }
-
-    bool available(bool wait) {
-        if (m_grabber == NULL) {
-            return false;
-        }
-
-        return m_grabber->pointcloud_available(wait);
-    }
-
-    cwipc* get() {
-        if (m_grabber == NULL) {
-            return NULL;
-        }
-
-        cwipc* rv = m_grabber->get_pointcloud();
-        return rv;
-    }
-
-    virtual bool seek(uint64_t timestamp) = 0;
-
-    int maxtile() {
-        if (m_grabber == NULL) {
-            return 0;
-        }
-
-        int nCamera = m_grabber->configuration.all_camera_configs.size();
-        if (nCamera <= 1) {
-            // Using a single camera or no camera.
-            return nCamera;
-        }
-
-        return nCamera + 1;
-    }
-
-    bool get_tileinfo(int tilenum, struct cwipc_tileinfo *tileinfo) {
-        if (m_grabber == NULL) {
-            return false;
-        }
-
-        int nCamera = m_grabber->configuration.all_camera_configs.size();
-
-        if (nCamera == 0) { // No camera
-            return false;
-        }
-
-        if (tilenum < 0 || tilenum >= nCamera+1) {
-            return false;
-        }
-        if (tilenum == 0) {
-            // Special case: the whole pointcloud
-            if (tileinfo) {
-                tileinfo->normal = { 0, 0, 0 };
-                tileinfo->cameraName = NULL;
-                tileinfo->ncamera = nCamera;
-                tileinfo->cameraMask = 0; // All cameras contributes to this
-            }
-            return true;
-        }
-        K4ACameraConfig &cameraConfig = m_grabber->configuration.all_camera_configs[tilenum-1];
-        if (tileinfo) {
-            tileinfo->normal = cameraConfig.cameraposition; // Use the camera position as the normal
-            tileinfo->cameraName = (char *)cameraConfig.serial.c_str();
-            tileinfo->ncamera = 1; // Only one camera contributes to this
-            tileinfo->cameraMask = (uint8_t)1 << (tilenum-1); // Only this camera contributes
-        }
-        return true;
-    }
+    using cwipc_capturer_impl_base<GrabberClass, CameraConfigClass>::cwipc_capturer_impl_base;
     
     void request_auxiliary_data(const std::string &name) override {
         cwipc_tiledsource::request_auxiliary_data(name);
@@ -153,7 +47,6 @@ public:
         );
 
         m_grabber->request_skeleton_auxdata(auxiliary_data_requested("skeleton"));
-        std::cout << "cwipc_kinect: Requested auxdata rgb=" << auxiliary_data_requested("rgb") << ", depth=" << auxiliary_data_requested("depth") << ", skeleton=" << auxiliary_data_requested("skeleton") << std::endl;
     }
 
     bool auxiliary_operation(const std::string op, const void* inbuf, size_t insize, void* outbuf, size_t outsize) override {
@@ -171,8 +64,11 @@ public:
 
         return m_grabber->map2d3d(tilenum, x_2d, y_2d, d_2d, outfloat);
     }
+
+    virtual bool seek(uint64_t timestamp) = 0;
 };
 
+/** Implementation of Kinect capturer for live Kinect devices */
 class cwipc_source_kinect_impl : public cwipc_source_kinect_impl_base<K4ACapture> {
 
 public:
@@ -182,6 +78,7 @@ public:
     }
 };
 
+/** Implementation of Kinect capturer for playback */
 class cwipc_source_k4aplayback_impl : public cwipc_source_kinect_impl_base<K4APlaybackCapture> {
 public:
     using cwipc_source_kinect_impl_base<K4APlaybackCapture>::cwipc_source_kinect_impl_base;
