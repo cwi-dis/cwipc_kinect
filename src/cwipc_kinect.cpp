@@ -6,6 +6,7 @@
 #include "cwipc_util/api_pcl.h"
 #include "cwipc_util/api.h"
 #include "cwipc_util/internal.h"
+#include "cwipc_util/vectors.h"
 #include "cwipc_kinect/api.h"
 #include "K4AConfig.hpp"
 #include "K4ACapture.hpp"
@@ -27,64 +28,6 @@ static bool _api_versioncheck(char **errorMessage, uint64_t apiVersion) {
 
 // Global variables (constants, really)
 
-
-cwipc_vector* add_vectors(cwipc_vector a, cwipc_vector b, cwipc_vector *result) {
-    if (result) {
-        result->x = a.x + b.x;
-        result->y = a.y + b.y;
-        result->z = a.z + b.z;
-    }
-
-    return result;
-}
-
-cwipc_vector* diff_vectors(cwipc_vector a, cwipc_vector b, cwipc_vector *result) {
-    if (result) {
-        result->x = a.x - b.x;
-        result->y = a.y - b.y;
-        result->z = a.z - b.z;
-    }
-
-    return result;
-}
-
-double len_vector(cwipc_vector v) {
-      return v.x * v.x + v.y * v.y + v.z * v.z;
-}
-
-cwipc_vector* mult_vector(double factor, cwipc_vector *v) {
-    if (v) {
-        v->x *= factor;
-        v->y *= factor;
-        v->z *= factor;
-    }
-
-    return v;
-}
-
-cwipc_vector* norm_vector(cwipc_vector *v) {
-  double len = len_vector(*v);
-
-  if (len > 0) {
-    mult_vector(1.0 / len, v);
-  }
-
-  return v;
-}
-
-double dot_vectors(cwipc_vector a, cwipc_vector b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-cwipc_vector* cross_vectors(cwipc_vector a, cwipc_vector b, cwipc_vector *result) {
-    if (result) {
-        result->x = a.y*b.z - a.z*b.y;
-        result->y = a.z*b.x - a.x*b.z;
-        result->z = a.x*b.y - a.y*b.x;
-    }
-
-    return result;
-}
 
 class cwipc_source_kinect_impl : public cwipc_tiledsource {
 protected:
