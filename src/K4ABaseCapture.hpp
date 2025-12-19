@@ -19,18 +19,22 @@
 template<typename Type_api_camera, class Type_our_camera> class K4ABaseCapture : public CwipcBaseCapture {
 public:
     K4ACaptureConfig configuration; //!< Complete configuration read from cameraconfig.json
-    int camera_count = 0;
-    bool eof = false; //<! True when end-of-file seen on pointcloud source
-
+    int get_camera_count() override { return camera_count; }
+    bool is_valid() override { return camera_count > 0; }
+    bool eof() override {
+        return _eof;
+    }
 protected:
     std::string CLASSNAME;  //!< For error, warning and debug messages only
     std::vector<Type_our_camera*> cameras;  //<! Cameras used by this capturer
 
+    int camera_count = 0; // xxxjack needs to go.
     bool want_auxdata_rgb = false;  //<! True after caller requests this auxiliary data
     bool want_auxdata_depth = false;  //<! True after caller requests this auxiliary data
     bool want_auxdata_skeleton = false; //<! True after caller requests this auxiliary data
     bool stopped = false; //<! True when stopping capture
-
+    bool _eof = false; //<! True when end-of-file seen on pointcloud source
+    
     uint64_t starttime = 0; //!< Used only for statistics messages
     int numberOfPCsProduced = 0;  //!< Used only for statistics messages
 
@@ -345,7 +349,7 @@ protected:
             //check EOF:
             for (auto cam : cameras) {
                 if (cam->eof) {
-                    eof = true;
+                    _eof = true;
                     stopped = true;
                     break;
                 }
