@@ -15,9 +15,9 @@
 
 #include "K4ACapture.hpp"
 
-K4ACapture::K4ACapture() : K4ABaseCapture("cwipc_kinect: K4ACapture") {
-    type = "kinect";
-}
+K4ACapture::K4ACapture()
+: K4ABaseCapture("K4ACapture", "kinect")
+{}
 
 int K4ACapture::count_devices() {
     return k4a_device_get_installed_count();

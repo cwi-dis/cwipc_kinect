@@ -19,14 +19,9 @@
 // if there is another one open.
 static int numberOfCapturersActive = 0;
 
-K4APlaybackCapture::K4APlaybackCapture() : K4ABaseCapture("cwipc_kinect: K4APlaybackCapture"), sync_inuse(false), master_id(-1) {
-    type = "kinect_playback";
-    // First check that no other K4APlaybackCapture is active within this process (trying to catch programmer errors)
-    numberOfCapturersActive++;
-
-    if (numberOfCapturersActive > 1) {
-        cwipc_log(LOG_WARNING, "cwipc_kinect", "Attempting to create capturer while one is already active.");
-    }
+K4APlaybackCapture::K4APlaybackCapture()
+: K4ABaseCapture("K4APlaybackCapture", "kinect_playback")
+{
 }
 
 K4APlaybackCapture::~K4APlaybackCapture() {

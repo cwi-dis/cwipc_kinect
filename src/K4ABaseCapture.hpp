@@ -18,14 +18,47 @@
 */
 template<typename Type_api_camera, class Type_our_camera> class K4ABaseCapture : public CwipcBaseCapture {
 public:
-    K4ACaptureConfig configuration; //!< Complete configuration read from cameraconfig.json
-    int get_camera_count() override { return camera_count; }
-    bool is_valid() override { return camera_count > 0; }
+    //
+    // Public API methods (mainly overrides from CwipcBaseCapture)
+    //
+    /// Subclasses need to implement static factory().
+    /// Subclasses need to implement static count_devices().
+
+    using CwipcBaseCapture::CwipcBaseCapture;
+    virtual ~K4ABaseCapture() {
+        uint64_t stopTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        _unload_cameras();
+
+        // Print some minimal statistics of this run
+        float deltaT = (stopTime - starttime) / 1000.0;
+#ifdef CWIPC_DEBUG
+        cwipc_log(LOG_DEBUG, "cwipc_kinect", CLASSNAME + ": ran for " + std::to_string(deltaT) + " seconds, produced " + std::to_string(numberOfPCsProduced) + " pointclouds at " + std::to_string(numberOfPCsProduced / deltaT) + " fps.");
+#endif
+    }
+
+    int get_camera_count() override { 
+        return camera_count; 
+    }
+
+    bool is_valid() override { 
+        return camera_count > 0; 
+    }
+    
+    virtual bool config_reload(const char* configFilename) = 0;
+
+    virtual std::string config_get() {
+        return configuration.to_string();
+    }
+
     bool eof() override {
         return _eof;
     }
+public:
+    // public attributes. Mainly public so they can be accessed
+    // from the Camera class.
+    K4ACaptureConfig configuration;  //!< Configuration of this capturer
 protected:
-    std::string CLASSNAME;  //!< For error, warning and debug messages only
+    // protected attibutes. Accessible from subclasses.
     std::vector<Type_our_camera*> cameras;  //<! Cameras used by this capturer
 
     int camera_count = 0; // xxxjack needs to go.
@@ -48,24 +81,6 @@ protected:
     std::thread* control_thread = nullptr;
 
 public:
-    K4ABaseCapture(const std::string& _Classname) : CLASSNAME(_Classname) {}
-
-    virtual bool config_reload(const char* configFilename) = 0;
-
-    virtual std::string config_get() {
-        return configuration.to_string();
-    }
-
-    virtual ~K4ABaseCapture() {
-        uint64_t stopTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-        _unload_cameras();
-
-        // Print some minimal statistics of this run
-        float deltaT = (stopTime - starttime) / 1000.0;
-#ifdef CWIPC_DEBUG
-        std::cerr << CLASSNAME << ": ran for " << deltaT << " seconds, produced " << numberOfPCsProduced << " pointclouds at " << numberOfPCsProduced / deltaT << " fps." << std::endl;
-#endif
-    }
 
     void _unload_cameras() {
         stop();
