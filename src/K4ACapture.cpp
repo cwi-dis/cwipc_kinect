@@ -85,7 +85,7 @@ bool K4ACapture::_apply_default_config() {
         Type_api_camera handle;
 
         if (k4a_device_open(i, &handle) != K4A_RESULT_SUCCEEDED) {
-            cwipc_log(LOG_WARNING, "cwipc_kinect", "k4a_device_open failed");
+            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "k4a_device_open failed");
             any_failure = true;
             continue;
         }
@@ -95,7 +95,7 @@ bool K4ACapture::_apply_default_config() {
         size_t serial_buf_size = sizeof(serial_buf) / sizeof(serial_buf[0]);
 
         if (k4a_device_get_serialnum(handle, serial_buf, &serial_buf_size) != K4A_BUFFER_RESULT_SUCCEEDED) {
-            cwipc_log(LOG_WARNING, "cwipc_kinect", "get_serialnum failed");
+            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "get_serialnum failed");
             any_failure = true;
 
             continue;
@@ -123,7 +123,7 @@ bool K4ACapture::_open_cameras() {
         Type_api_camera handle;
 
         if (k4a_device_open(i, &handle) != K4A_RESULT_SUCCEEDED) {
-            cwipc_log(LOG_WARNING, "cwipc_kinect", "k4a_device_open failed");
+            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "k4a_device_open failed");
             return false;
         }
 
@@ -131,7 +131,7 @@ bool K4ACapture::_open_cameras() {
         size_t serial_buf_size = sizeof(serial_buf) / sizeof(serial_buf[0]);
 
         if (k4a_device_get_serialnum(handle, serial_buf, &serial_buf_size) != K4A_BUFFER_RESULT_SUCCEEDED) {
-            cwipc_log(LOG_WARNING, "cwipc_kinect", "get_serialnum failed");
+            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "get_serialnum failed");
             return false;
         }
 
@@ -139,7 +139,7 @@ bool K4ACapture::_open_cameras() {
         K4ACameraConfig* cd = get_camera_config(serial);
 
         if (cd == nullptr) {
-            cwipc_log(LOG_WARNING, "cwipc_kinect", "Camera " + serial + " is not configured");
+            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "Camera " + serial + " is not configured");
             return false;
         }
 
@@ -155,7 +155,7 @@ bool K4ACapture::_open_cameras() {
     // Check that all configured cameras have been opened.
     for (auto& cd : configuration.all_camera_configs) {
         if (!cd.disabled && !cd.connected) {
-            cwipc_log(LOG_WARNING, "cwipc_kinect", "Camera " + cd.serial + " is not connected");
+            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "Camera " + cd.serial + " is not connected");
             return false;
         }
     }
@@ -177,7 +177,7 @@ bool K4ACapture::_init_hardware_settings() {
             k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_exposure_time); // Exposure_time (in microseconds)
 
             if (res != K4A_RESULT_SUCCEEDED) {
-              cwipc_log(LOG_WARNING, "cwipc_kinect", "configuration: k4a_device_set_color_control: color_exposure_time should be microsecond and in range (500-133330)");
+              cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "configuration: k4a_device_set_color_control: color_exposure_time should be microsecond and in range (500-133330)");
               return false;
             }
         } else {  //AUTO
@@ -188,7 +188,7 @@ bool K4ACapture::_init_hardware_settings() {
             k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_whitebalance); // White_balance (2500-12500)
 
             if (res != K4A_RESULT_SUCCEEDED) {
-                cwipc_log(LOG_WARNING, "cwipc_kinect", "configuration: k4a_device_set_color_control: color_whitebalance should be in range (2500-12500)");
+                cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "configuration: k4a_device_set_color_control: color_whitebalance should be in range (2500-12500)");
                 return false;
             }
         } else {  //AUTO
@@ -199,7 +199,7 @@ bool K4ACapture::_init_hardware_settings() {
             k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_backlight_compensation); // Backlight_compensation 0=disabled | 1=enabled. Default=0
 
             if (res != K4A_RESULT_SUCCEEDED) {
-                cwipc_log(LOG_WARNING, "cwipc_kinect", "configuration: k4a_device_set_color_control: color_backlight_compensation should be 0=Enabled, 1= Disabled");
+                cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "configuration: k4a_device_set_color_control: color_backlight_compensation should be 0=Enabled, 1= Disabled");
                 return false;
             }
         }
@@ -208,7 +208,7 @@ bool K4ACapture::_init_hardware_settings() {
           k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_BRIGHTNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_brightness); // Brightness. (0 to 255). Default=128.
 
           if (res != K4A_RESULT_SUCCEEDED) {
-              cwipc_log(LOG_WARNING, "cwipc_kinect", "configuration: k4a_device_set_color_control: color_brightness should be in range (0-255)");
+              cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "configuration: k4a_device_set_color_control: color_brightness should be in range (0-255)");
               return false;
           }
         }
@@ -217,7 +217,7 @@ bool K4ACapture::_init_hardware_settings() {
           k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_CONTRAST, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_contrast); // Contrast (0-10). Default=5
 
           if (res != K4A_RESULT_SUCCEEDED) {
-              cwipc_log(LOG_WARNING, "cwipc_kinect", "configuration: k4a_device_set_color_control: color_contrast should be in range (0-10)");
+              cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "configuration: k4a_device_set_color_control: color_contrast should be in range (0-10)");
               return false;
           }
         }
@@ -226,7 +226,7 @@ bool K4ACapture::_init_hardware_settings() {
           k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_SATURATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_saturation); // saturation (0-63). Default=32
 
           if (res != K4A_RESULT_SUCCEEDED) {
-              cwipc_log(LOG_WARNING, "cwipc_kinect", "configuration: k4a_device_set_color_control: color_saturation should be in range (0-63)");
+              cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "configuration: k4a_device_set_color_control: color_saturation should be in range (0-63)");
               return false;
           }
         }
@@ -235,7 +235,7 @@ bool K4ACapture::_init_hardware_settings() {
             k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_SHARPNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_sharpness); // Sharpness (0-4). Default=2
 
             if (res != K4A_RESULT_SUCCEEDED) {
-                cwipc_log(LOG_WARNING, "cwipc_kinect", "configuration: k4a_device_set_color_control: color_sharpness should be in range (0-4)");
+                cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "configuration: k4a_device_set_color_control: color_sharpness should be in range (0-4)");
                 return false;
             }
         }
@@ -244,7 +244,7 @@ bool K4ACapture::_init_hardware_settings() {
             k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_GAIN, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_gain); // Gain (0-255). Default=0
 
             if (res != K4A_RESULT_SUCCEEDED) {
-                cwipc_log(LOG_WARNING, "cwipc_kinect", "configuration: k4a_device_set_color_control: color_gain should be in range (0-255)");
+                cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "configuration: k4a_device_set_color_control: color_gain should be in range (0-255)");
                 return false;
             }
         }
@@ -253,7 +253,7 @@ bool K4ACapture::_init_hardware_settings() {
             k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_powerline_frequency); // Powerline_Frequency (1=50Hz, 2=60Hz). Default=2
 
             if (res != K4A_RESULT_SUCCEEDED) {
-                cwipc_log(LOG_WARNING, "cwipc_kinect", "configuration:k4a_device_set_color_control: color_powerline_frequency should be 1=50Hz or 2=60Hz");
+                cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "configuration:k4a_device_set_color_control: color_powerline_frequency should be 1=50Hz or 2=60Hz");
                 return false;
             }
         }
@@ -275,7 +275,7 @@ bool K4ACapture::_create_cameras() {
 #endif
         // We look up the config by its serial number.
         if (cd.type != "kinect") {
-            cwipc_log(LOG_WARNING, "cwipc_kinect", "Camera " + cd.serial + " is type " + cd.type + " in stead of kinect");
+            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "Camera " + cd.serial + " is type " + cd.type + " in stead of kinect");
             return false;
         }
 

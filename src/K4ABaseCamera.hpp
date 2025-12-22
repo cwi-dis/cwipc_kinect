@@ -29,7 +29,6 @@
 #undef CWIPC_DEBUG
 #undef CWIPC_DEBUG_THREAD
 #undef CWIPC_MEMORY_DEBUG
-#undef CWIPC_PC_GENERATION_OLD
 
 #ifdef CWIPC_MEMORY_DEBUG
 #include <vld.h>
@@ -148,8 +147,8 @@ protected:
     std::string record_to_file; //<! If non-empty: file to record the captured streams to.
 
 public:
-    K4ABaseCamera(const std::string& _Classname, Type_api_camera _handle, K4ACaptureConfig& _configuration, int _camera_index, K4ACameraConfig& _camData) :
-        CLASSNAME(_Classname),
+    K4ABaseCamera(const std::string& _Classname, Type_api_camera _handle, K4ACaptureConfig& _configuration, int _camera_index, K4ACameraConfig& _camData)
+    :   CwipcBaseCamera(_Classname + ": " + _camData.serial, "kinect"),
         configuration(_configuration),
         camera_handle(_handle),
         camData(_camData),
@@ -162,15 +161,10 @@ public:
         do_height_filtering(configuration.height_min != configuration.height_max)
     {
 
-#ifdef CWIPC_PC_GENERATION_OLD
-        std::cout << "Using CWIPC_PC_GENERATION_OLD " << std::endl;
-#endif
     }
 
     virtual ~K4ABaseCamera() {
-#ifdef CWIPC_DEBUG
-        std::cout << CLASSNAME << ": destroying " << serial << std::endl;
-#endif
+        _log_debug("Destroying camera object");
         assert(stopped);
 
         if (tracker_handle) {
@@ -203,7 +197,7 @@ public:
         assert(current_frameset);
 
         if (!processing_frame_queue.try_enqueue(current_frameset)) {
-            std::cerr << CLASSNAME << ":  camera " << serial << ": drop frame before processing" << std::endl;
+            _log_warning("processing frame queue full, dropping frame");
             k4a_capture_release(current_frameset);
         }
 
@@ -247,7 +241,7 @@ public:
                 );
 
                 if (status != K4A_RESULT_SUCCEEDED) {
-                    std::cerr << "cwipc_kinect: Failed to create transformed color image: " << status << std::endl;
+                    _log_error("Failed to create transformed color image: " + std::to_string(status));
                     return;
                 }
 
@@ -258,7 +252,7 @@ public:
                 );
 
                 if (status != K4A_RESULT_SUCCEEDED) {
-                    std::cerr << "cwipc_kinect: Failed to compute transformed color image: " << status << std::endl;
+                    _log_error("Failed to compute transformed color image: " + std::to_string(status));
                     return;
                 }
 
@@ -303,13 +297,13 @@ public:
                 );
 
                 if (status != K4A_RESULT_SUCCEEDED) {
-                    std::cerr << "cwipc_kinect: Failed to create transformed depth image: " << status << std::endl;
+                    _log_error("Failed to create transformed depth image: " + std::to_string(status));
                     return;
                 }
 
                 status = k4a_transformation_depth_image_to_color_camera(transformation_handle, depth_image, transformed_depth_image);
                 if (status != K4A_RESULT_SUCCEEDED) {
-                    std::cerr << "cwipc_kinect: Failed to compute transformed depth image: " << status << std::endl;
+                    _log_error("Failed to compute transformed depth image: " + std::to_string(status));
                     return;
                 }
                 k4a_image_release(depth_image);
@@ -371,36 +365,12 @@ public:
     bool map2d3d(int x_2d, int y_2d, int d_2d, float* out3d)
     {
         float depth = d_2d; // 1000.0; // Note: this comes out of the Depth image, so it is in millimeters
-#ifdef xxxjack_bad
-        k4a_float2_t pt_2d;
-        pt_2d.xy.x = x_2d;
-        pt_2d.xy.y = y_2d;
-        k4a_float3_t pt_3d;
-        k4a_result_t ok;
-        int valid;
 
-        if (configuration.camera_processing.map_color_to_depth) {
-            ok = k4a_calibration_2d_to_3d(
-                &sensor_calibration, &pt_2d, depth, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_DEPTH, &pt_3d, &valid
-            );
-        }
-        else {
-            ok = k4a_calibration_2d_to_3d(
-                &sensor_calibration, &pt_2d, depth, K4A_CALIBRATION_TYPE_COLOR, K4A_CALIBRATION_TYPE_COLOR, &pt_3d, &valid
-            );
-        }
-        if (!valid || ok != K4A_RESULT_SUCCEEDED) {
-            std::cerr << CLASSNAME << ": error mapping 2D point to 3D" << std::endl;
-        }
-        out3d[0] = pt_3d.xyz.x;
-        out3d[1] = pt_3d.xyz.y;
-        out3d[2] = pt_3d.xyz.z;
-#else
         k4a_float2_t* xy_table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(xy_table);
         int width = k4a_image_get_width_pixels(xy_table);
         int height = k4a_image_get_height_pixels(xy_table);
         if (y_2d < 0 || y_2d >= height || x_2d < 0 || x_2d >= width) {
-            std::cerr << CLASSNAME << ": map2d3d: illegal coordinate" << std::endl;
+            _log_error("map2d3d: requested pixel out of bounds");
             return false;
         }
         int idx = y_2d * width + x_2d;
@@ -415,8 +385,6 @@ public:
         out3d[0] = point.x;
         out3d[1] = point.y;
         out3d[2] = point.z;
-
-#endif
         return true;
     }
 protected:
@@ -449,54 +417,23 @@ protected:
         const char* sensorOrientationsStr[] = { "Default", "Clockwise_90", "CounterClockwise_90", "Flip_180" };
 
         if (sts != K4A_RESULT_SUCCEEDED) {
-            std::cerr << CLASSNAME << " Body tracker initialization failed on camera " << serial << " processing_mode=" << processingModesStr[tracker_config.processing_mode] << " sensor_orientation=" << sensorOrientationsStr[tracker_config.sensor_orientation] << std::endl;
+            _log_error("Body tracker initialization failed: " + std::to_string(sts));
             return false;
         } else {
-            std::cout << CLASSNAME << " Body tracker initialization succeeded on camera " << serial << " processing_mode=" << processingModesStr[tracker_config.processing_mode] << " sensor_orientation=" << sensorOrientationsStr[tracker_config.sensor_orientation] << std::endl;
+            _log_trace(std::string("Body tracker initialized. Processing mode: ") +
+                processingModesStr[tracker_config.processing_mode] +
+                ", Sensor orientation: " + sensorOrientationsStr[tracker_config.sensor_orientation]
+            );
         }
 
         return true;
     }
 
-#ifdef notrs2
-    virtual void _computePointSize(rs2::pipeline_profile profile) final {
-        // Get the 3D distance between camera and (0,0,0) or use 1m if unreasonable
-        float tx = (*camData.trafo)(0, 3);
-        float ty = (*camData.trafo)(1, 3);
-        float tz = (*camData.trafo)(2, 3);
-        float dist = sqrt(tx * tx + ty * ty + tz * tz);
-
-        if (dist == 0) {
-            dist = 1;
-        }
-
-        // Now get the intrinsics for the depth stream
-        auto stream = profile.get_stream(RS2_STREAM_DEPTH).as<rs2::video_stream_profile>();
-        auto intrinsics = stream.get_intrinsics(); // Calibration data
-
-        // Compute 2D coordinates of adjacent pixels in the middle of the field of view
-        float pixel0[2], pixel1[2];
-        pixel0[0] = camera_width / 2;
-        pixel0[1] = camera_height / 2;
-        pixel1[0] = pixel0[0] + 1;
-        pixel1[1] = pixel0[1] + 1;
-
-        // Deproject to get 3D distance
-        float point0[3], point1[3];
-        rs2_deproject_pixel_to_point(point0, &intrinsics, pixel0, dist);
-        rs2_deproject_pixel_to_point(point1, &intrinsics, pixel1, dist);
-        float rv = sqrt(pow(point1[0] - point0[0], 2) + pow(point1[1] - point0[1], 2) + pow(point1[2] - point0[2], 2));
-        pointSize = rv;
-    }
-#endif
-
     virtual void _start_capture_thread() = 0;
     virtual void _capture_thread_main() = 0;
 
     virtual void _processing_thread_main() final {
-#ifdef CWIPC_DEBUG_THREAD
-        std::cerr << CLASSNAME << ": processing: cam=" << serial << " thread started" << std::endl;
-#endif
+        _log_debug_thread("processing thread started for camera " + serial);
         while (!stopped) {
             k4a_capture_t processing_frameset = NULL;
             k4a_image_t depth_image = NULL;
@@ -504,20 +441,16 @@ protected:
 
             bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(10000));
             if (processing_frameset == NULL) {
-#ifdef CWIPC_DEBUG_THREAD
-            std::cerr << CLASSNAME << ": processing thread: null frameset, camera " << serial << std::endl;
-#endif
+            _log_debug_thread("processing thread stopping for camera " + serial);
                 continue;
             }
 
             if (!ok) {
-                std::cerr << CLASSNAME << ": no frameset for 10 seconds, camera " << serial << std::endl;
+                _log_warning("processing thread dequeue timeout");
                 continue;
             }
 
-#ifdef CWIPC_DEBUG_THREAD
-            std::cerr << CLASSNAME << ": processing: got frame for camera " << serial << std::endl;
-#endif
+            _log_debug_thread("processing thread got frameset for camera " + serial);
             assert(processing_frameset);
             std::lock_guard<std::mutex> lock(processing_mutex);
 
@@ -529,9 +462,9 @@ protected:
                 k4a_wait_result_t queue_capture_result = k4abt_tracker_enqueue_capture(tracker_handle, processing_frameset, K4A_WAIT_INFINITE);
                 if (queue_capture_result == K4A_WAIT_RESULT_TIMEOUT) {
                   // It should never hit timeout when K4A_WAIT_INFINITE is set.
-                  cwipc_log(LOG_WARNING, "cwipc_kinect", "k4abt_tracker_enqueue_capture: timeout");
+                  _log_warning("k4abt_tracker_enqueue_capture: timeout");
                 } else if (queue_capture_result == K4A_WAIT_RESULT_FAILED) {
-                  cwipc_log(LOG_WARNING, "cwipc_kinect", "k4abt_tracker_enqueue_capture: failed");
+                  _log_warning("k4abt_tracker_enqueue_capture: failed");
                 }
 
                 //
@@ -543,9 +476,7 @@ protected:
 
                 if (pop_frame_result == K4A_WAIT_RESULT_SUCCEEDED) {
                     uint32_t num_bodies = k4abt_frame_get_num_bodies(body_frame);
-#ifdef CWIPC_DEBUG_THREAD
-                    std::cout << CLASSNAME << " : " << serial << " - Numbodies = " << num_bodies << std::endl;
-#endif
+                    _log_debug_thread("processing thread: detected " + std::to_string(num_bodies) + " bodies");
                     if (num_bodies > 0) {
                         // Transform each 3d joints from 3d depth space to 2d color image space
                         for (uint32_t i = 0; i < num_bodies; i++) {
@@ -554,7 +485,7 @@ protected:
                             auto sts = k4abt_frame_get_body_skeleton(body_frame, i, &skeleton);
 
                             if (sts != K4A_RESULT_SUCCEEDED) {
-                                cwipc_log(LOG_WARNING, "cwipc_kinect", "Get body from body frame failed");
+                                _log_error("Get body from body frame failed");
                                 break;
                             }
 
@@ -583,9 +514,9 @@ protected:
                         }
                     }
                 } else if (pop_frame_result == K4A_WAIT_RESULT_TIMEOUT) {
-                    cwipc_log(LOG_WARNING, "cwipc_kinect", "k4abt_tracker_pop_result: timeout");
+                    _log_warning("k4abt_tracker_pop_result: timeout");
                 } else {
-                    cwipc_log(LOG_WARNING, "cwipc_kinect", "k4abt_tracker_pop_result: failed");
+                    _log_warning("k4abt_tracker_pop_result: failed");
                 }
 
                 if (body_frame != nullptr) {
@@ -596,9 +527,7 @@ protected:
             // get depth and color images. Apply filters and uncompress color image if needed
             depth_image = k4a_capture_get_depth_image(processing_frameset);
 
-#ifndef CWIPC_PC_GENERATION_OLD
             _filter_depth_image(depth_image); //filtering depthmap => better now because if we map depth to color then we need to filter more points.
-#endif
             color_image = k4a_capture_get_color_image(processing_frameset);
             color_image = _uncompress_color_image(processing_frameset, color_image);
 
@@ -612,12 +541,10 @@ protected:
 
             if (new_pointcloud != nullptr) {
                 current_pointcloud = new_pointcloud;
-#ifdef CWIPC_DEBUG_THREAD
-                std::cerr << CLASSNAME << ": camera " << serial << " produced " << current_pointcloud->size() << " point" << std::endl;
-#endif
+                _log_debug_thread("generated pointcloud with " + std::to_string(current_pointcloud->size()) + " points");
 
                 if (current_pointcloud->size() == 0) {
-                    std::cerr << CLASSNAME << ": warning: captured empty pointcloud from camera " << camData.serial << std::endl;
+                    _log_warning("generated pointcloud has zero points");
                     //continue;
                 }
 
@@ -643,9 +570,7 @@ protected:
             processing_frameset = nullptr;
         }
 
-#ifdef CWIPC_DEBUG_THREAD
-        std::cerr << CLASSNAME << ": processing: cam=" << serial << " thread stopped" << std::endl;
-#endif
+        _log_debug_thread("processing thread exiting");
     }
 
     virtual void _filter_depth_image(k4a_image_t depth_image) {
@@ -765,7 +690,7 @@ protected:
         );
 
         if (status != K4A_RESULT_SUCCEEDED) {
-          std::cerr << "cwipc_kinect: Failed to create transformed color image: " << status << std::endl;
+          _log_error("Failed to create transformed color image: " + std::to_string(status));
           return nullptr;
         }
 
@@ -776,43 +701,14 @@ protected:
         );
 
         if (status != K4A_RESULT_SUCCEEDED) {
-            std::cerr << "cwipc_kinect: Failed to compute transformed color image: " << status << std::endl;
+            _log_error("Failed to compute transformed color image: " + std::to_string(status));
             return nullptr;
         }
 
         cwipc_pcl_pointcloud rv;
 
-#ifdef CWIPC_PC_GENERATION_OLD
-        k4a_image_t point_cloud_image = NULL;
 
-        status = k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
-            depth_image_width_pixels,
-            depth_image_height_pixels,
-            depth_image_width_pixels * 3 * (int)sizeof(int16_t),
-            &point_cloud_image
-        );
-
-        if (status != K4A_RESULT_SUCCEEDED) {
-            std::cerr << "cwipc_kinect: Failed to create point cloud image: " << status << std::endl;
-            return nullptr;
-        }
-
-        status = k4a_transformation_depth_image_to_point_cloud(transformation_handle,
-            depth_image,
-            K4A_CALIBRATION_TYPE_DEPTH,
-            point_cloud_image
-        );
-
-        if (status != K4A_RESULT_SUCCEEDED) {
-            std::cerr << "cwipc_kinect: Failed to compute point cloud: " << status << std::endl;
-            return nullptr;
-        }
-
-        rv = generate_point_cloud(point_cloud_image, transformed_color_image);
-        k4a_image_release(point_cloud_image);
-#else
         rv = generate_point_cloud_v2(depth_image, transformed_color_image);
-#endif
 
         k4a_image_release(transformed_color_image);
 
@@ -834,47 +730,19 @@ protected:
         );
 
         if (status != K4A_RESULT_SUCCEEDED) {
-            std::cerr << "cwipc_kinect: Failed to create transformed depth image: " << status << std::endl;
+            _log_error("Failed to create transformed depth image: " + std::to_string(status));
             return nullptr;
         }
 
         status = k4a_transformation_depth_image_to_color_camera(transformation_handle, depth_image, transformed_depth_image);
         if (status != K4A_RESULT_SUCCEEDED) {
-            std::cerr << "cwipc_kinect: Failed to compute transformed depth image: " << status << std::endl;
+            _log_error("Failed to compute transformed depth image: " + std::to_string(status));
             return nullptr;
         }
 
         cwipc_pcl_pointcloud rv;
-#ifdef CWIPC_PC_GENERATION_OLD
-        k4a_image_t point_cloud_image = NULL;
-        status = k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
-            color_image_width_pixels,
-            color_image_height_pixels,
-            color_image_width_pixels * 3 * (int)sizeof(int16_t),
-            &point_cloud_image
-        );
 
-        if (status != K4A_RESULT_SUCCEEDED) {
-          std::cerr << "cwipc_kinect: Failed to create point cloud image: " << status << std::endl;
-          return nullptr;
-        }
-
-        status = k4a_transformation_depth_image_to_point_cloud(transformation_handle,
-            transformed_depth_image,
-            K4A_CALIBRATION_TYPE_COLOR,
-            point_cloud_image
-        );
-
-        if (status != K4A_RESULT_SUCCEEDED) {
-            std::cerr << "cwipc_kinect: Failed to compute point cloud: " << status << std::endl;
-            return nullptr;
-        }
-
-        rv = generate_point_cloud(point_cloud_image, color_image);
-        k4a_image_release(point_cloud_image);
-    #else
         rv = generate_point_cloud_v2(transformed_depth_image, color_image);
-    #endif
 
         k4a_image_release(transformed_depth_image);
 
@@ -888,11 +756,6 @@ protected:
         uint8_t * color_data = k4a_image_get_buffer(color_image);
         int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
 
-#ifdef CWIPC_PC_GENERATION_OLD
-        if (configuration.camera_processing.do_threshold || configuration.camera_processing.depth_x_erosion || configuration.camera_processing.depth_y_erosion) {
-            _filter_depth_data(point_cloud_image_data, width, height);
-        }
-#endif
         // now loop over images and create points.
         cwipc_pcl_pointcloud new_cloud = new_cwipc_pcl_pointcloud();
         new_cloud->clear();
@@ -950,9 +813,7 @@ protected:
                 new_cloud->push_back(point);
             }
         }
-#ifdef CWIPC_DEBUG_THREAD
-        std::cerr << "cwipc_kinect: camera " << serial << " produced " << new_cloud->size() << " point" << std::endl;
-#endif
+        _log_debug_thread("produced " + std::to_string(new_cloud->size()) + " points");
         return new_cloud;
     }
 
@@ -977,7 +838,8 @@ protected:
         );
 
         if (status != K4A_RESULT_SUCCEEDED) {
-            std::cerr << "cwipc_kinect: Failed to create xy_table image: " << status << std::endl;
+            _log_error("Failed to create XY table image: " + std::to_string(status));
+            return;
         }
 
         k4a_float2_t* table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(xy_table);
@@ -1063,9 +925,7 @@ protected:
                 new_cloud->push_back(point);
             }
         }
-#ifdef CWIPC_DEBUG_THREAD
-        std::cerr << "cwipc_kinect: camera " << serial << " produced " << new_cloud->size() << " point" << std::endl;
-#endif
+        _log_debug_thread("produced " + std::to_string(new_cloud->size()) + " points");
         return new_cloud;
     }
 
@@ -1088,6 +948,7 @@ protected:
         pt.y = rotation[3] * x + rotation[4] * y + rotation[5] * z + translation[1];
         pt.z = rotation[6] * x + rotation[7] * y + rotation[8] * z + translation[2];
     }
-
+    /// Optionally uncompress color image.
+    /// For code simplicity this always returns a value k4a_image_t, even though it may be wrong.
     virtual k4a_image_t _uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) = 0;
 };

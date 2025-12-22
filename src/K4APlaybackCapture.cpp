@@ -177,11 +177,11 @@ void K4APlaybackCapture::_create_cameras(std::vector<Type_api_camera>& camera_ha
         std::cout << CLASSNAME << ": opening camera " << cd.serial << std::endl;
 #endif
         if (cd.type == "kinect_offline") {
-            cwipc_log(LOG_WARNING, "cwipc_kinect", "Camera type kinect_offline converted to kinect_playback");
+            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "Camera type kinect_offline converted to kinect_playback");
             cd.type = "kinect_playback";
         }
         if (cd.type != "kinect_playback") {
-            cwipc_log(LOG_WARNING, "cwipc_kinect", "Camera " + cd.serial + " is type " + cd.type + " in stead of kinect_playback");
+            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "Camera " + cd.serial + " is type " + cd.type + " in stead of kinect_playback");
         }
 
         int camera_index = cameras.size();

@@ -20,7 +20,7 @@ static bool _api_versioncheck(char **errorMessage, uint64_t apiVersion) {
         if (errorMessage) {
             *errorMessage = msgbuf;
         }
-        cwipc_log(LOG_ERROR, "cwipc_kinect", msgbuf + 13);
+        cwipc_log(CWIPC_LOG_LEVEL_ERROR, "cwipc_kinect", msgbuf + 13);
         return false;
     }
     return true;
@@ -108,7 +108,7 @@ cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage,
     }
 
     delete rv;
-    cwipc_log(LOG_ERROR, "cwipc_kinect", "no kinect cameras found");
+    cwipc_log(CWIPC_LOG_LEVEL_ERROR, "cwipc_kinect", "no kinect cameras found");
     if (errorMessage && *errorMessage == NULL) {
         *errorMessage = (char *)"cwipc_kinect: no kinect cameras found";
     }
@@ -129,7 +129,7 @@ cwipc_tiledsource* cwipc_k4aplayback(const char* configFilename, char** errorMes
 
     delete rv;
 
-    cwipc_log(LOG_ERROR, "cwipc_k4aplayback", "cannot open recording");
+    cwipc_log(CWIPC_LOG_LEVEL_ERROR, "cwipc_k4aplayback", "cannot open recording");
     if (errorMessage && *errorMessage == NULL) {
         *errorMessage = (char *)"cwipc_k4aplayback: cannot open recording";
     }

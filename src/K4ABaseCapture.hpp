@@ -31,9 +31,7 @@ public:
 
         // Print some minimal statistics of this run
         float deltaT = (stopTime - starttime) / 1000.0;
-#ifdef CWIPC_DEBUG
-        cwipc_log(LOG_DEBUG, "cwipc_kinect", CLASSNAME + ": ran for " + std::to_string(deltaT) + " seconds, produced " + std::to_string(numberOfPCsProduced) + " pointclouds at " + std::to_string(numberOfPCsProduced / deltaT) + " fps.");
-#endif
+        _log_debug("ran for " + std::to_string(deltaT) + " seconds, produced " + std::to_string(numberOfPCsProduced) + " pointclouds at " + std::to_string(numberOfPCsProduced / deltaT) + " fps.");
     }
 
     int get_camera_count() override final { 
@@ -69,7 +67,7 @@ public:
 
     virtual cwipc* get_pointcloud() override final {
         if (camera_count == 0) {
-          cwipc_log(LOG_WARNING, "cwipc_kinect", "get_pointcloud: returning NULL, no cameras");
+          _log_warning("get_pointcloud: returning NULL, no cameras");
           return nullptr;
         }
 
@@ -91,7 +89,7 @@ public:
             mergedPC = nullptr;
 
             if (rv == nullptr) {
-              cwipc_log(LOG_WARNING, "cwipc_kinect", "get_pointcloud: returning NULL, even though mergedPC_is_fresh");
+              _log_warning("get_pointcloud: returning NULL, even though mergedPC_is_fresh");
             }
         }
 
@@ -174,9 +172,7 @@ public:
         for (auto cam : cameras)
           delete cam;
         cameras.clear();
-#ifdef CWIPC_DEBUG
-        std::cerr << CLASSNAME << ": deleted all cameras\n";
-#endif
+        _log_debug("deleted all cameras");
         camera_count = 0;
     }
 
@@ -188,9 +184,7 @@ public:
         mergedPC_want_new = true;
         mergedPC_want_new_cv.notify_all();
 
-#ifdef CWIPC_DEBUG
-        std::cerr << CLASSNAME << ": stopped all cameras\n";
-#endif
+        _log_debug("stopped all cameras");
 
         if (control_thread && control_thread->joinable()) {
             control_thread->join();
@@ -252,7 +246,7 @@ public:
             }
         }
 
-        cwipc_log(LOG_WARNING, "cwipc_kinect", "Unknown camera " + serial);
+        _log_warning("Unknown camera " + serial);
         return nullptr;
     }
 
@@ -331,7 +325,7 @@ protected:
         }
 
         if (start_error) {
-            cwipc_log(LOG_WARNING, "cwipc_kinect", "Not all cameras could be started");
+            _log_error("Not all cameras could be started");
             _unload_cameras();
             return;
         }
@@ -361,9 +355,7 @@ protected:
     virtual uint64_t _get_best_timestamp() = 0;
 
     virtual void _control_thread_main() final {
-#ifdef CWIPC_DEBUG_THREAD
-        std::cerr << CLASSNAME << ": processing thread started" << std::endl;
-#endif
+        _log_debug_thread("processing thread started");
         while (!stopped) {
             {
                 std::unique_lock<std::mutex> mylock(mergedPC_mutex);
@@ -390,7 +382,6 @@ protected:
             bool all_captures_ok = _capture_all_cameras();
 
             if (!all_captures_ok) {
-                //std::cerr << CLASSNAME << ": xxxjack not all captures succeeded. Retrying." << std::endl;
                 std::this_thread::yield();
                 continue;
             }
@@ -412,9 +403,7 @@ protected:
             cwipc* newPC = cwipc_from_pcl(pcl_pointcloud, timestamp, &error_str, CWIPC_API_VERSION);
 
             if (newPC == nullptr) {
-#ifdef CWIPC_DEBUG
-                std::cerr << CLASSNAME << ": cwipc_from_pcl returned error: " << error_str << std::endl;
-#endif
+                _log_debug("Failed to create cwipc from pcl pointcloud: " + std::string(error_str ? error_str : "unknown error"));
                 break;
             }
 
@@ -471,23 +460,9 @@ protected:
             merge_views();
 
             if (mergedPC->access_pcl_pointcloud()->size() > 0) {
-#ifdef CWIPC_DEBUG
-                std::cerr << CLASSNAME << ": capturer produced a merged cloud of " << mergedPC->count() << " points" << std::endl;
-#endif
+                _log_debug("merged pointcloud has " + std::to_string(mergedPC->access_pcl_pointcloud()->size()) + " points");
             } else {
-#ifdef CWIPC_DEBUG
-                std::cerr << CLASSNAME << ": Warning: capturer got an empty pointcloud\n";
-#endif
-
-#if 0
-                // HACK to make sure the encoder does not get an empty pointcloud
-                cwipc_pcl_point point;
-                point.x = 1.0;
-                point.y = 1.0;
-                point.z = 1.0;
-                point.rgb = 0.0;
-                mergedPC->points.push_back(point);
-#endif
+                _log_warning("merged pointcloud is empty");
             }
             // Signal that a new mergedPC is available. (Note that we acquired the mutex earlier)
             mergedPC_is_fresh = true;
@@ -495,9 +470,7 @@ protected:
             mergedPC_is_fresh_cv.notify_all();
         }
 
-#ifdef CWIPC_DEBUG_THREAD
-        std::cerr << CLASSNAME << ": processing thread stopped" << std::endl;
-#endif
+        _log_debug_thread("processing thread stopped");
     }
 
     virtual void merge_views() final {
@@ -509,7 +482,7 @@ protected:
         for (auto cam : cameras) {
             cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
             if (cam_cld == nullptr) {
-                cwipc_log(LOG_WARNING, "cwipc_kinect", "Camera " + cam->serial + " returned NULL cloud, ignoring");
+                _log_warning("Returned NULL cloud, ignoring");
                 continue;
             }
 
@@ -529,76 +502,8 @@ protected:
             *aligned_cld += *cam_cld;
         }
 
-#ifdef xxNacho_skeleton_DEBUG
-        cwipc_pcl_pointcloud skl = new_cwipc_pcl_pointcloud();
-        size_t sk_points = 32;
-        skl->reserve(sk_points);
-
-        //merge skeletons using average
-        if (configuration.cameraData[0].skeletons.size() > 0) {
-            //printf("skeletons merge:\n");
-            for (int joint_id = 0; joint_id < 32; joint_id++) {
-                cwipc_pcl_point joint_pos;
-                //printf("Joint %i:\n", joint_id);
-                int numsk = 0;
-
-                for (K4ACameraConfig cd : configuration.cameraData) {
-                    if (cd.skeletons.size() > 0) {
-                        numsk++;
-                        joint_pos.x += cd.skeletons[0].joints[joint_id].position.xyz.x;
-                        joint_pos.y += cd.skeletons[0].joints[joint_id].position.xyz.y;
-                        joint_pos.z += cd.skeletons[0].joints[joint_id].position.xyz.z;
-                        int color[3] = {0, 0, 0};
-
-                        if (cd.skeletons[0].joints[joint_id].confidence_level == K4ABT_JOINT_CONFIDENCE_HIGH) {
-                            color[1] = 255;
-                        } else if (cd.skeletons[0].joints[joint_id].confidence_level == K4ABT_JOINT_CONFIDENCE_MEDIUM) {
-                            color[0] = 255;
-                            color[1] = 165;
-                        } else {
-                            color[0] = 255;
-                        }
-
-                        joint_pos.r = color[0];
-                        joint_pos.g = color[1];
-                        joint_pos.b = color[2];
-                        joint_pos.a = 8;
-                        //printf("\tCam %s (%f,%f,%f)\n", cd.serial,cd.skeletons[0].joints[joint_id].position.xyz.x, cd.skeletons[0].joints[joint_id].position.xyz.y, cd.skeletons[0].joints[joint_id].position.xyz.z);
-                    }
-                }
-
-                joint_pos.x /= numsk; //configuration.cameraData.size();
-                joint_pos.y /= numsk; //configuration.cameraData.size();
-                joint_pos.z /= numsk; //configuration.cameraData.size();
-                skl->push_back(joint_pos);
-                //printf("Fusion (%f,%f,%f)\n", joint_pos.x, joint_pos.y, joint_pos.z);
-                //printf("%f %f %f\n", joint_pos.x, joint_pos.y, joint_pos.z);
-            }
-
-            uint64_t t = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-            std::string fn = "skeleton_" + std::to_string(t) + ".ply";
-            cwipc* rv = cwipc_from_pcl(skl, t, NULL, CWIPC_API_VERSION);
-            char* error = NULL;
-            int ok = cwipc_write(fn.c_str(), rv, &error);
-
-            if (ok==0) {
-                std::cout << "Writed skeleton = " << fn << std::endl;
-            }
-        } else {
-            std::cout << "No skeleton found" << std::endl;
-
-            for (int i = 0; i < 32; i++) {
-                cwipc_pcl_point joint_pos;
-                joint_pos.a = 4;
-                skl->push_back(joint_pos);
-            }
-        }
-
-        *mergedPC += *skl;
-#endif // xxNacho_skeleton_DEBUG
-
         if (aligned_cld->size() != nPoints) {
-            cwipc_log(LOG_WARNING, "cwipc_kinect", "Combined pointcloud has different number of points than expected");
+            _log_error("Combined pointcloud has different number of points than expected");
         }
     }
 

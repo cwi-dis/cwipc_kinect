@@ -10,15 +10,13 @@
 
 #undef CWIPC_DEBUG
 
-K4APlaybackCamera::K4APlaybackCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraConfig& _camData) :
-    K4ABaseCamera("cwipc_kinect: K4APlaybackCamera", _handle, configuration, _camera_index, _camData),
+K4APlaybackCamera::K4APlaybackCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraConfig& _camData)
+:   K4ABaseCamera("cwipc_kinect: K4APlaybackCamera", _handle, configuration, _camera_index, _camData),
     capture_id(-1),
     current_frameset_timestamp(0),
     max_delay(0)
 {
-#ifdef CWIPC_DEBUG
-    std::cout << CLASSNAME << ": creating camera " << serial << std::endl;
-#endif
+    _log_debug("creating playback camera from file " + camData.filename);
     _init_filters();
 }
 
@@ -42,7 +40,7 @@ bool K4APlaybackCamera::capture_frameset(uint64_t master_timestamp) {
 
 #ifdef CWIPC_DEBUG_THREAD
     if (current_frameset == NULL) {
-        std::cerr << CLASSNAME << ": " << camera_index << " forward NULL frame" << std::endl;
+        _log_debug_thread("forward NULL frame");
     } else {
         k4a_image_t color = k4a_capture_get_color_image(current_frameset);
         uint64_t tsRGB = k4a_image_get_device_timestamp_usec(color);
@@ -50,7 +48,7 @@ bool K4APlaybackCamera::capture_frameset(uint64_t master_timestamp) {
         k4a_image_t depth = k4a_capture_get_depth_image(current_frameset);
         uint64_t tsD = k4a_image_get_device_timestamp_usec(depth);
         k4a_image_release(depth);
-        std::cerr << CLASSNAME << ": forward frame: cam=" << serial << ", rgbseq=" << tsRGB << ", dseq=" << tsD << std::endl;
+        _log_debug_thread("forward frame: cam=" + serial + ", rgbseq=" + std::to_string(tsRGB) + ", dseq=" + std::to_string(tsD));
     }
 #endif
     return rv;
@@ -58,10 +56,10 @@ bool K4APlaybackCamera::capture_frameset(uint64_t master_timestamp) {
 
 bool K4APlaybackCamera::seek(uint64_t timestamp) {
     uint64_t first_t = file_config.start_timestamp_offset_usec;
-    uint64_t last_t = k4a_playback_get_recording_length_usec(camera_handle);
+    uint64_t duration_t = k4a_playback_get_recording_length_usec(camera_handle);
 
-    if (timestamp > first_t + last_t) {
-        std::cerr << CLASSNAME << " ERROR: desired seek timestamp " << timestamp << " is > than the last timestamp " << first_t + last_t << " of the recording." << std::endl;
+    if (timestamp > first_t + duration_t) {
+        _log_error("seek timestamp " + std::to_string(timestamp) + " out of range start=" + std::to_string(first_t) + ", stop=" + std::to_string(first_t + duration_t));
         return false;
     }
 
@@ -92,20 +90,16 @@ bool K4APlaybackCamera::_prepare_next_valid_frame() {
         stream_result = k4a_playback_get_next_capture(camera_handle, &current_frameset);
         if (stream_result == K4A_STREAM_RESULT_EOF) {
             eof = true; // xxxjack note that this means eof is true *after all frames have been processed*.
-
-#ifdef CWIPC_DEBUG
             if (current_frameset_timestamp == 0) {
-                std::cerr << CLASSNAME << ": Recording file is empty: " << camData.filename << std::endl;
+                _log_warning("Recording file is empty: " + camData.filename);
             } else {
-                std::cout << CLASSNAME << ": Recording file " << camData.filename << " reached EOF at frame " << capture_id << std::endl;
+                _log_trace("Recording file " + camData.filename + " reached EOF at frame " + std::to_string(capture_id));
             }
-#endif
-
             return false;
         }
 
         if (stream_result == K4A_STREAM_RESULT_FAILED) {
-            std::cerr << CLASSNAME << ": ERROR: Failed to read first capture from file: " << camData.filename << std::endl;
+            _log_error("First capture failed");
             return false;
         }
 
@@ -114,9 +108,9 @@ bool K4APlaybackCamera::_prepare_next_valid_frame() {
         k4a_image_t depth = k4a_capture_get_depth_image(current_frameset);
 
         if (color == NULL) {
-            std::cerr << CLASSNAME << ": Color is missing in capture " << capture_id << " serial " << camData.serial << " from " << camData.filename << std::endl;
+            _log_warning("Color is missing in capture " + std::to_string(capture_id) + " serial " + camData.serial + " from " + camData.filename);
         } else if (depth == NULL) {
-            std::cerr << CLASSNAME << ": Depth is missing in capture " << capture_id << " serial " << camData.serial << " from " << camData.filename << std::endl;
+            _log_warning("Depth is missing in capture " + std::to_string(capture_id) + " serial " + camData.serial + " from " + camData.filename);
         } else {
             succeeded = true;
         }
@@ -128,10 +122,7 @@ bool K4APlaybackCamera::_prepare_next_valid_frame() {
         }
 
         current_frameset_timestamp = k4a_image_get_device_timestamp_usec(color);
-#ifdef CWIPC_DEBUG
-        std::cerr << CLASSNAME << ": file=" << camData.filename << ", serial=" << camData.serial << ", id=" << capture_id << ", timestamp=" << current_frameset_timestamp << std::endl;
-#endif
-        // std::cerr << "xxxjack capture_id=" << capture_id << ", timestamp=" << current_frameset_timestamp << std::endl;
+        _log_debug("Prepared frame " + std::to_string(capture_id) + " with timestamp " + std::to_string(current_frameset_timestamp) + " from file " + camData.filename);
         k4a_image_release(color);
         k4a_image_release(depth);
     }
@@ -143,7 +134,7 @@ bool K4APlaybackCamera::_prepare_cond_next_valid_frame(uint64_t master_timestamp
     //check if current frame already satisfies the condition
     if (current_frameset != NULL && (current_frameset_timestamp > master_timestamp)) {
         // Even if the current frame is too far in the future we use it.
-        std::cout << CLASSNAME << ": serial=" << camData.serial << ": returning old frame, timestamp = " << current_frameset_timestamp << ", too early by " << current_frameset_timestamp - master_timestamp << std::endl;
+        _log_warning("reusing frame " + std::to_string(current_frameset_timestamp) + " for master timestamp " +  std::to_string(master_timestamp));
         return true;
     }
 
@@ -156,7 +147,7 @@ bool K4APlaybackCamera::_prepare_cond_next_valid_frame(uint64_t master_timestamp
         if (current_frameset_timestamp > master_timestamp) {
             if (current_frameset_timestamp > (master_timestamp + max_delay)) {
                 // it is a future frame, we need to update master frame
-                std::cerr << CLASSNAME << ": Warning: serial=" << camData.serial << " return frame " << current_frameset_timestamp << ", too early by " << current_frameset_timestamp - master_timestamp << std::endl;
+                _log_warning("return frame " + std::to_string(current_frameset_timestamp) + ", too early by " + std::to_string(current_frameset_timestamp - master_timestamp));
                 return true;
             } else {  
                 return true;
@@ -169,7 +160,7 @@ bool K4APlaybackCamera::start() {
     // We don't have to start anything (opening the file did that) but
     // we do have to get the RGB<->D transformation.
     if (K4A_RESULT_SUCCEEDED != k4a_playback_get_calibration(camera_handle, &sensor_calibration)) {
-        std::cerr << CLASSNAME << ":  Failed to k4a_device_get_calibration" << std::endl;
+        _log_error("Failed to k4a_device_get_calibration");
         camera_started = false;
 
         return false;
@@ -185,7 +176,7 @@ bool K4APlaybackCamera::start() {
     //Get file config for further use of the parameters.
     k4a_result_t result = k4a_playback_get_record_configuration(camera_handle, &file_config);
     if (result != K4A_RESULT_SUCCEEDED) {
-        std::cerr << CLASSNAME << ": Failed to get record configuration for camera: " << serial << std::endl;
+        _log_error("Failed to get record configuration");
         return false;
     }
 
@@ -270,6 +261,7 @@ k4a_image_t K4APlaybackCamera::_uncompress_color_image(k4a_capture_t capture, k4
 
     if (k4a_image_get_format(color_image) != K4A_IMAGE_FORMAT_COLOR_MJPG) {
         // Not the format we expect. Return as-is.
+        _log_warning("Color image format is not MJPG, no decompression needed");
         return color_image;
     }
 
@@ -280,7 +272,7 @@ k4a_image_t K4APlaybackCamera::_uncompress_color_image(k4a_capture_t capture, k4
         color_image_width_pixels * 4 * (int)sizeof(uint8_t),
         &uncompressed_color_image))
     {
-      cwipc_log(LOG_WARNING, "cwipc_kinect", "Failed to create image buffer for image decompression");
+      _log_error("Failed to create image buffer for image decompression");
       return color_image;
     }
 
@@ -296,11 +288,11 @@ k4a_image_t K4APlaybackCamera::_uncompress_color_image(k4a_capture_t capture, k4
         TJPF_BGRA,
         TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE) != 0)
     {
-        cwipc_log(LOG_WARNING, "cwipc_kinect", "Failed to decompress color frame");
+        _log_error("Failed to decompress color frame");
     }
 
     if (tjDestroy(tjHandle)) {
-        cwipc_log(LOG_WARNING, "cwipc_kinect", "Failed to destroy turboJPEG handle");
+        _log_error("Failed to destroy turboJPEG handle");
     }
 
     assert(uncompressed_color_image);
