@@ -41,7 +41,14 @@ struct K4ACameraConfig : CwipcBaseCameraConfig {
     void *handle = nullptr; // K4A device handle. xxxjack needs to go.
 };
 
+struct K4AAuxDataConfig {
+    bool want_auxdata_rgb = false;
+    bool want_auxdata_depth = false;
+    bool want_auxdata_skeleton = false;
+};
+
 struct K4ACaptureConfig : CwipcBaseCaptureConfig {
+    K4AAuxDataConfig auxData;
     int color_height = 720;                     // width of color frame (720, 1080 and various other values allowed, see kinect docs)
     int depth_height = 576;                // width of depth frame (288, 576, 512 and 1024 allowed)
     int fps = 30;                         // capture fps (5, 15 and 30 allowed)

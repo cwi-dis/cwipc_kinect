@@ -36,19 +36,107 @@ public:
 #endif
     }
 
-    int get_camera_count() override { 
+    int get_camera_count() override final { 
         return camera_count; 
     }
 
-    bool is_valid() override { 
+    bool is_valid() override final { 
         return camera_count > 0; 
     }
     
-    virtual bool config_reload(const char* configFilename) = 0;
+    virtual bool config_reload(const char* configFilename) override = 0;
 
     virtual std::string config_get() {
         return configuration.to_string();
     }
+
+    virtual bool pointcloud_available(bool wait) override final {
+        if (camera_count == 0) {
+            return false;
+        }
+
+        _request_new_pointcloud();
+        std::this_thread::yield();
+        std::unique_lock<std::mutex> mylock(mergedPC_mutex);
+        auto duration = std::chrono::seconds(wait ? 1 : 0);
+
+        mergedPC_is_fresh_cv.wait_for(mylock, duration, [this] {
+            return mergedPC_is_fresh;
+        });
+
+        return mergedPC_is_fresh;
+    }
+
+    virtual cwipc* get_pointcloud() override final {
+        if (camera_count == 0) {
+          cwipc_log(LOG_WARNING, "cwipc_kinect", "get_pointcloud: returning NULL, no cameras");
+          return nullptr;
+        }
+
+        _request_new_pointcloud();
+        // Wait for a fresh mergedPC to become available.
+        // Note we keep the return value while holding the lock, so we can start the next grab/process/merge cycle before returning.
+        cwipc* rv;
+
+        {
+            std::unique_lock<std::mutex> mylock(mergedPC_mutex);
+            mergedPC_is_fresh_cv.wait(mylock, [this] {
+                return mergedPC_is_fresh;
+            });
+
+            assert(mergedPC_is_fresh);
+            mergedPC_is_fresh = false;
+            numberOfPCsProduced++;
+            rv = mergedPC;
+            mergedPC = nullptr;
+
+            if (rv == nullptr) {
+              cwipc_log(LOG_WARNING, "cwipc_kinect", "get_pointcloud: returning NULL, even though mergedPC_is_fresh");
+            }
+        }
+
+        _request_new_pointcloud();
+        return rv;
+    }
+
+    virtual float get_pointSize() override final {
+        if (camera_count == 0) {
+            return 0;
+        }
+
+        float rv = 99999;
+
+        for (auto cam : cameras) {
+            if (cam->pointSize < rv) {
+                rv = cam->pointSize;
+            }
+        }
+
+        if (rv > 9999) {
+            rv = 0;
+        }
+
+        return rv;
+    }
+
+    virtual bool map2d3d(int tile, int x_2d, int y_2d, int d_2d, float* out3d) override final
+    {
+        for (auto cam : cameras) {
+            if (tile == (1 << cam->camera_index)) {
+                return cam->map2d3d(x_2d, y_2d, d_2d, out3d);
+            }
+        }
+        return false;
+    }
+    virtual bool mapcolordepth(int tile, int u, int v, int* out2d) override final
+    {
+        // For Kinect the RGB and D images have the same coordinate system.
+        out2d[0] = u;
+        out2d[1] = v;
+        return true;
+    }
+
+    virtual bool seek(uint64_t timestamp) override = 0;
 
     bool eof() override {
         return _eof;
@@ -62,9 +150,6 @@ protected:
     std::vector<Type_our_camera*> cameras;  //<! Cameras used by this capturer
 
     int camera_count = 0; // xxxjack needs to go.
-    bool want_auxdata_rgb = false;  //<! True after caller requests this auxiliary data
-    bool want_auxdata_depth = false;  //<! True after caller requests this auxiliary data
-    bool want_auxdata_skeleton = false; //<! True after caller requests this auxiliary data
     bool stopped = false; //<! True when stopping capture
     bool _eof = false; //<! True when end-of-file seen on pointcloud source
     
@@ -124,12 +209,12 @@ public:
     }
 
     virtual void request_image_auxdata(bool _rgb, bool _depth) final {
-        want_auxdata_rgb = _rgb;
-        want_auxdata_depth = _depth;
+        configuration.auxData.want_auxdata_rgb = _rgb;
+        configuration.auxData.want_auxdata_depth = _depth;
     }
 
     virtual void request_skeleton_auxdata(bool _skl) final {
-        want_auxdata_skeleton = _skl;
+        configuration.auxData.want_auxdata_skeleton = _skl;
 
         for (auto cam : cameras) {
             cam->request_skeleton_auxdata(_skl);
@@ -138,15 +223,6 @@ public:
 
 
 
-    virtual bool map2d3d(int tile, int x_2d, int y_2d, int d_2d, float* out3d)
-    {
-        for (auto cam : cameras) {
-            if (tile == (1 << cam->camera_index)) {
-                return cam->map2d3d(x_2d, y_2d, d_2d, out3d);
-            }
-        }
-        return false;
-    }
 
     virtual Type_our_camera* get_camera(std::string serial) final {
         for (auto cam : cameras) {
@@ -157,77 +233,6 @@ public:
 
         return NULL;
     }
-
-    virtual float get_pointSize() final {
-        if (camera_count == 0) {
-            return 0;
-        }
-
-        float rv = 99999;
-
-        for (auto cam : cameras) {
-            if (cam->pointSize < rv) {
-                rv = cam->pointSize;
-            }
-        }
-
-        if (rv > 9999) {
-            rv = 0;
-        }
-
-        return rv;
-    }
-
-    virtual bool pointcloud_available(bool wait) final {
-        if (camera_count == 0) {
-            return false;
-        }
-
-        _request_new_pointcloud();
-        std::this_thread::yield();
-        std::unique_lock<std::mutex> mylock(mergedPC_mutex);
-        auto duration = std::chrono::seconds(wait ? 1 : 0);
-
-        mergedPC_is_fresh_cv.wait_for(mylock, duration, [this] {
-            return mergedPC_is_fresh;
-        });
-
-        return mergedPC_is_fresh;
-    }
-
-    virtual cwipc* get_pointcloud() final {
-        if (camera_count == 0) {
-          cwipc_log(LOG_WARNING, "cwipc_kinect", "get_pointcloud: returning NULL, no cameras");
-          return nullptr;
-        }
-
-        _request_new_pointcloud();
-        // Wait for a fresh mergedPC to become available.
-        // Note we keep the return value while holding the lock, so we can start the next grab/process/merge cycle before returning.
-        cwipc* rv;
-
-        {
-            std::unique_lock<std::mutex> mylock(mergedPC_mutex);
-            mergedPC_is_fresh_cv.wait(mylock, [this] {
-                return mergedPC_is_fresh;
-            });
-
-            assert(mergedPC_is_fresh);
-            mergedPC_is_fresh = false;
-            numberOfPCsProduced++;
-            rv = mergedPC;
-            mergedPC = nullptr;
-
-            if (rv == nullptr) {
-              cwipc_log(LOG_WARNING, "cwipc_kinect", "get_pointcloud: returning NULL, even though mergedPC_is_fresh");
-            }
-        }
-
-        _request_new_pointcloud();
-        return rv;
-    }
-
-    virtual bool seek(uint64_t timestamp) = 0;
 
     virtual cwipc* get_mostRecentPointCloud() final {
         if (camera_count == 0) {
@@ -252,9 +257,11 @@ public:
     }
 
 protected:
-    virtual bool _apply_default_config() = 0;
-
+    /// Load configuration from file or string.
     virtual bool _apply_config(const char *configFilename) final {
+        K4ACaptureConfig newConfig;
+        newConfig.auxData = configuration.auxData; // preserve auxdata requests
+        configuration = newConfig;
         if (configFilename == NULL || *configFilename == '\0') {
             configFilename = "cameraconfig.json";
         }
@@ -277,6 +284,8 @@ protected:
 
         return false;
     }
+    /// Load default configuration based on hardware cameras connected.
+    virtual bool _apply_default_config() = 0;
 
     virtual void _init_camera_positions() final {
         // find camerapositions
@@ -409,13 +418,13 @@ protected:
                 break;
             }
 
-            if (want_auxdata_rgb || want_auxdata_depth) {
+            if (configuration.auxData.want_auxdata_rgb || configuration.auxData.want_auxdata_depth) {
                 for (auto cam : cameras) {
-                    cam->save_auxdata_images(newPC, want_auxdata_rgb, want_auxdata_depth);
+                    cam->save_auxdata_images(newPC, configuration.auxData.want_auxdata_rgb, configuration.auxData.want_auxdata_depth);
                 }
             }
 
-            if (want_auxdata_skeleton) {
+            if (configuration.auxData.want_auxdata_skeleton) {
                 for (auto cam : cameras) {
                     cam->save_auxdata_skeleton(newPC);
                 }
