@@ -173,15 +173,13 @@ void K4APlaybackCapture::_create_cameras(std::vector<Type_api_camera>& camera_ha
 
         // Found a kinect camera. Create a default data entry for it.
         K4ACameraConfig& cd = configuration.all_camera_configs[i];
-#ifdef CWIPC_DEBUG
-        std::cout << CLASSNAME << ": opening camera " << cd.serial << std::endl;
-#endif
+        _log_debug("opening camera " + cd.serial);
         if (cd.type == "kinect_offline") {
-            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "Camera type kinect_offline converted to kinect_playback");
+            _log_warning("configuration: camera with serial " + cd.serial + " has deprecated type 'kinect_offline', changing to 'kinect_playback'");
             cd.type = "kinect_playback";
         }
         if (cd.type != "kinect_playback") {
-            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "Camera " + cd.serial + " is type " + cd.type + " in stead of kinect_playback");
+            _log_error("configuration: camera with serial " + cd.serial + " has wrong type " + cd.type);
         }
 
         int camera_index = cameras.size();
@@ -206,9 +204,7 @@ bool K4APlaybackCapture::_capture_all_cameras() {
         }
 
         if (!cam->capture_frameset(0)) {
-#ifdef CWIPC_DEBUG
-            std::cout << CLASSNAME << ": master capture_frameset() failed for " << cam->serial << std::endl;
-#endif
+            _log_error("Master camera " + cam->serial + " failed to capture frameset");
             all_captures_ok = false;
         }
         break;
@@ -231,15 +227,11 @@ bool K4APlaybackCapture::_capture_all_cameras() {
         }
 
         if (!cam->capture_frameset(wanted_timestamp)) {
-#ifdef CWIPC_DEBUG
-            std::cout << CLASSNAME << ": sub capture_frameset() failed for " << cam->serial << std::endl;
-#endif
+            _log_error("Camera " + cam->serial + " failed to capture frameset at timestamp " + std::to_string(wanted_timestamp));
             all_captures_ok = false;
         }
     }
-#ifdef CWIPC_DEBUG
-    std::cout << CLASSNAME << ": capture_all_cameras: timestamp=" << wanted_timestamp << " all_captures_ok=" << all_captures_ok << std::endl;
-#endif
+    _log_debug("Captured all cameras for timestamp " + std::to_string(wanted_timestamp));
 
     return all_captures_ok;
 }
@@ -269,7 +261,7 @@ uint64_t K4APlaybackCapture::_get_best_timestamp() {
 bool K4APlaybackCapture::seek(uint64_t timestamp) {
     for (auto cam : cameras) { //SUBORDINATE or STANDALONE
         if (cam->seek(timestamp) != true) {
-            std::cerr << "Camera " << cam->serial << " failed to seek to timestamp " << timestamp << std::endl;
+            _log_error("Camera " + cam->serial + " failed to seek to timestamp " + std::to_string(timestamp));
             return false;
         }
     }
