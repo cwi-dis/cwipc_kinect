@@ -207,10 +207,10 @@ public:
 
     virtual void _setup_inter_camera_sync() final {
         // Nothing to do for K4A: real cameras need some setup, but it is done
-        // in K4ACamera::_setup_device().
+        // in K4ACamera::_prepare_config_for_starting_camera().
     }
 
-    virtual bool _setup_camera_hardware_parameters() = 0;
+    virtual bool _init_hardware_for_all_cameras() = 0;
 
     virtual void request_image_auxdata(bool _rgb, bool _depth) final {
         configuration.auxData.want_auxdata_rgb = _rgb;

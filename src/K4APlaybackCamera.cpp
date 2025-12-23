@@ -16,12 +16,12 @@ K4APlaybackCamera::K4APlaybackCamera(Type_api_camera _handle, K4ACaptureConfig& 
     current_frameset_timestamp(0),
     max_delay(0)
 {
-    _log_debug("creating playback camera from file " + camData.filename);
+    _log_debug("creating playback camera from file " + camera_config.filename);
     _init_filters();
 }
 
 bool K4APlaybackCamera::capture_frameset(uint64_t master_timestamp) {
-    if (stopped) {
+    if (camera_stopped) {
         return false;
     }
 
@@ -76,7 +76,7 @@ bool K4APlaybackCamera::_prepare_next_valid_frame() {
     bool succeeded = false;
 
     while (!succeeded) {
-        if (stopped) {
+        if (camera_stopped) {
             return false;
         }
 
@@ -91,9 +91,9 @@ bool K4APlaybackCamera::_prepare_next_valid_frame() {
         if (stream_result == K4A_STREAM_RESULT_EOF) {
             eof = true; // xxxjack note that this means eof is true *after all frames have been processed*.
             if (current_frameset_timestamp == 0) {
-                _log_warning("Recording file is empty: " + camData.filename);
+                _log_warning("Recording file is empty: " + camera_config.filename);
             } else {
-                _log_trace("Recording file " + camData.filename + " reached EOF at frame " + std::to_string(capture_id));
+                _log_trace("Recording file " + camera_config.filename + " reached EOF at frame " + std::to_string(capture_id));
             }
             return false;
         }
@@ -108,9 +108,9 @@ bool K4APlaybackCamera::_prepare_next_valid_frame() {
         k4a_image_t depth = k4a_capture_get_depth_image(current_frameset);
 
         if (color == NULL) {
-            _log_warning("Color is missing in capture " + std::to_string(capture_id) + " serial " + camData.serial + " from " + camData.filename);
+            _log_warning("Color is missing in capture " + std::to_string(capture_id) + " serial " + camera_config.serial + " from " + camera_config.filename);
         } else if (depth == NULL) {
-            _log_warning("Depth is missing in capture " + std::to_string(capture_id) + " serial " + camData.serial + " from " + camData.filename);
+            _log_warning("Depth is missing in capture " + std::to_string(capture_id) + " serial " + camera_config.serial + " from " + camera_config.filename);
         } else {
             succeeded = true;
         }
@@ -122,7 +122,7 @@ bool K4APlaybackCamera::_prepare_next_valid_frame() {
         }
 
         current_frameset_timestamp = k4a_image_get_device_timestamp_usec(color);
-        _log_debug("Prepared frame " + std::to_string(capture_id) + " with timestamp " + std::to_string(current_frameset_timestamp) + " from file " + camData.filename);
+        _log_debug("Prepared frame " + std::to_string(capture_id) + " with timestamp " + std::to_string(current_frameset_timestamp) + " from file " + camera_config.filename);
         k4a_image_release(color);
         k4a_image_release(depth);
     }
@@ -186,20 +186,20 @@ bool K4APlaybackCamera::start_camera() {
 }
 
 void K4APlaybackCamera::stop_camera() {
-    if (stopped) {
+    if (camera_stopped) {
         return;
     }
 
-    stopped = true;
+    camera_stopped = true;
     processing_frame_queue.try_enqueue(NULL);
 
     // Stop threads
-    if (processing_thread) {
-        processing_thread->join();
+    if (camera_processing_thread) {
+        camera_processing_thread->join();
     }
 
-    delete processing_thread;
-    processing_thread = nullptr;
+    delete camera_processing_thread;
+    camera_processing_thread = nullptr;
 
     if (camera_started) {
         // Nothing to stop for reading from file
@@ -236,10 +236,10 @@ void K4APlaybackCamera::start_camera_streaming() {
         return;
     }
 
-    assert(stopped);
-    stopped = false;
-    processing_thread = new std::thread(&K4APlaybackCamera::_processing_thread_main, this);
-    _cwipc_setThreadName(processing_thread, L"cwipc_kinect::K4APlaybackCamera::processing_thread");
+    assert(camera_stopped);
+    camera_stopped = false;
+    camera_processing_thread = new std::thread(&K4APlaybackCamera::_processing_thread_main, this);
+    _cwipc_setThreadName(camera_processing_thread, L"cwipc_kinect::K4APlaybackCamera::camera_processing_thread");
 }
 
 void K4APlaybackCamera::_start_capture_thread() {

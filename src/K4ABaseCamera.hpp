@@ -43,45 +43,11 @@ typedef union {
 
 template<typename Type_api_camera> class K4ABaseCamera : public CwipcBaseCamera {
 public:
-    float pointSize = 0;  //<! (Approximate) 3D cellsize of pointclouds captured by this camera
-    std::string serial; //<! Serial number for this camera
-    bool eof = false; //<! True when end of file reached on this camera stream
-    int camera_index;
-
-protected:
-    K4ACaptureConfig& configuration;
-    Type_api_camera camera_handle;
-    bool stopped = true;  //<! True when stopping
-    bool camera_started = false;  //<! True when camera hardware is grabbing
-    std::thread* processing_thread = nullptr; //<! Handle for thread that runs processing loop
-    std::thread* grabber_thread = nullptr;  //<! Handle for thread that rungs grabber (if applicable)
-    K4ACameraConfig& camData; //<! Per-camera data for this camera
-    bool want_auxdata_skeleton = false; //<! True if caller wants skeleton auxdata
-    std::vector<k4abt_skeleton_t> skeletons; //<! Skeletons extracted using the body tracking sdk
-    cwipc_pcl_pointcloud current_pointcloud = nullptr;  //<! Most recent grabbed pointcloud
-    k4a_transformation_t transformation_handle = nullptr; //<! k4a structure describing relationship between RGB and D cameras
-    moodycamel::BlockingReaderWriterQueue<k4a_capture_t> captured_frame_queue;  //<! Frames from capture-thread, waiting to be inter-camera synchronized
-    moodycamel::BlockingReaderWriterQueue<k4a_capture_t> processing_frame_queue;  //<! Synchronized frames, waiting for processing thread
-    k4a_capture_t current_frameset = nullptr; //<! Current frame being moved from captured_frame_queue to processing_frame_queue
-    bool camera_sync_ismaster;  //<! Parameter from camData
-    bool camera_sync_inuse; //<! Parameter from camData
-    bool do_height_filtering; //<! Parameter from camData
-    std::mutex processing_mutex;  //<! Exclusive lock for frame to pointcloud processing.
-    std::condition_variable processing_done_cv; //<! Condition variable signalling pointcloud ready
-    bool processing_done = false; //<! Boolean for processing_done_cv
-
-    k4abt_tracker_t tracker_handle = nullptr; //<! Handle to k4abt skeleton tracker
-    k4a_calibration_t sensor_calibration; //<! k4a calibration data read from hardware camera or recording
-    k4a_calibration_extrinsics_t depth_to_color_extrinsics; //<! k4a calibration data read from hardware camera or recording
-    k4a_image_t xy_table = NULL;
-    std::string record_to_file; //<! If non-empty: file to record the captured streams to.
-
-public:
     K4ABaseCamera(const std::string& _Classname, Type_api_camera _handle, K4ACaptureConfig& _configuration, int _camera_index, K4ACameraConfig& _camData)
     :   CwipcBaseCamera(_Classname + ": " + _camData.serial, "kinect"),
         configuration(_configuration),
         camera_handle(_handle),
-        camData(_camData),
+        camera_config(_camData),
         camera_index(_camera_index),
         serial(_camData.serial),
         captured_frame_queue(1),
@@ -95,7 +61,7 @@ public:
 
     virtual ~K4ABaseCamera() {
         _log_debug("Destroying camera object");
-        assert(stopped);
+        assert(camera_stopped);
 
         if (tracker_handle) {
             k4abt_tracker_shutdown(tracker_handle);
@@ -103,19 +69,16 @@ public:
             tracker_handle = nullptr;
         }
     }
-
-    virtual bool request_skeleton_auxdata(bool _skl) final {
-        want_auxdata_skeleton = _skl;
-
-        if (want_auxdata_skeleton) {
-            return _init_tracker();
-        }
-        else {
+    /// Step 1 in starting: tell the camera we are going to start. Called for all cameras.
+    virtual bool pre_start_all_cameras() final {
+        if (!_init_filters()) {
             return false;
         }
-    }
-    /// Step 1 in starting: tell the camera we are going to start. Called for all cameras.
-    virtual bool pre_start_all_cameras() final { return true; }
+        if (!_init_hardware_for_this_camera()) {
+            return false;
+        }
+        return true;
+     }
     /// Step 2 in starting: starts the camera. Called for all cameras. 
     virtual bool start_camera() = 0;
     /// Step 3 in starting: starts the capturer. Called after all cameras have been started.
@@ -127,6 +90,104 @@ public:
 
     virtual bool is_sync_master() final {
         return camera_sync_ismaster;
+    }
+protected:
+    // internal API that is "shared" with other implementations (realsense, kinect)
+    virtual bool _init_hardware_for_this_camera() = 0;
+    virtual bool _init_filters() override final {
+        // K4A API does not implement any filtering, so nothing to initialize
+        // xxxjack or should we initialize the XY table here?
+        return true;
+    }
+
+    virtual void _apply_filters() final {
+        // xxxjack to be implemented. and used.
+    }
+
+    virtual bool _init_tracker() override final {
+        if (tracker_handle != NULL) {
+            return true;
+        }
+
+        k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
+        tracker_config.processing_mode = K4ABT_TRACKER_PROCESSING_MODE_CPU;
+
+        if (configuration.bt_processing_mode >= 0) {
+            tracker_config.processing_mode = (k4abt_tracker_processing_mode_t)configuration.bt_processing_mode;
+        }
+
+        if (configuration.bt_sensor_orientation >= 0) {
+            tracker_config.sensor_orientation = (k4abt_sensor_orientation_t)configuration.bt_sensor_orientation;
+        }
+
+#ifdef K4ABT_SUPPORTS_MODEL_PATH
+        if (configuration.bt_model_path != "") {
+            tracker_config.model_path = configuration.bt_model_path.c_str();
+        }
+#endif
+
+        auto sts = k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle);
+        const char* processingModesStr[] = { "GPU", "CPU", "GPU_CUDA", "GPU_TENSORRT", "GPU_DIRECTML" };
+        const char* sensorOrientationsStr[] = { "Default", "Clockwise_90", "CounterClockwise_90", "Flip_180" };
+
+        if (sts != K4A_RESULT_SUCCEEDED) {
+            _log_error("Body tracker initialization failed: " + std::to_string(sts));
+            return false;
+        } else {
+            _log_trace(std::string("Body tracker initialized. Processing mode: ") +
+                processingModesStr[tracker_config.processing_mode] +
+                ", Sensor orientation: " + sensorOrientationsStr[tracker_config.sensor_orientation]
+            );
+        }
+
+        return true;
+    }
+    // xxxjack _prepare_config_for_starting_camera() has different signatures for camera/recording.
+public:
+    float pointSize = 0;  //<! (Approximate) 3D cellsize of pointclouds captured by this camera
+    std::string serial; //<! Serial number for this camera
+    bool eof = false; //<! True when end of file reached on this camera stream
+    int camera_index;
+
+protected:
+    K4ACaptureConfig& configuration;
+    Type_api_camera camera_handle;
+    bool camera_stopped = true;  //<! True when stopping
+    bool camera_started = false;  //<! True when camera hardware is grabbing
+    std::thread* camera_processing_thread = nullptr; //<! Handle for thread that runs processing loop
+    std::thread* camera_capturer_thread = nullptr;  //<! Handle for thread that rungs grabber (if applicable)
+    K4ACameraConfig& camera_config; //<! Per-camera data for this camera
+    bool want_auxdata_skeleton = false; //<! True if caller wants skeleton auxdata
+    std::vector<k4abt_skeleton_t> skeletons; //<! Skeletons extracted using the body tracking sdk
+    cwipc_pcl_pointcloud current_pointcloud = nullptr;  //<! Most recent grabbed pointcloud
+    k4a_transformation_t transformation_handle = nullptr; //<! k4a structure describing relationship between RGB and D cameras
+    moodycamel::BlockingReaderWriterQueue<k4a_capture_t> captured_frame_queue;  //<! Frames from capture-thread, waiting to be inter-camera synchronized
+    moodycamel::BlockingReaderWriterQueue<k4a_capture_t> processing_frame_queue;  //<! Synchronized frames, waiting for processing thread
+    k4a_capture_t current_frameset = nullptr; //<! Current frame being moved from captured_frame_queue to processing_frame_queue
+    bool camera_sync_ismaster;  //<! Parameter from camData xxxjack needs to go
+    bool camera_sync_inuse; //<! Parameter from camData xxxjack needs to go
+    bool do_height_filtering; //<! Parameter from camData xxxjack needs to go
+    std::mutex processing_mutex;  //<! Exclusive lock for frame to pointcloud processing.
+    std::condition_variable processing_done_cv; //<! Condition variable signalling pointcloud ready
+    bool processing_done = false; //<! Boolean for processing_done_cv
+
+    k4abt_tracker_t tracker_handle = nullptr; //<! Handle to k4abt skeleton tracker
+    k4a_calibration_t sensor_calibration; //<! k4a calibration data read from hardware camera or recording
+    k4a_calibration_extrinsics_t depth_to_color_extrinsics; //<! k4a calibration data read from hardware camera or recording
+    k4a_image_t xy_table = NULL;
+    std::string record_to_file; //<! If non-empty: file to record the captured streams to.
+
+
+public:
+    virtual bool request_skeleton_auxdata(bool _skl) final {
+        want_auxdata_skeleton = _skl;
+
+        if (want_auxdata_skeleton) {
+            return _init_tracker();
+        }
+        else {
+            return false;
+        }
     }
 
     virtual void create_pc_from_frames() final {
@@ -324,53 +385,14 @@ public:
         return true;
     }
 protected:
-  virtual void _init_filters() final {}
 
-    virtual bool _init_tracker() final {
-        if (tracker_handle != NULL) {
-            return true;
-        }
-
-        k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
-        tracker_config.processing_mode = K4ABT_TRACKER_PROCESSING_MODE_CPU;
-
-        if (configuration.bt_processing_mode >= 0) {
-            tracker_config.processing_mode = (k4abt_tracker_processing_mode_t)configuration.bt_processing_mode;
-        }
-
-        if (configuration.bt_sensor_orientation >= 0) {
-            tracker_config.sensor_orientation = (k4abt_sensor_orientation_t)configuration.bt_sensor_orientation;
-        }
-
-#ifdef K4ABT_SUPPORTS_MODEL_PATH
-        if (configuration.bt_model_path != "") {
-            tracker_config.model_path = configuration.bt_model_path.c_str();
-        }
-#endif
-
-        auto sts = k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle);
-        const char* processingModesStr[] = { "GPU", "CPU", "GPU_CUDA", "GPU_TENSORRT", "GPU_DIRECTML" };
-        const char* sensorOrientationsStr[] = { "Default", "Clockwise_90", "CounterClockwise_90", "Flip_180" };
-
-        if (sts != K4A_RESULT_SUCCEEDED) {
-            _log_error("Body tracker initialization failed: " + std::to_string(sts));
-            return false;
-        } else {
-            _log_trace(std::string("Body tracker initialized. Processing mode: ") +
-                processingModesStr[tracker_config.processing_mode] +
-                ", Sensor orientation: " + sensorOrientationsStr[tracker_config.sensor_orientation]
-            );
-        }
-
-        return true;
-    }
 
     virtual void _start_capture_thread() = 0;
     virtual void _capture_thread_main() = 0;
 
     virtual void _processing_thread_main() final {
         _log_debug_thread("processing thread started for camera " + serial);
-        while (!stopped) {
+        while (!camera_stopped) {
             k4a_capture_t processing_frameset = NULL;
             k4a_image_t depth_image = NULL;
             k4a_image_t color_image = NULL;
@@ -869,9 +891,9 @@ protected:
         float x = pt.x / 1000.0;
         float y = pt.y / 1000.0;
         float z = pt.z / 1000.0;
-        pt.x = (*camData.trafo)(0,0)*x + (*camData.trafo)(0,1)*y + (*camData.trafo)(0,2)*z + (*camData.trafo)(0,3);
-        pt.y = (*camData.trafo)(1,0)*x + (*camData.trafo)(1,1)*y + (*camData.trafo)(1,2)*z + (*camData.trafo)(1,3);
-        pt.z = (*camData.trafo)(2,0)*x + (*camData.trafo)(2,1)*y + (*camData.trafo)(2,2)*z + (*camData.trafo)(2,3);
+        pt.x = (*camera_config.trafo)(0,0)*x + (*camera_config.trafo)(0,1)*y + (*camera_config.trafo)(0,2)*z + (*camera_config.trafo)(0,3);
+        pt.y = (*camera_config.trafo)(1,0)*x + (*camera_config.trafo)(1,1)*y + (*camera_config.trafo)(1,2)*z + (*camera_config.trafo)(1,3);
+        pt.z = (*camera_config.trafo)(2,0)*x + (*camera_config.trafo)(2,1)*y + (*camera_config.trafo)(2,2)*z + (*camera_config.trafo)(2,3);
     }
 
     virtual void transformDepthToColorPoint(cwipc_pcl_point& pt) final {

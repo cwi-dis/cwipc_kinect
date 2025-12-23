@@ -33,7 +33,7 @@ protected:
     virtual bool _apply_auto_config() override { return false; }
 
 private:
-    virtual bool _setup_camera_hardware_parameters() override final { return true; }
+    virtual bool _init_hardware_for_all_cameras() override final { return true; }
     void _create_cameras(std::vector<Type_api_camera>& camera_handles);
     bool _open_recording_files(std::vector<Type_api_camera>& camera_handles, const char *configFilename=nullptr); // Open the recordings
 

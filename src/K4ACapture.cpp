@@ -40,7 +40,7 @@ bool K4ACapture::config_reload_and_start_capturing(const char* configFilename) {
     //
     // Initialize hardware capture setting (for all cameras)
     //
-    if (!_setup_camera_hardware_parameters()) {
+    if (!_init_hardware_for_all_cameras()) {
         // xxxjack we should really close all cameras too...
         camera_count = 0;
         return false;
@@ -159,101 +159,7 @@ bool K4ACapture::_open_cameras() {
     return true;
 }
 
-bool K4ACapture::_setup_camera_hardware_parameters() {
-    // Set various camera hardware parameters (color)
-    for(auto& cd : configuration.all_camera_configs) {
-        if (cd.disabled || cd.handle == nullptr) {
-            continue;
-        }
-
-        Type_api_camera handle = (Type_api_camera)cd.handle;
-
-        //options for color sensor
-        if (configuration.camera_processing.color_exposure_time >= 0) { //MANUAL
-            k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_exposure_time); // Exposure_time (in microseconds)
-
-            if (res != K4A_RESULT_SUCCEEDED) {
-              _log_error("configuration: k4a_device_set_color_control: color_exposure_time should be microsecond and in range (500-133330)");
-              return false;
-            }
-        } else {  //AUTO
-            k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
-        }
-
-        if (configuration.camera_processing.color_whitebalance >= 0) {  //MANUAL
-            k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_whitebalance); // White_balance (2500-12500)
-
-            if (res != K4A_RESULT_SUCCEEDED) {
-                _log_error("configuration: k4a_device_set_color_control: color_whitebalance should be in range (2500-12500)");
-                return false;
-            }
-        } else {  //AUTO
-            k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
-        }
-
-        if (configuration.camera_processing.color_backlight_compensation >= 0){
-            k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_backlight_compensation); // Backlight_compensation 0=disabled | 1=enabled. Default=0
-
-            if (res != K4A_RESULT_SUCCEEDED) {
-                _log_error("configuration: k4a_device_set_color_control: color_backlight_compensation should be 0=disabled | 1=enabled");
-                return false;
-            }
-        }
-
-        if (configuration.camera_processing.color_brightness >= 0){
-          k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_BRIGHTNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_brightness); // Brightness. (0 to 255). Default=128.
-
-          if (res != K4A_RESULT_SUCCEEDED) {
-              _log_warning("configuration: k4a_device_set_color_control: color_brightness should be in range (0-255)");
-              return false;
-          }
-        }
-
-        if (configuration.camera_processing.color_contrast >= 0){
-          k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_CONTRAST, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_contrast); // Contrast (0-10). Default=5
-
-          if (res != K4A_RESULT_SUCCEEDED) {
-              _log_error("configuration: k4a_device_set_color_control: color_contrast should be in range (0-10)");
-              return false;
-          }
-        }
-
-        if (configuration.camera_processing.color_saturation >= 0){
-          k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_SATURATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_saturation); // saturation (0-63). Default=32
-
-          if (res != K4A_RESULT_SUCCEEDED) {
-              _log_error("configuration: k4a_device_set_color_control: color_saturation should be in range (0-63)");
-              return false;
-          }
-        }
-
-        if (configuration.camera_processing.color_sharpness >= 0){
-            k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_SHARPNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_sharpness); // Sharpness (0-4). Default=2
-
-            if (res != K4A_RESULT_SUCCEEDED) {
-                _log_error("configuration: k4a_device_set_color_control: color_sharpness should be in range (0-4)");
-                return false;
-            }
-        }
-
-        if (configuration.camera_processing.color_gain >= 0){ //if autoexposure mode=AUTO gain does not affect
-            k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_GAIN, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_gain); // Gain (0-255). Default=0
-
-            if (res != K4A_RESULT_SUCCEEDED) {
-                _log_error("configuration: k4a_device_set_color_control: color_gain should be in range (0-255)");
-                return false;
-            }
-        }
-
-        if (configuration.camera_processing.color_powerline_frequency >= 0){
-            k4a_result_t res = k4a_device_set_color_control(handle, K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_powerline_frequency); // Powerline_Frequency (1=50Hz, 2=60Hz). Default=2
-
-            if (res != K4A_RESULT_SUCCEEDED) {
-                _log_error("configuration:k4a_device_set_color_control: color_powerline_frequency should be 1=50Hz or 2=60Hz");
-                return false;
-            }
-        }
-    }
+bool K4ACapture::_init_hardware_for_all_cameras() {
 
     return true;
 }

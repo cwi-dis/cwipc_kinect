@@ -29,7 +29,7 @@ protected:
     virtual bool _apply_auto_config() override final;
 
 private:
-    virtual bool _setup_camera_hardware_parameters() override final; // initialize hardware parameters from configuration
+    virtual bool _init_hardware_for_all_cameras() override final; // initialize hardware parameters from configuration
     bool _open_cameras();
     bool _create_cameras();
 };

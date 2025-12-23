@@ -17,7 +17,7 @@ K4ACamera::K4ACamera(Type_api_camera _handle, K4ACaptureConfig& configuration, i
 }
 
 bool K4ACamera::capture_frameset() {
-    if (stopped) {
+    if (camera_stopped) {
         return false;
     }
 
@@ -52,12 +52,16 @@ bool K4ACamera::capture_frameset() {
 
 // Configure and initialize caputuring of one camera
 bool K4ACamera::start_camera() {
-    assert(stopped);
+    assert(camera_stopped);
+    assert(camera_capturer_thread == nullptr);
+    assert(camera_processing_thread == nullptr);
     k4a_device_configuration_t device_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-    if (!_setup_device(device_config)) {
+    if (!_prepare_config_for_starting_camera(device_config)) {
         return false;
     }
+    // xxxjack this is where we should open camera_handle.
 
+    // xxxjack this block is for fast pointcloud generation.
     if (K4A_RESULT_SUCCEEDED != k4a_device_get_calibration(camera_handle, device_config.depth_mode, device_config.color_resolution, &sensor_calibration)) {
         _log_error("k4a_device_get_calibration failed");
         return false;
@@ -69,6 +73,7 @@ bool K4ACamera::start_camera() {
     if (xy_table == NULL) { // generate xy_table for the fast pc_gen v2
         create_xy_table(&sensor_calibration);
     }
+    // xxxjack end of block
 
     k4a_result_t res = k4a_device_start_cameras(camera_handle, &device_config);
     if (res != K4A_RESULT_SUCCEEDED) {
@@ -92,11 +97,13 @@ bool K4ACamera::start_camera() {
     }
     _log_debug("camera started");
 
+    // xxxjack rs2 has _post_start()
+    // xxxjack rs2 has _ComputePointSize()
     camera_started = true;
     return true;
 }
 
-bool K4ACamera::_setup_device(k4a_device_configuration_t& device_config) {
+bool K4ACamera::_prepare_config_for_starting_camera(k4a_device_configuration_t& device_config) {
     device_config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
 
     switch (configuration.color_height) {
@@ -172,27 +179,27 @@ bool K4ACamera::_setup_device(k4a_device_configuration_t& device_config) {
 }
 
 void K4ACamera::stop_camera() {
-    if (stopped) {
+    if (camera_stopped) {
         return;
     }
 
-    stopped = true;
+    camera_stopped = true;
     processing_frame_queue.try_enqueue(NULL);
 
     // Stop threads
-    if (grabber_thread) {
-        grabber_thread->join();
+    if (camera_capturer_thread) {
+        camera_capturer_thread->join();
     }
 
-    delete grabber_thread;
-    grabber_thread = nullptr;
+    delete camera_capturer_thread;
+    camera_capturer_thread = nullptr;
 
-    if (processing_thread) {
-        processing_thread->join();
+    if (camera_processing_thread) {
+        camera_processing_thread->join();
     }
 
-    delete processing_thread;
-    processing_thread = nullptr;
+    delete camera_processing_thread;
+    camera_processing_thread = nullptr;
 
     if (tracker_handle) {
         //Stop body tracker
@@ -241,21 +248,115 @@ void K4ACamera::start_camera_streaming() {
         return;
     }
 
-    assert(stopped);
-    stopped = false;
+    assert(camera_stopped);
+    camera_stopped = false;
     _start_capture_thread();
-    processing_thread = new std::thread(&K4ACamera::_processing_thread_main, this);
-    _cwipc_setThreadName(processing_thread, L"cwipc_kinect::K4ACamera::processing_thread");
+    camera_processing_thread = new std::thread(&K4ACamera::_processing_thread_main, this);
+    _cwipc_setThreadName(camera_processing_thread, L"cwipc_kinect::K4ACamera::camera_processing_thread");
 }
 
-void K4ACamera::_start_capture_thread() {
-    grabber_thread = new std::thread(&K4ACamera::_capture_thread_main, this);
-    _cwipc_setThreadName(grabber_thread, L"cwipc_kinect::K4ACamera::capture_thread");
+bool K4ACamera::_init_hardware_for_this_camera()
+{
+    // Set various camera hardware parameters (color)
+    assert(!camera_config.disabled);
+
+    //options for color sensor
+    if (configuration.camera_processing.color_exposure_time >= 0) { //MANUAL
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_exposure_time); // Exposure_time (in microseconds)
+
+        if (res != K4A_RESULT_SUCCEEDED) {
+            _log_error("configuration: k4a_device_set_color_control: color_exposure_time should be microsecond and in range (500-133330)");
+            return false;
+        }
+    } else {  //AUTO
+        k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
+    }
+
+    if (configuration.camera_processing.color_whitebalance >= 0) {  //MANUAL
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_whitebalance); // White_balance (2500-12500)
+
+        if (res != K4A_RESULT_SUCCEEDED) {
+            _log_error("configuration: k4a_device_set_color_control: color_whitebalance should be in range (2500-12500)");
+            return false;
+        }
+    } else {  //AUTO
+        k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
+    }
+
+    if (configuration.camera_processing.color_backlight_compensation >= 0){
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_backlight_compensation); // Backlight_compensation 0=disabled | 1=enabled. Default=0
+
+        if (res != K4A_RESULT_SUCCEEDED) {
+            _log_error("configuration: k4a_device_set_color_control: color_backlight_compensation should be 0=disabled | 1=enabled");
+            return false;
+        }
+    }
+
+    if (configuration.camera_processing.color_brightness >= 0){
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_BRIGHTNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_brightness); // Brightness. (0 to 255). Default=128.
+
+        if (res != K4A_RESULT_SUCCEEDED) {
+            _log_warning("configuration: k4a_device_set_color_control: color_brightness should be in range (0-255)");
+            return false;
+        }
+    }
+
+    if (configuration.camera_processing.color_contrast >= 0){
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_CONTRAST, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_contrast); // Contrast (0-10). Default=5
+
+        if (res != K4A_RESULT_SUCCEEDED) {
+            _log_error("configuration: k4a_device_set_color_control: color_contrast should be in range (0-10)");
+            return false;
+        }
+    }
+
+    if (configuration.camera_processing.color_saturation >= 0){
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_SATURATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_saturation); // saturation (0-63). Default=32
+
+        if (res != K4A_RESULT_SUCCEEDED) {
+            _log_error("configuration: k4a_device_set_color_control: color_saturation should be in range (0-63)");
+            return false;
+        }
+    }
+
+    if (configuration.camera_processing.color_sharpness >= 0){
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_SHARPNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_sharpness); // Sharpness (0-4). Default=2
+
+        if (res != K4A_RESULT_SUCCEEDED) {
+            _log_error("configuration: k4a_device_set_color_control: color_sharpness should be in range (0-4)");
+            return false;
+        }
+    }
+
+    if (configuration.camera_processing.color_gain >= 0){ //if autoexposure mode=AUTO gain does not affect
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_GAIN, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_gain); // Gain (0-255). Default=0
+
+        if (res != K4A_RESULT_SUCCEEDED) {
+            _log_error("configuration: k4a_device_set_color_control: color_gain should be in range (0-255)");
+            return false;
+        }
+    }
+
+    if (configuration.camera_processing.color_powerline_frequency >= 0){
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_powerline_frequency); // Powerline_Frequency (1=50Hz, 2=60Hz). Default=2
+
+        if (res != K4A_RESULT_SUCCEEDED) {
+            _log_error("configuration:k4a_device_set_color_control: color_powerline_frequency should be 1=50Hz or 2=60Hz");
+            return false;
+        }
+    }
+    return true;
+}
+
+void K4ACamera::_start_capture_thread()
+{
+    camera_capturer_thread = new std::thread(&K4ACamera::_capture_thread_main, this);
+    _cwipc_setThreadName(camera_capturer_thread, L"cwipc_kinect::K4ACamera::capture_thread");
 }
 
 void K4ACamera::_capture_thread_main() {
     _log_debug_thread("capture thread started");
-    while(!stopped) {
+    while(!camera_stopped) {
         k4a_capture_t capture_handle;
         if (k4a_capture_create(&capture_handle) != K4A_RESULT_SUCCEEDED) {
             _log_error("k4a_capture_create failed");
