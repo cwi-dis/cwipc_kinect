@@ -42,7 +42,7 @@ public:
         return camera_count > 0; 
     }
     
-    virtual bool config_reload(const char* configFilename) override = 0;
+    virtual bool config_reload_and_start_capturing(const char* configFilename) override = 0;
 
     virtual std::string config_get() {
         return configuration.to_string();
@@ -195,12 +195,22 @@ public:
 
         // Stop all cameras
         for (auto cam : cameras) {
-            cam->stop();
+            cam->pre_stop_camera();
+        }
+        for (auto cam : cameras) {
+            cam->stop_camera();
         }
 
         mergedPC_is_fresh = false;
         mergedPC_want_new = false;
     }
+
+    virtual void _setup_inter_camera_sync() final {
+        // Nothing to do for K4A: real cameras need some setup, but it is done
+        // in K4ACamera::_setup_device().
+    }
+
+    virtual bool _setup_camera_hardware_parameters() = 0;
 
     virtual void request_image_auxdata(bool _rgb, bool _depth) final {
         configuration.auxData.want_auxdata_rgb = _rgb;
@@ -281,6 +291,7 @@ protected:
     /// Load default configuration based on hardware cameras connected.
     virtual bool _apply_auto_config() = 0;
 
+    // xxxjack ridiculous way of finding camera position. Do it in CameraConfig.
     virtual void _init_camera_positions() final {
         // find camerapositions
         for (int i = 0; i < configuration.all_camera_configs.size(); i++) {
@@ -303,13 +314,17 @@ protected:
         // start the cameras. First start all non-sync-master cameras, then start the sync-master camera.
         //
         bool start_error = false;
-
+        for (auto cam: cameras) {
+            if (!cam->pre_start_all_cameras()) {
+                start_error = true;
+            }
+        }
         for (auto cam : cameras) {
             if (cam->is_sync_master()) {
                 continue;
             }
 
-            if (!cam->start()) {
+            if (!cam->start_camera()) {
                 start_error = true;
             }
         }
@@ -319,11 +334,13 @@ protected:
                 continue;
             }
 
-            if (!cam->start()) {
+            if (!cam->start_camera()) {
                 start_error = true;
             }
         }
-
+        for (auto cam: cameras) {
+            cam->post_start_all_cameras();
+        }
         if (start_error) {
             _log_error("Not all cameras could be started");
             _unload_cameras();
@@ -339,7 +356,7 @@ protected:
                 continue;
             }
 
-            cam->start_capturer();
+            cam->start_camera_streaming();
         }
 
         for (auto cam : cameras) {
@@ -347,7 +364,7 @@ protected:
                 continue;
             }
 
-            cam->start_capturer();
+            cam->start_camera_streaming();
         }
     }
 

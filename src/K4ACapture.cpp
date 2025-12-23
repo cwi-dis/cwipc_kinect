@@ -14,17 +14,8 @@ int K4ACapture::count_devices() {
     return k4a_device_get_installed_count();
 }
 
-bool K4ACapture::config_reload(const char* configFilename) {
+bool K4ACapture::config_reload_and_start_capturing(const char* configFilename) {
     _unload_cameras();
-
-    //
-    // Check for attached cameras and create dummy configuration entries (basically only serial number)
-    //
-    camera_count = count_devices();
-    if (camera_count == 0) {
-        // no camera connected, so we'll return nothing
-        return false;
-    }
 
     //
     // Read the configuration.
@@ -34,6 +25,12 @@ bool K4ACapture::config_reload(const char* configFilename) {
         return false;
     }
 
+    auto camera_count = configuration.all_camera_configs.size();
+    if (camera_count == 0) {
+        return false;
+    }
+
+    // xxxjack rs2 does setup_camera_hardware_parameters() before _open_cameras()
     if (!_open_cameras()) {
         // xxxjack we should really close all cameras too...
         camera_count = 0; 
@@ -43,11 +40,13 @@ bool K4ACapture::config_reload(const char* configFilename) {
     //
     // Initialize hardware capture setting (for all cameras)
     //
-    if (!_init_hardware_settings()) {
+    if (!_setup_camera_hardware_parameters()) {
         // xxxjack we should really close all cameras too...
         camera_count = 0;
         return false;
     }
+
+    _setup_inter_camera_sync();
 
     // Now we have all the configuration information. Create our K4ACamera objects.
     if (!_create_cameras()) {
@@ -55,17 +54,22 @@ bool K4ACapture::config_reload(const char* configFilename) {
         return false;
     }
 
-      _init_camera_positions();
-      _start_cameras();
+    // xxxjack RS2 does _check_cameras_connected() here.
 
-      //
-      // start our run thread (which will drive the capturers and merge the pointclouds)
-      //
-      stopped = false;
-      control_thread = new std::thread(&K4ACapture::_control_thread_main, this);
-      _cwipc_setThreadName(control_thread, L"cwipc_kinect::K4ACapture::control_thread");
+    _init_camera_positions();
+    _start_cameras();
 
-      return true;
+    // xxxjack RS2 does per-camera start_camera_streaming() here
+
+    // xxxjack RS2 does per-camera post_start_all_cameras() here.
+    //
+    // start our run thread (which will drive the capturers and merge the pointclouds)
+    //
+    stopped = false;
+    control_thread = new std::thread(&K4ACapture::_control_thread_main, this);
+    _cwipc_setThreadName(control_thread, L"cwipc_kinect::K4ACapture::control_thread");
+
+    return true;
 }
 
 bool K4ACapture::_apply_auto_config() {
@@ -155,7 +159,7 @@ bool K4ACapture::_open_cameras() {
     return true;
 }
 
-bool K4ACapture::_init_hardware_settings() {
+bool K4ACapture::_setup_camera_hardware_parameters() {
     // Set various camera hardware parameters (color)
     for(auto& cd : configuration.all_camera_configs) {
         if (cd.disabled || cd.handle == nullptr) {

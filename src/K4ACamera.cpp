@@ -51,7 +51,7 @@ bool K4ACamera::capture_frameset() {
 }
 
 // Configure and initialize caputuring of one camera
-bool K4ACamera::start() {
+bool K4ACamera::start_camera() {
     assert(stopped);
     k4a_device_configuration_t device_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
     if (!_setup_device(device_config)) {
@@ -171,7 +171,7 @@ bool K4ACamera::_setup_device(k4a_device_configuration_t& device_config) {
     return true;
 }
 
-void K4ACamera::stop() {
+void K4ACamera::stop_camera() {
     if (stopped) {
         return;
     }
@@ -236,7 +236,7 @@ void K4ACamera::stop() {
     processing_done_cv.notify_one();
 }
 
-void K4ACamera::start_capturer() {
+void K4ACamera::start_camera_streaming() {
     if (!camera_started) {
         return;
     }

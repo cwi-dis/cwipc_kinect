@@ -23,7 +23,7 @@ public:
 
     // methods
     virtual ~K4APlaybackCapture();
-    virtual bool config_reload(const char* configFilename) override;
+    virtual bool config_reload_and_start_capturing(const char* configFilename) override;
     bool seek(uint64_t timestamp) override;
 
 protected:
@@ -33,6 +33,7 @@ protected:
     virtual bool _apply_auto_config() override { return false; }
 
 private:
+    virtual bool _setup_camera_hardware_parameters() override final { return true; }
     void _create_cameras(std::vector<Type_api_camera>& camera_handles);
     bool _open_recording_files(std::vector<Type_api_camera>& camera_handles, const char *configFilename=nullptr); // Open the recordings
 

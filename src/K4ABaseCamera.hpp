@@ -114,10 +114,16 @@ public:
             return false;
         }
     }
-
-    virtual bool start() = 0;
-    virtual void start_capturer() = 0;
-    virtual void stop() = 0;
+    /// Step 1 in starting: tell the camera we are going to start. Called for all cameras.
+    virtual bool pre_start_all_cameras() final { return true; }
+    /// Step 2 in starting: starts the camera. Called for all cameras. 
+    virtual bool start_camera() = 0;
+    /// Step 3 in starting: starts the capturer. Called after all cameras have been started.
+    virtual void start_camera_streaming() = 0;
+    /// Step 4, called after all capturers have been started.
+    virtual void post_start_all_cameras() final {}
+    virtual void pre_stop_camera() final {}
+    virtual void stop_camera() = 0;
 
     virtual bool is_sync_master() final {
         return camera_sync_ismaster;

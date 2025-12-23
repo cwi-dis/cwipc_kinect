@@ -19,17 +19,17 @@ public:
     static K4ACapture* factory() { return new K4ACapture(); }
     // methods
     virtual ~K4ACapture() {}
-    virtual bool config_reload(const char* configFilename) override;
-    bool seek(uint64_t timestamp) override;
+    virtual bool config_reload_and_start_capturing(const char* configFilename) override final;
+    bool seek(uint64_t timestamp) override final;
 
 protected:
     K4ACapture();
-    bool _capture_all_cameras() override;
-    uint64_t _get_best_timestamp() override;
-    virtual bool _apply_auto_config() override;
+    bool _capture_all_cameras() override final;
+    uint64_t _get_best_timestamp() override final;
+    virtual bool _apply_auto_config() override final;
 
 private:
-    bool _init_hardware_settings(); // initialize hardware parameters from configuration
+    virtual bool _setup_camera_hardware_parameters() override final; // initialize hardware parameters from configuration
     bool _open_cameras();
     bool _create_cameras();
 };

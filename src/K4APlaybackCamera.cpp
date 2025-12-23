@@ -156,7 +156,7 @@ bool K4APlaybackCamera::_prepare_cond_next_valid_frame(uint64_t master_timestamp
     }
 }
 
-bool K4APlaybackCamera::start() {
+bool K4APlaybackCamera::start_camera() {
     // We don't have to start anything (opening the file did that) but
     // we do have to get the RGB<->D transformation.
     if (K4A_RESULT_SUCCEEDED != k4a_playback_get_calibration(camera_handle, &sensor_calibration)) {
@@ -185,7 +185,7 @@ bool K4APlaybackCamera::start() {
     return true;
 }
 
-void K4APlaybackCamera::stop() {
+void K4APlaybackCamera::stop_camera() {
     if (stopped) {
         return;
     }
@@ -231,7 +231,7 @@ void K4APlaybackCamera::stop() {
     }
 }
 
-void K4APlaybackCamera::start_capturer() {
+void K4APlaybackCamera::start_camera_streaming() {
     if (!camera_started) {
         return;
     }

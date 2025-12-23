@@ -17,9 +17,11 @@ public:
     K4APlaybackCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraConfig& _camData);
     virtual ~K4APlaybackCamera() {}
 
-    bool start() override;
-    void start_capturer() override;
-    void stop() override;
+    // virtual bool pre_start_all_cameras() override final { return true; }
+    virtual bool start_camera() override final;
+    virtual void start_camera_streaming() override final;
+    // virtual void pre_stop_camera() override final {};
+    virtual void stop_camera() override final;
     bool capture_frameset(uint64_t master_timestamp);
     bool seek(uint64_t timestamp);
 

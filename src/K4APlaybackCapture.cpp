@@ -23,7 +23,7 @@ K4APlaybackCapture::~K4APlaybackCapture() {
     numberOfCapturersActive--;
 }
 
-bool K4APlaybackCapture::config_reload(const char* configFilename) {
+bool K4APlaybackCapture::config_reload_and_start_capturing(const char* configFilename) {
     _unload_cameras();
 
     //
