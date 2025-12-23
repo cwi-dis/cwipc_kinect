@@ -33,8 +33,6 @@ static bool _api_versioncheck(char **errorMessage, uint64_t apiVersion) {
  */
 template<class GrabberClass, class CameraConfigClass=K4ACameraConfig>
 class cwipc_source_kinect_impl_base : public cwipc_capturer_impl_base<GrabberClass, CameraConfigClass> {
-protected:
-    GrabberClass *m_grabber; 
 public:
     using cwipc_capturer_impl_base<GrabberClass, CameraConfigClass>::cwipc_capturer_impl_base;
     
