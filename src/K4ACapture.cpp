@@ -77,7 +77,7 @@ bool K4ACapture::config_reload(const char* configFilename) {
       return true;
 }
 
-bool K4ACapture::_apply_default_config() {
+bool K4ACapture::_apply_auto_config() {
     bool any_failure = false;
 
     // Enumerate over all attached cameras and create a default configuration
@@ -91,6 +91,7 @@ bool K4ACapture::_apply_default_config() {
         }
 
         K4ACameraConfig cd;
+        cd.type = "kinect";
         char serial_buf[64];
         size_t serial_buf_size = sizeof(serial_buf) / sizeof(serial_buf[0]);
 

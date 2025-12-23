@@ -26,7 +26,7 @@ protected:
     K4ACapture();
     bool _capture_all_cameras() override;
     uint64_t _get_best_timestamp() override;
-    virtual bool _apply_default_config() override;
+    virtual bool _apply_auto_config() override;
 
 private:
     bool _init_hardware_settings(); // initialize hardware parameters from configuration

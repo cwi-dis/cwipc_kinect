@@ -262,7 +262,7 @@ protected:
 
         if (strcmp(configFilename, "auto") == 0) {
             // Special case 1: string "auto" means auto-configure all cameras.
-            return _apply_default_config();
+            return _apply_auto_config();
         }
 
         if (configFilename[0] == '{') {
@@ -279,7 +279,7 @@ protected:
         return false;
     }
     /// Load default configuration based on hardware cameras connected.
-    virtual bool _apply_default_config() = 0;
+    virtual bool _apply_auto_config() = 0;
 
     virtual void _init_camera_positions() final {
         // find camerapositions
