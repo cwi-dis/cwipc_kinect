@@ -28,11 +28,6 @@
 // Define to get (a little) debug prints
 #undef CWIPC_DEBUG
 #undef CWIPC_DEBUG_THREAD
-#undef CWIPC_MEMORY_DEBUG
-
-#ifdef CWIPC_MEMORY_DEBUG
-#include <vld.h>
-#endif
 
 typedef struct HsvColor {
     unsigned char h;
@@ -118,7 +113,6 @@ public:
     int camera_index;
 
 protected:
-    std::string CLASSNAME;
     K4ACaptureConfig& configuration;
     Type_api_camera camera_handle;
     bool stopped = true;  //<! True when stopping

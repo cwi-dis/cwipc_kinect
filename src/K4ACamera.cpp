@@ -1,18 +1,8 @@
-//
-//  multiFrame.cpp
-//
-//  Created by Fons Kuijk on 23-04-18
-//
 #include <cstdlib>
 
 // Define to get (a little) debug prints
 #undef CWIPC_DEBUG
 #undef CWIPC_DEBUG_THREAD
-#undef CWIPC_MEMORY_DEBUG
-
-#ifdef CWIPC_MEMORY_DEBUG
-#include <vld.h>
-#endif
 
 #include "K4ACamera.hpp"
 

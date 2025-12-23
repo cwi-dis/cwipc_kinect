@@ -1,12 +1,3 @@
-//
-//  multiFrame.cpp
-//
-//  Created by Fons Kuijk on 23-04-18
-//
-
-// Define to try and use hardware sync to synchronize multiple cameras
-#define WITH_INTER_CAM_SYNC
-
 // Define to get (a little) debug prints
 #define CWIPC_DEBUG
 #undef CWIPC_DEBUG_THREAD
