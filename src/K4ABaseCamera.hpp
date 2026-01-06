@@ -78,6 +78,11 @@ public:
         if (!_init_hardware_for_this_camera()) {
             return false;
         }
+        if (configuration.auxData.want_auxdata_skeleton) {
+            if (!_init_tracker()) {
+                return false;
+            }
+        }
         return true;
      }
     /// Step 2 in starting: starts the camera. Called for all cameras. 
@@ -147,16 +152,6 @@ protected:
 
 
 public:
-    virtual bool request_skeleton_auxdata(bool _skl) final {
-        want_auxdata_skeleton = _skl;
-
-        if (want_auxdata_skeleton) {
-            return _init_tracker();
-        }
-        else {
-            return false;
-        }
-    }
 
     virtual void create_pc_from_frames() final {
         assert(current_frameset);
@@ -381,7 +376,7 @@ protected:
             std::lock_guard<std::mutex> lock(processing_mutex);
 
             // use body tracker for skeleton extraction
-            if (want_auxdata_skeleton && tracker_handle) {
+            if (tracker_handle) {
                 //
                 // Push frameset into the tracker. Wait indefinitely for the result.
                 //
@@ -891,7 +886,6 @@ protected:
     std::thread* camera_processing_thread = nullptr; //<! Handle for thread that runs processing loop
     std::thread* camera_capturer_thread = nullptr;  //<! Handle for thread that rungs grabber (if applicable)
     K4ACameraConfig& camera_config; //<! Per-camera data for this camera
-    bool want_auxdata_skeleton = false; //<! True if caller wants skeleton auxdata
     std::vector<k4abt_skeleton_t> skeletons; //<! Skeletons extracted using the body tracking sdk
     cwipc_pcl_pointcloud current_pointcloud = nullptr;  //<! Most recent grabbed pointcloud
     k4a_transformation_t transformation_handle = nullptr; //<! k4a structure describing relationship between RGB and D cameras

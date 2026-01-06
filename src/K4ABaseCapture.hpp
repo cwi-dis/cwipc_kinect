@@ -49,6 +49,13 @@ public:
         return configuration.to_string();
     }
 
+    virtual void request_auxiliary_data(bool rgb, bool depth, bool timestamps, bool skeleton) override final {
+        configuration.auxData.want_auxdata_rgb = rgb;
+        configuration.auxData.want_auxdata_depth = depth;
+        configuration.auxData.want_auxdata_skeleton = skeleton;
+    }
+
+
     virtual bool pointcloud_available(bool wait) override final {
         if (camera_count == 0) {
             return false;
@@ -212,22 +219,6 @@ public:
     }
 
     virtual bool _init_hardware_for_all_cameras() = 0;
-
-    virtual void request_image_auxdata(bool _rgb, bool _depth) final {
-        configuration.auxData.want_auxdata_rgb = _rgb;
-        configuration.auxData.want_auxdata_depth = _depth;
-    }
-
-    virtual void request_skeleton_auxdata(bool _skl) final {
-        configuration.auxData.want_auxdata_skeleton = _skl;
-
-        for (auto cam : cameras) {
-            cam->request_skeleton_auxdata(_skl);
-        }
-    }
-
-
-
 
     virtual Type_our_camera* get_camera(std::string serial) final {
         for (auto cam : cameras) {

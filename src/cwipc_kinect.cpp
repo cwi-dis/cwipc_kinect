@@ -39,12 +39,12 @@ public:
     void request_auxiliary_data(const std::string &name) override {
         cwipc_tiledsource::request_auxiliary_data(name);
 
-        m_grabber->request_image_auxdata(
+        m_grabber->request_auxiliary_data(
             auxiliary_data_requested("rgb"),
-            auxiliary_data_requested("depth")
+            auxiliary_data_requested("depth"),
+            false,
+            auxiliary_data_requested("skeleton")
         );
-
-        m_grabber->request_skeleton_auxdata(auxiliary_data_requested("skeleton"));
     }
 
     bool auxiliary_operation(const std::string op, const void* inbuf, size_t insize, void* outbuf, size_t outsize) override {
