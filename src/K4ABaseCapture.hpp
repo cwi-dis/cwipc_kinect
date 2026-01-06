@@ -16,7 +16,8 @@
  * Type_api_camera: The type representing a single camera in the K4A API (k4a_device_t or k4a_playback_t)
  * Type_our_camera: The type representing our wrapper around a single K4A camera (subclass of K4ABaseCamera)
 */
-template<typename Type_api_camera, class Type_our_camera> class K4ABaseCapture : public CwipcBaseCapture {
+template<typename Type_api_camera, class Type_our_camera> 
+class K4ABaseCapture : public CwipcBaseCapture {
 public:
     //
     // Public API methods (mainly overrides from CwipcBaseCapture)
