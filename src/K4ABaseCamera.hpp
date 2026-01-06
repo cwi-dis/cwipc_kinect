@@ -41,7 +41,8 @@ typedef union {
     uint8_t v[4];  /**< Array representation of a vector */
 } cwi_bgra_t;
 
-template<typename Type_api_camera> class K4ABaseCamera : public CwipcBaseCamera {
+template<typename Type_api_camera> 
+class K4ABaseCamera : public CwipcBaseCamera {
 public:
     K4ABaseCamera(const std::string& _Classname, Type_api_camera _handle, K4ACaptureConfig& _configuration, int _camera_index, K4ACameraConfig& _camData)
     :   CwipcBaseCamera(_Classname + ": " + _camData.serial, "kinect"),
@@ -143,39 +144,6 @@ protected:
         return true;
     }
     // xxxjack _prepare_config_for_starting_camera() has different signatures for camera/recording.
-public:
-    float pointSize = 0;  //<! (Approximate) 3D cellsize of pointclouds captured by this camera
-    std::string serial; //<! Serial number for this camera
-    bool eof = false; //<! True when end of file reached on this camera stream
-    int camera_index;
-
-protected:
-    K4ACaptureConfig& configuration;
-    Type_api_camera camera_handle;
-    bool camera_stopped = true;  //<! True when stopping
-    bool camera_started = false;  //<! True when camera hardware is grabbing
-    std::thread* camera_processing_thread = nullptr; //<! Handle for thread that runs processing loop
-    std::thread* camera_capturer_thread = nullptr;  //<! Handle for thread that rungs grabber (if applicable)
-    K4ACameraConfig& camera_config; //<! Per-camera data for this camera
-    bool want_auxdata_skeleton = false; //<! True if caller wants skeleton auxdata
-    std::vector<k4abt_skeleton_t> skeletons; //<! Skeletons extracted using the body tracking sdk
-    cwipc_pcl_pointcloud current_pointcloud = nullptr;  //<! Most recent grabbed pointcloud
-    k4a_transformation_t transformation_handle = nullptr; //<! k4a structure describing relationship between RGB and D cameras
-    moodycamel::BlockingReaderWriterQueue<k4a_capture_t> captured_frame_queue;  //<! Frames from capture-thread, waiting to be inter-camera synchronized
-    moodycamel::BlockingReaderWriterQueue<k4a_capture_t> processing_frame_queue;  //<! Synchronized frames, waiting for processing thread
-    k4a_capture_t current_frameset = nullptr; //<! Current frame being moved from captured_frame_queue to processing_frame_queue
-    bool camera_sync_ismaster;  //<! Parameter from camData xxxjack needs to go
-    bool camera_sync_inuse; //<! Parameter from camData xxxjack needs to go
-    bool do_height_filtering; //<! Parameter from camData xxxjack needs to go
-    std::mutex processing_mutex;  //<! Exclusive lock for frame to pointcloud processing.
-    std::condition_variable processing_done_cv; //<! Condition variable signalling pointcloud ready
-    bool processing_done = false; //<! Boolean for processing_done_cv
-
-    k4abt_tracker_t tracker_handle = nullptr; //<! Handle to k4abt skeleton tracker
-    k4a_calibration_t sensor_calibration; //<! k4a calibration data read from hardware camera or recording
-    k4a_calibration_extrinsics_t depth_to_color_extrinsics; //<! k4a calibration data read from hardware camera or recording
-    k4a_image_t xy_table = NULL;
-    std::string record_to_file; //<! If non-empty: file to record the captured streams to.
 
 
 public:
@@ -909,4 +877,37 @@ protected:
     /// Optionally uncompress color image.
     /// For code simplicity this always returns a value k4a_image_t, even though it may be wrong.
     virtual k4a_image_t _uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) = 0;
+public:
+    float pointSize = 0;  //<! (Approximate) 3D cellsize of pointclouds captured by this camera
+    std::string serial; //<! Serial number for this camera
+    bool eof = false; //<! True when end of file reached on this camera stream
+    int camera_index;
+
+protected:
+    K4ACaptureConfig& configuration;
+    Type_api_camera camera_handle;
+    bool camera_stopped = true;  //<! True when stopping
+    bool camera_started = false;  //<! True when camera hardware is grabbing
+    std::thread* camera_processing_thread = nullptr; //<! Handle for thread that runs processing loop
+    std::thread* camera_capturer_thread = nullptr;  //<! Handle for thread that rungs grabber (if applicable)
+    K4ACameraConfig& camera_config; //<! Per-camera data for this camera
+    bool want_auxdata_skeleton = false; //<! True if caller wants skeleton auxdata
+    std::vector<k4abt_skeleton_t> skeletons; //<! Skeletons extracted using the body tracking sdk
+    cwipc_pcl_pointcloud current_pointcloud = nullptr;  //<! Most recent grabbed pointcloud
+    k4a_transformation_t transformation_handle = nullptr; //<! k4a structure describing relationship between RGB and D cameras
+    moodycamel::BlockingReaderWriterQueue<k4a_capture_t> captured_frame_queue;  //<! Frames from capture-thread, waiting to be inter-camera synchronized
+    moodycamel::BlockingReaderWriterQueue<k4a_capture_t> processing_frame_queue;  //<! Synchronized frames, waiting for processing thread
+    k4a_capture_t current_frameset = nullptr; //<! Current frame being moved from captured_frame_queue to processing_frame_queue
+    bool camera_sync_ismaster;  //<! Parameter from camData xxxjack needs to go
+    bool camera_sync_inuse; //<! Parameter from camData xxxjack needs to go
+    bool do_height_filtering; //<! Parameter from camData xxxjack needs to go
+    std::mutex processing_mutex;  //<! Exclusive lock for frame to pointcloud processing.
+    std::condition_variable processing_done_cv; //<! Condition variable signalling pointcloud ready
+    bool processing_done = false; //<! Boolean for processing_done_cv
+
+    k4abt_tracker_t tracker_handle = nullptr; //<! Handle to k4abt skeleton tracker
+    k4a_calibration_t sensor_calibration; //<! k4a calibration data read from hardware camera or recording
+    k4a_calibration_extrinsics_t depth_to_color_extrinsics; //<! k4a calibration data read from hardware camera or recording
+    k4a_image_t xy_table = NULL;
+    std::string record_to_file; //<! If non-empty: file to record the captured streams to.
 };
