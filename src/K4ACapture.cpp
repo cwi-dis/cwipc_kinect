@@ -53,9 +53,6 @@ bool K4ACapture::config_reload_and_start_capturing(const char* configFilename) {
         return false;
     }
 
-    // xxxjack RS2 does _check_cameras_connected() here.
-
-    _init_camera_positions();
     _start_cameras();
 
     // xxxjack RS2 does per-camera start_camera_streaming() here

@@ -39,7 +39,6 @@ bool K4APlaybackCapture::config_reload_and_start_capturing(const char* configFil
     }
 
     _create_cameras(camera_handles);
-    _init_camera_positions();
     _start_cameras();
 
     //
