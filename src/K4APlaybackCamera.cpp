@@ -89,7 +89,7 @@ bool K4APlaybackCamera::_prepare_next_valid_frame() {
 
         stream_result = k4a_playback_get_next_capture(camera_handle, &current_frameset);
         if (stream_result == K4A_STREAM_RESULT_EOF) {
-            eof = true; // xxxjack note that this means eof is true *after all frames have been processed*.
+            end_of_stream_reached = true; // xxxjack note that this means eof is true *after all frames have been processed*.
             if (current_frameset_timestamp == 0) {
                 _log_warning("Recording file is empty: " + camera_config.filename);
             } else {

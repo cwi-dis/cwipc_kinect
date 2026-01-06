@@ -875,7 +875,7 @@ protected:
 public:
     float pointSize = 0;  //<! (Approximate) 3D cellsize of pointclouds captured by this camera
     std::string serial; //<! Serial number for this camera
-    bool eof = false; //<! True when end of file reached on this camera stream
+    bool end_of_stream_reached = false; //<! True when end of file reached on this camera stream
     int camera_index;
 
 protected:

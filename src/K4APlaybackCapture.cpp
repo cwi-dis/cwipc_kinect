@@ -165,7 +165,7 @@ void K4APlaybackCapture::_create_cameras(std::vector<Type_api_camera>& camera_ha
     }
 }
 
-bool K4APlaybackCapture::_capture_all_cameras() {
+bool K4APlaybackCapture::_capture_all_cameras(uint64_t& timestamp) {
     bool all_captures_ok = true;
 
     //
@@ -189,7 +189,7 @@ bool K4APlaybackCapture::_capture_all_cameras() {
    //
    uint64_t wanted_timestamp = 0;
    if (sync_inuse) {
-        wanted_timestamp = cameras[master_id]->current_frameset_timestamp;
+        wanted_timestamp = cameras[master_id]->current_frameset_timestamp; // xxxjack should be a method.
     }
 
     //
@@ -207,29 +207,8 @@ bool K4APlaybackCapture::_capture_all_cameras() {
     }
     _log_debug("Captured all cameras for timestamp " + std::to_string(wanted_timestamp));
 
+    timestamp = wanted_timestamp;
     return all_captures_ok;
-}
-
-uint64_t K4APlaybackCapture::_get_best_timestamp() {
-    int timestamp = 0;
-
-    if (sync_inuse) { //sync on
-      timestamp = cameras[master_id]->current_frameset_timestamp;
-    } else {
-        for (auto cam : cameras) {
-            uint64_t camts = cam->current_frameset_timestamp;
-
-            if (camts > timestamp) {
-                timestamp = camts;
-            }
-        }
-    }
-
-    if (timestamp <= 0) {
-        timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    }
-
-    return timestamp;
 }
 
 bool K4APlaybackCapture::seek(uint64_t timestamp) {

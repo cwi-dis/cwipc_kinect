@@ -27,8 +27,7 @@ public:
 
 protected:
     K4APlaybackCapture();
-    bool _capture_all_cameras() override;
-    uint64_t _get_best_timestamp() override;
+    virtual bool _capture_all_cameras(uint64_t& timestamp) override;
     virtual bool _apply_auto_config() override { return false; }
 
 private:

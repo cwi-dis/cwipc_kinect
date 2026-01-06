@@ -182,34 +182,21 @@ bool K4ACapture::_create_cameras() {
     return true;
 }
 
-bool K4ACapture::_capture_all_cameras() {
+bool K4ACapture::_capture_all_cameras(uint64_t& timestamp) {
     bool all_captures_ok = true;
 
+    timestamp = 0;
     for(auto cam : cameras) {
         if (!cam->capture_frameset()) {
             all_captures_ok = false;
             continue;
         }
-    }
-
-    return all_captures_ok;
-}
-
-uint64_t K4ACapture::_get_best_timestamp() {
-    uint64_t timestamp = 0;
-
-    for(auto cam: cameras) {
         uint64_t camts = cam->get_capture_timestamp();
         if (camts > timestamp) {
             timestamp = camts;
         }
     }
-
-    if (timestamp <= 0) {
-        timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    }
-
-    return timestamp;
+    return all_captures_ok;
 }
 
 bool K4ACapture::seek(uint64_t timestamp) {

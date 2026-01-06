@@ -29,10 +29,6 @@ public:
     virtual ~K4ABaseCapture() {
         uint64_t stopTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
         _unload_cameras();
-
-        // Print some minimal statistics of this run
-        float deltaT = (stopTime - starttime) / 1000.0;
-        _log_debug("ran for " + std::to_string(deltaT) + " seconds, produced " + std::to_string(numberOfPCsProduced) + " pointclouds at " + std::to_string(numberOfPCsProduced / deltaT) + " fps.");
     }
 
     int get_camera_count() override final { 
@@ -92,7 +88,6 @@ public:
 
             assert(mergedPC_is_fresh);
             mergedPC_is_fresh = false;
-            numberOfPCsProduced++;
             rv = mergedPC;
             mergedPC = nullptr;
 
@@ -257,6 +252,12 @@ protected:
     }
     /// Load default configuration based on hardware cameras connected.
     virtual bool _apply_auto_config() = 0;
+    
+    /// Anything that needs to be done to get the camera streams synchronized after opening.
+    /// (Realsense Playback seeks all streams to the same timecode, the earliest one present
+    /// in each stream)
+    virtual void _initial_camera_synchronization() {
+    }
 
     // xxxjack ridiculous way of finding camera position. Do it in CameraConfig.
     virtual void _init_camera_positions() final {
@@ -286,6 +287,7 @@ protected:
                 start_error = true;
             }
         }
+        // start the cameras in a specific order: first all non-masters, then all masters.
         for (auto cam : cameras) {
             if (cam->is_sync_master()) {
                 continue;
@@ -305,16 +307,15 @@ protected:
                 start_error = true;
             }
         }
-        for (auto cam: cameras) {
-            cam->post_start_all_cameras();
-        }
         if (start_error) {
             _log_error("Not all cameras could be started");
             _unload_cameras();
             return;
         }
+        for (auto cam: cameras) {
+            cam->post_start_all_cameras();
+        }
 
-        starttime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
         //
         // start the per-camera capture threads. Master camera has to be started latest
         //
@@ -333,22 +334,28 @@ protected:
 
             cam->start_camera_streaming();
         }
+        
+        for (auto cam: cameras) {
+            cam->post_start_all_cameras();
+        }
     }
 
-    virtual bool _capture_all_cameras() = 0;
-    virtual uint64_t _get_best_timestamp() = 0;
+    virtual bool _capture_all_cameras(uint64_t& timestamp) = 0;
 
     virtual void _control_thread_main() final {
         _log_debug_thread("processing thread started");
+        _initial_camera_synchronization();
         while (!stopped) {
             {
                 std::unique_lock<std::mutex> mylock(mergedPC_mutex);
-                mergedPC_want_new_cv.wait(mylock, [this] { return mergedPC_want_new; });
+                mergedPC_want_new_cv.wait(mylock, [this] { 
+                    return mergedPC_want_new; 
+                });
             }
 
             //check EOF:
             for (auto cam : cameras) {
-                if (cam->eof) {
+                if (cam->end_of_stream_reached) {
                     _eof = true;
                     stopped = true;
                     break;
@@ -363,7 +370,8 @@ protected:
             // Step one: grab frames from all cameras. This should happen as close together in time as possible,
             // because that gives use he biggest chance we have the same frame (or at most off-by-one) for each
             // camera.
-            bool all_captures_ok = _capture_all_cameras();
+            uint64_t timestamp = 0;
+            bool all_captures_ok = _capture_all_cameras(timestamp);
 
             if (!all_captures_ok) {
                 std::this_thread::yield();
@@ -375,11 +383,9 @@ protected:
             }
 
             // And get the best timestamp
-            uint64_t timestamp = _get_best_timestamp();
             if (configuration.new_timestamps) {
                 timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
             }
-            // xxxjack current_ts = timestamp;
 
             // Step 2 - Create pointcloud, and save rgb/depth images if wanted
             cwipc_pcl_pointcloud pcl_pointcloud = new_cwipc_pcl_pointcloud();
@@ -511,13 +517,12 @@ protected:
     bool stopped = false; //<! True when stopping capture
     bool _eof = false; //<! True when end-of-file seen on pointcloud source
     
-    uint64_t starttime = 0; //!< Used only for statistics messages
-    int numberOfPCsProduced = 0;  //!< Used only for statistics messages
-
     cwipc* mergedPC = nullptr;  //<! Merged pointcloud from all cameras
     std::mutex mergedPC_mutex;  //<! Lock for all mergedPC-related data structures
+
     bool mergedPC_is_fresh = false; //<! True if mergedPC contains a freshly-created pointcloud
     std::condition_variable mergedPC_is_fresh_cv; //<! Condition variable for signalling freshly-created pointcloud
+
     bool mergedPC_want_new = false; //<! Set to true to request a new pointcloud
     std::condition_variable mergedPC_want_new_cv; //<! Condition variable for signalling we want a new pointcloud
 
