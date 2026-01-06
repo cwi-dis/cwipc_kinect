@@ -142,7 +142,7 @@ public:
     }
     virtual bool seek(uint64_t timestamp) override = 0;
 
-public:
+protected:
 
     void _unload_cameras() {
         stop();
