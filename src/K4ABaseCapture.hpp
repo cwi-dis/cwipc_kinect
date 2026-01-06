@@ -36,11 +36,11 @@ public:
     }
 
     int get_camera_count() override final { 
-        return camera_count; 
+        return cameras.size(); 
     }
 
     bool is_valid() override final { 
-        return camera_count > 0; 
+        return cameras.size() > 0; 
     }
     
     virtual bool config_reload_and_start_capturing(const char* configFilename) override = 0;
@@ -57,7 +57,7 @@ public:
 
 
     virtual bool pointcloud_available(bool wait) override final {
-        if (camera_count == 0) {
+        if (!is_valid()) {
             return false;
         }
 
@@ -74,7 +74,7 @@ public:
     }
 
     virtual cwipc* get_pointcloud() override final {
-        if (camera_count == 0) {
+        if (!is_valid()) {
           _log_warning("get_pointcloud: returning NULL, no cameras");
           return nullptr;
         }
@@ -106,7 +106,7 @@ public:
     }
 
     virtual float get_pointSize() override final {
-        if (camera_count == 0) {
+        if (!is_valid()) {
             return 0;
         }
 
@@ -142,34 +142,10 @@ public:
         return true;
     }
 
-    virtual bool seek(uint64_t timestamp) override = 0;
-
     bool eof() override {
         return _eof;
     }
-public:
-    // public attributes. Mainly public so they can be accessed
-    // from the Camera class.
-    K4ACaptureConfig configuration;  //!< Configuration of this capturer
-protected:
-    // protected attibutes. Accessible from subclasses.
-    std::vector<Type_our_camera*> cameras;  //<! Cameras used by this capturer
-
-    int camera_count = 0; // xxxjack needs to go.
-    bool stopped = false; //<! True when stopping capture
-    bool _eof = false; //<! True when end-of-file seen on pointcloud source
-    
-    uint64_t starttime = 0; //!< Used only for statistics messages
-    int numberOfPCsProduced = 0;  //!< Used only for statistics messages
-
-    cwipc* mergedPC = nullptr;  //<! Merged pointcloud from all cameras
-    std::mutex mergedPC_mutex;  //<! Lock for all mergedPC-related data structures
-    bool mergedPC_is_fresh = false; //<! True if mergedPC contains a freshly-created pointcloud
-    std::condition_variable mergedPC_is_fresh_cv; //<! Condition variable for signalling freshly-created pointcloud
-    bool mergedPC_want_new = false; //<! Set to true to request a new pointcloud
-    std::condition_variable mergedPC_want_new_cv; //<! Condition variable for signalling we want a new pointcloud
-
-    std::thread* control_thread = nullptr;
+    virtual bool seek(uint64_t timestamp) override = 0;
 
 public:
 
@@ -181,7 +157,6 @@ public:
           delete cam;
         cameras.clear();
         _log_debug("deleted all cameras");
-        camera_count = 0;
     }
 
     virtual void stop() final {
@@ -231,7 +206,7 @@ public:
     }
 
     virtual cwipc* get_mostRecentPointCloud() final {
-        if (camera_count == 0) {
+        if (!is_valid()) {
             return nullptr;
         }
 
@@ -524,4 +499,27 @@ protected:
             mergedPC_want_new_cv.notify_all();
         }
     }
+
+public:
+    // public attributes. Mainly public so they can be accessed
+    // from the Camera class.
+    K4ACaptureConfig configuration;  //!< Configuration of this capturer
+protected:
+    // protected attibutes. Accessible from subclasses.
+    std::vector<Type_our_camera*> cameras;  //<! Cameras used by this capturer
+
+    bool stopped = false; //<! True when stopping capture
+    bool _eof = false; //<! True when end-of-file seen on pointcloud source
+    
+    uint64_t starttime = 0; //!< Used only for statistics messages
+    int numberOfPCsProduced = 0;  //!< Used only for statistics messages
+
+    cwipc* mergedPC = nullptr;  //<! Merged pointcloud from all cameras
+    std::mutex mergedPC_mutex;  //<! Lock for all mergedPC-related data structures
+    bool mergedPC_is_fresh = false; //<! True if mergedPC contains a freshly-created pointcloud
+    std::condition_variable mergedPC_is_fresh_cv; //<! Condition variable for signalling freshly-created pointcloud
+    bool mergedPC_want_new = false; //<! Set to true to request a new pointcloud
+    std::condition_variable mergedPC_want_new_cv; //<! Condition variable for signalling we want a new pointcloud
+
+    std::thread* control_thread = nullptr;
 };

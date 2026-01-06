@@ -258,7 +258,6 @@ void K4ACamera::start_camera_streaming() {
 bool K4ACamera::_init_hardware_for_this_camera()
 {
     // Set various camera hardware parameters (color)
-    assert(!camera_config.disabled);
 
     //options for color sensor
     if (configuration.camera_processing.color_exposure_time >= 0) { //MANUAL

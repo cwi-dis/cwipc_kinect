@@ -15,13 +15,6 @@ K4APlaybackCapture::K4APlaybackCapture()
 {
 }
 
-K4APlaybackCapture::~K4APlaybackCapture() {
-    if (camera_count > 0) {
-        _unload_cameras();
-    }
-
-    numberOfCapturersActive--;
-}
 
 bool K4APlaybackCapture::config_reload_and_start_capturing(const char* configFilename) {
     _unload_cameras();
@@ -35,16 +28,10 @@ bool K4APlaybackCapture::config_reload_and_start_capturing(const char* configFil
         return false;
     }
 
-    for (std::vector<K4ACameraConfig>::iterator it = configuration.all_camera_configs.begin(); it != configuration.all_camera_configs.end();) {
-        if (it->disabled) {
-            std::cout << CLASSNAME << ": Camera " << it->serial << " is disabled in cameraconfig.json" << std::endl;
-            it = configuration.all_camera_configs.erase(it); // we remove the cameradata from config as we don't plan to use it in this session.
-        } else {
-            camera_count++;
-            ++it;
-        }
+    auto camera_count = configuration.all_camera_configs.size();
+    if (camera_count == 0) {
+        return false;
     }
-
     std::vector<Type_api_camera> camera_handles(camera_count, nullptr);
     if (!_open_recording_files(camera_handles, configFilename)) {
         _unload_cameras();
@@ -76,9 +63,7 @@ bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& cam
 
     // Open each recording file and validate they were recorded in master/subordinate mode.
     for (size_t i = 0; i < camera_handles.size(); i++) {
-        if (configuration.all_camera_configs[i].disabled == true) {
-            continue;
-        }
+        
 
         std::string camerafile(configuration.all_camera_configs[i].filename);
 
@@ -175,10 +160,8 @@ void K4APlaybackCapture::_create_cameras(std::vector<Type_api_camera>& camera_ha
 
         int camera_index = cameras.size();
 
-        if (!cd.disabled) {
-            auto cam = new K4APlaybackCapture::Type_our_camera(camera_handles[i], configuration, camera_index, cd);
-            cameras.push_back(cam);
-        }
+        auto cam = new K4APlaybackCapture::Type_our_camera(camera_handles[i], configuration, camera_index, cd);
+        cameras.push_back(cam);
     }
 }
 

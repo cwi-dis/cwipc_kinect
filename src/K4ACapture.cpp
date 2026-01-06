@@ -21,7 +21,6 @@ bool K4ACapture::config_reload_and_start_capturing(const char* configFilename) {
     // Read the configuration.
     //
     if (!_apply_config(configFilename)) {
-        camera_count = 0;
         return false;
     }
 
@@ -139,18 +138,13 @@ bool K4ACapture::_open_cameras() {
             return false;
         }
 
-        if (cd->disabled) {
-            k4a_device_close(handle);
-            handle = nullptr;
-        }
-
         cd->handle = handle;
         cd->connected = (handle != nullptr);
     }
 
     // Check that all configured cameras have been opened.
     for (auto& cd : configuration.all_camera_configs) {
-        if (!cd.disabled && !cd.connected) {
+        if (!cd.connected) {
             _log_error("Camera " + cd.serial + " is not connected");
             return false;
         }
@@ -166,7 +160,7 @@ bool K4ACapture::_init_hardware_for_all_cameras() {
 
 bool K4ACapture::_create_cameras() {
     for(auto& cd : configuration.all_camera_configs) {
-        if (cd.disabled || cd.handle == nullptr) {
+        if (cd.handle == nullptr) {
             continue;
         }
 
@@ -185,7 +179,6 @@ bool K4ACapture::_create_cameras() {
         cd.handle = nullptr;
     }
 
-    camera_count = cameras.size();
     return true;
 }
 
