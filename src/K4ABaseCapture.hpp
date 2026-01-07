@@ -188,6 +188,8 @@ protected:
         // Nothing to do for K4A: real cameras need some setup, but it is done
         // in K4ACamera::_prepare_config_for_starting_camera().
     }
+    virtual bool _create_cameras() = 0;
+    virtual bool _check_cameras_connected() = 0;
 
     virtual bool _init_hardware_for_all_cameras() = 0;
 
@@ -223,6 +225,9 @@ protected:
         return nullptr;
     }
 
+    virtual inline Type_our_camera *_create_single_camera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraConfig& _camData) final {
+        return new Type_our_camera(_handle, configuration, _camera_index, _camData);
+    }
 protected:
     /// Load configuration from file or string.
     virtual bool _apply_config(const char *configFilename) final {

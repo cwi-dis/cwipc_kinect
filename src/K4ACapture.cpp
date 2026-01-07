@@ -24,15 +24,8 @@ bool K4ACapture::config_reload_and_start_capturing(const char* configFilename) {
         return false;
     }
 
-    auto camera_count = configuration.all_camera_configs.size();
-    if (camera_count == 0) {
-        return false;
-    }
-
-    // xxxjack rs2 does setup_camera_hardware_parameters() before _open_cameras()
-    if (!_open_cameras()) {
-        // xxxjack we should really close all cameras too...
-        camera_count = 0; 
+    auto camera_config_count = configuration.all_camera_configs.size();
+    if (camera_config_count == 0) {
         return false;
     }
 
@@ -41,7 +34,7 @@ bool K4ACapture::config_reload_and_start_capturing(const char* configFilename) {
     //
     if (!_init_hardware_for_all_cameras()) {
         // xxxjack we should really close all cameras too...
-        camera_count = 0;
+        camera_config_count = 0;
         return false;
     }
 
@@ -53,11 +46,12 @@ bool K4ACapture::config_reload_and_start_capturing(const char* configFilename) {
         return false;
     }
 
+    if (!_check_cameras_connected()) {
+        _unload_cameras();
+        return false;
+    }
     _start_cameras();
 
-    // xxxjack RS2 does per-camera start_camera_streaming() here
-
-    // xxxjack RS2 does per-camera post_start_all_cameras() here.
     //
     // start our run thread (which will drive the capturers and merge the pointclouds)
     //
@@ -110,7 +104,7 @@ bool K4ACapture::_apply_auto_config() {
     return true;
 }
 
-bool K4ACapture::_open_cameras() {
+bool K4ACapture::_create_cameras() {
     for (uint32_t i = 0; i < k4a_device_get_installed_count(); i++) {
         Type_api_camera handle;
 
@@ -131,50 +125,37 @@ bool K4ACapture::_open_cameras() {
         K4ACameraConfig* cd = get_camera_config(serial);
 
         if (cd == nullptr) {
-            _log_error("No configuration found for camera with serial " + serial);
+            _log_error("Camera with serial " + serial + " is connected but not in configuration");
             return false;
         }
+        if (cd->type != "kinect") {
+            _log_error("configuration: camera with serial " + cd->serial + " is type " + cd->type + " instead of kinect");
+            return false;
+        }
+        if (cd->disabled) {
+            k4a_device_close(handle);
+        } else {
+            int camera_index = cameras.size();
+            auto cam = _create_single_camera(handle, configuration, camera_index, *cd);
+            cameras.push_back(cam);
+            cd->connected = true;
+        }
 
-        cd->handle = handle;
-        cd->connected = (handle != nullptr);
     }
+    return true;
+}
 
-    // Check that all configured cameras have been opened.
+bool K4ACapture::_check_cameras_connected() {
     for (auto& cd : configuration.all_camera_configs) {
         if (!cd.connected) {
-            _log_error("Camera " + cd.serial + " is not connected");
+            _log_warning("Camera with serial " + cd.serial + " is not connected");
             return false;
         }
     }
-
     return true;
 }
 
 bool K4ACapture::_init_hardware_for_all_cameras() {
-
-    return true;
-}
-
-bool K4ACapture::_create_cameras() {
-    for(auto& cd : configuration.all_camera_configs) {
-        if (cd.handle == nullptr) {
-            continue;
-        }
-
-        Type_api_camera handle = (Type_api_camera)cd.handle;
-
-        _log_debug("creating camera with serial " + cd.serial);
-        // We look up the config by its serial number.
-        if (cd.type != "kinect") {
-            _log_error("configuration: camera with serial " + cd.serial + " has wrong type " + cd.type);
-            return false;
-        }
-
-        int camera_index = cameras.size();
-        auto cam = new Type_our_camera(handle, configuration, camera_index, cd);
-        cameras.push_back(cam);
-        cd.handle = nullptr;
-    }
 
     return true;
 }

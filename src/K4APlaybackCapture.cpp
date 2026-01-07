@@ -32,13 +32,9 @@ bool K4APlaybackCapture::config_reload_and_start_capturing(const char* configFil
     if (camera_count == 0) {
         return false;
     }
-    std::vector<Type_api_camera> camera_handles(camera_count, nullptr);
-    if (!_open_recording_files(camera_handles, configFilename)) {
-        _unload_cameras();
-        return false;
-    }
+    
 
-    _create_cameras(camera_handles);
+    _create_cameras();
     _start_cameras();
 
     //
@@ -141,7 +137,14 @@ bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& cam
     return true;
 }
 
-void K4APlaybackCapture::_create_cameras(std::vector<Type_api_camera>& camera_handles) {
+bool K4APlaybackCapture::_create_cameras() {
+    const char *configFilename = nullptr;
+    auto camera_config_count = configuration.all_camera_configs.size();
+    std::vector<Type_api_camera> camera_handles(camera_config_count, nullptr);
+    if (!_open_recording_files(camera_handles, configFilename)) {
+        _unload_cameras();
+        return false;
+    }
     for (uint32_t i = 0; i < camera_handles.size(); i++) {
         assert (camera_handles[i] != nullptr);
 

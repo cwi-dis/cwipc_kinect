@@ -29,6 +29,6 @@ protected:
 
 private:
     virtual bool _init_hardware_for_all_cameras() override final; // initialize hardware parameters from configuration
-    bool _open_cameras();
-    bool _create_cameras();
+    virtual bool _check_cameras_connected() override final;
+    virtual bool _create_cameras() override final;
 };
