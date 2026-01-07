@@ -190,94 +190,8 @@ public:
     virtual bool seek(uint64_t timestamp) override = 0;
 
 protected:
-
-    void _unload_cameras() {
-        _stop_cameras();
-
-        // Delete all cameras
-        for (auto cam : cameras)
-          delete cam;
-        cameras.clear();
-        _log_debug("deleted all cameras");
-    }
-
-    virtual void _stop_cameras() final {
-        stopped = true;
-        mergedPC_is_fresh = true;
-        mergedPC_want_new = false;
-        mergedPC_is_fresh_cv.notify_all();
-        mergedPC_want_new = true;
-        mergedPC_want_new_cv.notify_all();
-
-        _log_debug("stopping all cameras");
-
-        if (control_thread && control_thread->joinable()) {
-            control_thread->join();
-        }
-
-        delete control_thread;
-        control_thread = nullptr;
-
-        // Stop all cameras
-        for (auto cam : cameras) {
-            cam->pre_stop_camera();
-        }
-        for (auto cam : cameras) {
-            cam->stop_camera();
-        }
-
-        mergedPC_is_fresh = false;
-        mergedPC_want_new = false;
-        _log_debug("stopped all cameras");
-    }
-
-    virtual void _setup_inter_camera_sync() final {
-        // Nothing to do for K4A: real cameras need some setup, but it is done
-        // in K4ACamera::_prepare_config_for_starting_camera().
-    }
-    virtual bool _create_cameras() = 0;
-    virtual bool _check_cameras_connected() = 0;
-
-    virtual bool _init_hardware_for_all_cameras() = 0;
-
-    virtual Type_our_camera* get_camera(std::string serial) final {
-        for (auto cam : cameras) {
-            if (cam->serial == serial) {
-                return cam;
-            }
-        }
-
-        return NULL;
-    }
-
-    virtual cwipc* get_mostRecentPointCloud() final {
-        if (!is_valid()) {
-            return nullptr;
-        }
-
-        // This call cdoesn't need a fresh pointcloud (Jack thinks), but it does need one that is
-        // consistent. So we lock, but don't wait on the condition.
-        std::unique_lock<std::mutex> mylock(mergedPC_mutex);
-        return mergedPC;
-    }
-
-    virtual K4ACameraConfig* get_camera_config(std::string serial) final {
-        for (int i = 0; i < configuration.all_camera_configs.size(); i++) {
-            if (configuration.all_camera_configs[i].serial == serial) {
-                return &configuration.all_camera_configs[i];
-            }
-        }
-
-        _log_warning("Unknown camera " + serial);
-        return nullptr;
-    }
-
-    virtual inline Type_our_camera *_create_single_camera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraConfig& _camData) final {
-        return new Type_our_camera(_handle, configuration, _camera_index, _camData);
-    }
-protected:
     /// Load configuration from file or string.
-    virtual bool _apply_config(const char *configFilename) final {
+    virtual bool _apply_config(const char *configFilename) override final {
         K4ACaptureConfig newConfig;
         newConfig.auxData = configuration.auxData; // preserve auxdata requests
         configuration = newConfig;
@@ -307,16 +221,42 @@ protected:
         return false;
     }
     /// Load default configuration based on hardware cameras connected.
-    virtual bool _apply_auto_config() = 0;
-    
-    /// Anything that needs to be done to get the camera streams synchronized after opening.
-    /// (Realsense Playback seeks all streams to the same timecode, the earliest one present
-    /// in each stream)
-    virtual void _initial_camera_synchronization() {
+    virtual bool _apply_auto_config() override = 0;
+    /// Get configuration for a single camera, by serial number.
+    virtual K4ACameraConfig* get_camera_config(std::string serial) final {
+        for (int i = 0; i < configuration.all_camera_configs.size(); i++) {
+            if (configuration.all_camera_configs[i].serial == serial) {
+                return &configuration.all_camera_configs[i];
+            }
+        }
+
+        _log_warning("Unknown camera " + serial);
+        return nullptr;
+    }
+    /// Create our wrapper around a single camera. Here because it needs to be templated.
+    virtual inline Type_our_camera *_create_single_camera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraConfig& _camData) final {
+        return new Type_our_camera(_handle, configuration, _camera_index, _camData);
     }
 
 
-    virtual void _start_cameras() final {
+    /// Setup camera synchronization (if needed).
+    virtual bool _setup_inter_camera_sync() override final {
+        // Nothing to do for K4A: real cameras need some setup, but it is done
+        // in K4ACamera::_prepare_config_for_starting_camera().
+        return true;
+    }
+    /// xxxjack another one?
+    virtual void _initial_camera_synchronization() {
+    }
+
+    /// Create the per-camera capturers.
+    virtual bool _create_cameras() override = 0;
+    /// Setup camera hardware parameters (white balance, etc).
+    virtual bool _init_hardware_for_all_cameras() override = 0;
+    /// Check that all cameras are connected.
+    virtual bool _check_cameras_connected() override = 0;
+    /// Start all cameras.
+    virtual void _start_cameras() override final {
         //
         // start the cameras. First start all non-sync-master cameras, then start the sync-master camera.
         //
@@ -379,7 +319,76 @@ protected:
         }
     }
 
-    virtual bool _capture_all_cameras(uint64_t& timestamp) = 0;
+    /// Stop and unload all cameras and release all resources.
+    virtual void _unload_cameras() override final {
+        _stop_cameras();
+
+        // Delete all cameras
+        for (auto cam : cameras)
+          delete cam;
+        cameras.clear();
+        _log_debug("deleted all cameras");
+    }
+
+    /// Stop all cameras.
+    virtual void _stop_cameras() override final {
+        stopped = true;
+        mergedPC_is_fresh = true;
+        mergedPC_want_new = false;
+        mergedPC_is_fresh_cv.notify_all();
+        mergedPC_want_new = true;
+        mergedPC_want_new_cv.notify_all();
+
+        _log_debug("stopping all cameras");
+
+        if (control_thread && control_thread->joinable()) {
+            control_thread->join();
+        }
+
+        delete control_thread;
+        control_thread = nullptr;
+
+        // Stop all cameras
+        for (auto cam : cameras) {
+            cam->pre_stop_camera();
+        }
+        for (auto cam : cameras) {
+            cam->stop_camera();
+        }
+
+        mergedPC_is_fresh = false;
+        mergedPC_want_new = false;
+        _log_debug("stopped all cameras");
+    }
+
+
+    virtual Type_our_camera* get_camera(std::string serial) final {
+        for (auto cam : cameras) {
+            if (cam->serial == serial) {
+                return cam;
+            }
+        }
+
+        return NULL;
+    }
+    /// xxxjack needed? Realsense doesn't have it...
+    virtual cwipc* get_mostRecentPointCloud() final {
+        if (!is_valid()) {
+            return nullptr;
+        }
+
+        // This call cdoesn't need a fresh pointcloud (Jack thinks), but it does need one that is
+        // consistent. So we lock, but don't wait on the condition.
+        std::unique_lock<std::mutex> mylock(mergedPC_mutex);
+        return mergedPC;
+    }
+
+protected:
+    
+    /// Anything that needs to be done to get the camera streams synchronized after opening.
+    /// (Realsense Playback seeks all streams to the same timecode, the earliest one present
+    /// in each stream)
+
 
     virtual void _control_thread_main() final {
         _log_debug_thread("processing thread started");
@@ -501,6 +510,8 @@ protected:
 
         _log_debug_thread("processing thread stopped");
     }
+
+    virtual bool _capture_all_cameras(uint64_t& timestamp) = 0;
 
     virtual void merge_views() final {
         cwipc_pcl_pointcloud aligned_cld(mergedPC->access_pcl_pointcloud());
