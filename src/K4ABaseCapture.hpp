@@ -145,16 +145,16 @@ public:
 protected:
 
     void _unload_cameras() {
-        stop();
+        _stop_cameras();
 
-        // Delete all cameras (which will stop their threads as well)
+        // Delete all cameras
         for (auto cam : cameras)
           delete cam;
         cameras.clear();
         _log_debug("deleted all cameras");
     }
 
-    virtual void stop() final {
+    virtual void _stop_cameras() final {
         stopped = true;
         mergedPC_is_fresh = true;
         mergedPC_want_new = false;
@@ -162,7 +162,7 @@ protected:
         mergedPC_want_new = true;
         mergedPC_want_new_cv.notify_all();
 
-        _log_debug("stopped all cameras");
+        _log_debug("stopping all cameras");
 
         if (control_thread && control_thread->joinable()) {
             control_thread->join();
@@ -181,6 +181,7 @@ protected:
 
         mergedPC_is_fresh = false;
         mergedPC_want_new = false;
+        _log_debug("stopped all cameras");
     }
 
     virtual void _setup_inter_camera_sync() final {
