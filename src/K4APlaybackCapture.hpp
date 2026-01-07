@@ -22,7 +22,6 @@ public:
     }
 
     // methods
-    virtual bool config_reload_and_start_capturing(const char* configFilename) override;
     bool seek(uint64_t timestamp) override;
 
 protected:

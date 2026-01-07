@@ -16,37 +16,6 @@ K4APlaybackCapture::K4APlaybackCapture()
 }
 
 
-bool K4APlaybackCapture::config_reload_and_start_capturing(const char* configFilename) {
-    _unload_cameras();
-
-    //
-    // Read the configuration. We do this only now because for historical reasons the configuration
-    // reader is also the code that checks whether the configuration file contents match the actual
-    // current hardware setup. To be fixed at some point.
-    //
-    if (!_apply_config(configFilename)) {
-        return false;
-    }
-
-    auto camera_count = configuration.all_camera_configs.size();
-    if (camera_count == 0) {
-        return false;
-    }
-    
-
-    _create_cameras();
-    _start_cameras();
-
-    //
-    // start our run thread (which will drive the capturers and merge the pointclouds)
-    //
-    stopped = false;
-    control_thread = new std::thread(&K4APlaybackCapture::_control_thread_main, this);
-    _cwipc_setThreadName(control_thread, L"cwipc_kinect::K4APlaybackCapture::control_thread");
-
-    return true;
-}
-
 bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& camera_handles) {
     if (camera_handles.size() == 0) {
         // no camera connected, so we'll return nothing

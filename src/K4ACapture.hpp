@@ -19,7 +19,6 @@ public:
     static K4ACapture* factory() { return new K4ACapture(); }
     // methods
     virtual ~K4ACapture() {}
-    virtual bool config_reload_and_start_capturing(const char* configFilename) override final;
     bool seek(uint64_t timestamp) override final;
 
 protected:

@@ -14,53 +14,6 @@ int K4ACapture::count_devices() {
     return k4a_device_get_installed_count();
 }
 
-bool K4ACapture::config_reload_and_start_capturing(const char* configFilename) {
-    _unload_cameras();
-
-    //
-    // Read the configuration.
-    //
-    if (!_apply_config(configFilename)) {
-        return false;
-    }
-
-    auto camera_config_count = configuration.all_camera_configs.size();
-    if (camera_config_count == 0) {
-        return false;
-    }
-
-    //
-    // Initialize hardware capture setting (for all cameras)
-    //
-    if (!_init_hardware_for_all_cameras()) {
-        // xxxjack we should really close all cameras too...
-        camera_config_count = 0;
-        return false;
-    }
-
-    _setup_inter_camera_sync();
-
-    // Now we have all the configuration information. Create our K4ACamera objects.
-    if (!_create_cameras()) {
-        _unload_cameras();
-        return false;
-    }
-
-    if (!_check_cameras_connected()) {
-        _unload_cameras();
-        return false;
-    }
-    _start_cameras();
-
-    //
-    // start our run thread (which will drive the capturers and merge the pointclouds)
-    //
-    stopped = false;
-    control_thread = new std::thread(&K4ACapture::_control_thread_main, this);
-    _cwipc_setThreadName(control_thread, L"cwipc_kinect::K4ACapture::control_thread");
-
-    return true;
-}
 
 bool K4ACapture::_apply_auto_config() {
     bool any_failure = false;

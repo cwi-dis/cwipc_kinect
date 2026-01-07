@@ -31,15 +31,62 @@ public:
         _unload_cameras();
     }
 
-    int get_camera_count() override final { 
+    virtual int get_camera_count() override final { 
         return cameras.size(); 
     }
 
-    bool is_valid() override final { 
+    virtual bool is_valid() override final { 
         return cameras.size() > 0; 
     }
     
-    virtual bool config_reload_and_start_capturing(const char* configFilename) override = 0;
+
+    virtual bool config_reload_and_start_capturing(const char* configFilename) override final{
+        _unload_cameras();
+
+        //
+        // Read the configuration.
+        //
+        if (!_apply_config(configFilename)) {
+            return false;
+        }
+
+        auto camera_config_count = configuration.all_camera_configs.size();
+        if (camera_config_count == 0) {
+            return false;
+        }
+
+        //
+        // Initialize hardware capture setting (for all cameras)
+        //
+        if (!_init_hardware_for_all_cameras()) {
+            // xxxjack we should really close all cameras too...
+            camera_config_count = 0;
+            return false;
+        }
+
+        _setup_inter_camera_sync();
+
+        // Now we have all the configuration information. Create our K4ACamera objects.
+        if (!_create_cameras()) {
+            _unload_cameras();
+            return false;
+        }
+
+        if (!_check_cameras_connected()) {
+            _unload_cameras();
+            return false;
+        }
+        _start_cameras();
+
+        //
+        // start our run thread (which will drive the capturers and merge the pointclouds)
+        //
+        stopped = false;
+        control_thread = new std::thread(&K4ABaseCapture::_control_thread_main, this);
+        _cwipc_setThreadName(control_thread, L"cwipc_kinect::K4ABaseCapture::control_thread");
+
+        return true;
+    }
 
     virtual std::string config_get() {
         return configuration.to_string();
