@@ -38,7 +38,7 @@ struct K4ACameraProcessingParameters {
 };
 
 struct K4ACameraConfig : CwipcBaseCameraConfig {
-    void *handle = nullptr; // K4A device handle. xxxjack needs to go.
+    // No extra parameters yet.
 };
 
 struct K4AAuxDataConfig {
