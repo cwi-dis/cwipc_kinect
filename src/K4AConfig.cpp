@@ -58,12 +58,6 @@ void K4ACaptureConfig::_from_json(const json& json_data) {
         json camera_config_json = *it;
         K4ACameraConfig camera_config;
         camera_config._from_json(camera_config_json);
-        if (camera_config.disabled) {
-            // We completely ignore disabled cameras. Unfortunately this also means
-            // they will not show up in the saved configuration, and they will not occupy
-            // a bit in the tilemask.
-            continue; 
-        }
         // xxxjack should check whether the camera with this serial already exists
         config.all_camera_configs.push_back(camera_config);
         camera_index++;
