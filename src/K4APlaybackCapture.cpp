@@ -47,7 +47,7 @@ bool K4APlaybackCapture::config_reload_and_start_capturing(const char* configFil
     return true;
 }
 
-bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& camera_handles, const char *configFilename) {
+bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& camera_handles) {
     if (camera_handles.size() == 0) {
         // no camera connected, so we'll return nothing
         return false;
@@ -64,11 +64,10 @@ bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& cam
 
         if (camerafile.substr(0, 1) != "/") {
             // Relative path (so don''t use windows drive numbers;-)
-            std::string filename_cpp(configFilename);
-            size_t lastSlashPos = filename_cpp.find_last_of("/\\");
+            size_t lastSlashPos = configurationCurrentFilename.find_last_of("/\\");
 
             if (lastSlashPos != std::string::npos) {
-                camerafile = filename_cpp.substr(0, lastSlashPos + 1) + camerafile;
+                camerafile = configurationCurrentFilename.substr(0, lastSlashPos + 1) + camerafile;
             }
         }
 
@@ -138,10 +137,9 @@ bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& cam
 }
 
 bool K4APlaybackCapture::_create_cameras() {
-    const char *configFilename = nullptr;
     auto camera_config_count = configuration.all_camera_configs.size();
     std::vector<Type_api_camera> camera_handles(camera_config_count, nullptr);
-    if (!_open_recording_files(camera_handles, configFilename)) {
+    if (!_open_recording_files(camera_handles)) {
         _unload_cameras();
         return false;
     }

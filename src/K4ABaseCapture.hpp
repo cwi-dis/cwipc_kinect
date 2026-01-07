@@ -237,14 +237,17 @@ protected:
         if (configFilename == NULL || *configFilename == '\0') {
             configFilename = "cameraconfig.json";
         }
+        configurationCurrentFilename = configFilename;
 
         if (strcmp(configFilename, "auto") == 0) {
             // Special case 1: string "auto" means auto-configure all cameras.
+            configurationCurrentFilename = "";
             return _apply_auto_config();
         }
 
         if (configFilename[0] == '{') {
             // Special case 2: a string starting with { is considered a JSON literal
+            configurationCurrentFilename = "";
             return configuration.from_string(configFilename, type);
         }
 
@@ -499,6 +502,8 @@ public:
     // public attributes. Mainly public so they can be accessed
     // from the Camera class.
     K4ACaptureConfig configuration;  //!< Configuration of this capturer
+    std::string configurationCurrentFilename;  //!< Configuration filename
+
 protected:
     // protected attibutes. Accessible from subclasses.
     std::vector<Type_our_camera*> cameras;  //<! Cameras used by this capturer

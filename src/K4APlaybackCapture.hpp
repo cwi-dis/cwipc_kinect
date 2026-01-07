@@ -33,8 +33,8 @@ protected:
 private:
     virtual bool _init_hardware_for_all_cameras() override final { return true; }
     virtual bool _check_cameras_connected() override final { return true;};
-    void _create_cameras(std::vector<Type_api_camera>& camera_handles);
-    bool _open_recording_files(std::vector<Type_api_camera>& camera_handles, const char *configFilename=nullptr); // Open the recordings
+    virtual bool _create_cameras() override final;
+    bool _open_recording_files(std::vector<Type_api_camera>& camera_handles); // Open the recordings
 
     // variables
     bool sync_inuse = false;
