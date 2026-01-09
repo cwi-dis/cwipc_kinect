@@ -897,7 +897,7 @@ protected:
     std::thread* camera_processing_thread = nullptr; //<! Handle for thread that runs processing loop
     std::thread* camera_capturer_thread = nullptr;  //<! Handle for thread that rungs grabber (if applicable)
     K4ACameraConfig& camera_config; //<! Per-camera data for this camera
-    K4ACaptureAuxDataConfig auxData; //<! Auxiliary data configuration
+    K4ACaptureAuxDataConfig& auxData; //<! Auxiliary data configuration
     std::vector<k4abt_skeleton_t> skeletons; //<! Skeletons extracted using the body tracking sdk
     cwipc_pcl_pointcloud current_pointcloud = nullptr;  //<! Most recent grabbed pointcloud
     k4a_transformation_t transformation_handle = nullptr; //<! k4a structure describing relationship between RGB and D cameras
