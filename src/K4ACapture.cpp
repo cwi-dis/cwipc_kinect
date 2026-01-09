@@ -100,7 +100,7 @@ bool K4ACapture::_create_cameras() {
 
 bool K4ACapture::_check_cameras_connected() {
     for (auto& cd : configuration.all_camera_configs) {
-        if (!cd.connected) {
+        if (!cd.connected && !cd.disabled) {
             _log_warning("Camera with serial " + cd.serial + " is not connected");
             return false;
         }
