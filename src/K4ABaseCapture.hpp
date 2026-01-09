@@ -413,31 +413,18 @@ protected:
                 break;
             }
 
-            // And get the best timestamp
+            // If we invent new timestamps, do it now.
             if (configuration.new_timestamps) {
                 timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
             }
 
+            if (configuration.debug) _log_debug("creating pc with ts=" + std::to_string(timestamp));
             // Step 2 - Create pointcloud, and save rgb/depth images if wanted
             cwipc_pcl_pointcloud pcl_pointcloud = new_cwipc_pcl_pointcloud();
-            char* error_str = NULL;
-            cwipc* newPC = cwipc_from_pcl(pcl_pointcloud, timestamp, &error_str, CWIPC_API_VERSION);
+            cwipc* newPC = cwipc_from_pcl(pcl_pointcloud, timestamp, NULL, CWIPC_API_VERSION);
 
-            if (newPC == nullptr) {
-                _log_debug("Failed to create cwipc from pcl pointcloud: " + std::string(error_str ? error_str : "unknown error"));
-                break;
-            }
-
-            if (configuration.auxData.want_auxdata_rgb || configuration.auxData.want_auxdata_depth) {
-                for (auto cam : cameras) {
-                    cam->save_auxdata_images(newPC, configuration.auxData.want_auxdata_rgb, configuration.auxData.want_auxdata_depth);
-                }
-            }
-
-            if (configuration.auxData.want_auxdata_skeleton) {
-                for (auto cam : cameras) {
-                    cam->save_auxdata_skeleton(newPC);
-                }
+            for (auto cam : cameras) {
+                cam->save_frameset_auxdata(newPC);
             }
 
             if (stopped) {
@@ -446,7 +433,7 @@ protected:
 
             // Step 3: start processing frames to pointclouds, for each camera
             for (auto cam : cameras) {
-                cam->create_pc_from_frames();
+                cam->process_pointcloud_from_frameset();
             }
 
             if (stopped) {
@@ -470,7 +457,7 @@ protected:
 
             // Step 4: wait for frame processing to complete.
             for (auto cam : cameras) {
-                cam->wait_for_pc();
+                cam->wait_for_pointcloud_processed();
             }
 
             if (stopped) {
@@ -478,7 +465,7 @@ protected:
             }
 
             // Step 5: merge views
-            merge_views();
+            _merge_camera_pointclouds();
 
             if (mergedPC->access_pcl_pointcloud()->size() > 0) {
                 _log_debug("merged pointcloud has " + std::to_string(mergedPC->access_pcl_pointcloud()->size()) + " points");
@@ -491,21 +478,30 @@ protected:
             mergedPC_is_fresh_cv.notify_all();
         }
 
-        _log_debug_thread("processing thread stopped");
+        if (configuration.debug) _log_debug_thread("processing thread exiting");
     }
 
     virtual bool _capture_all_cameras(uint64_t& timestamp) = 0;
 
-    virtual void merge_views() final {
+    virtual void _request_new_pointcloud() final {
+        std::unique_lock<std::mutex> mylock(mergedPC_mutex);
+
+        if (!mergedPC_want_new && !mergedPC_is_fresh) {
+            mergedPC_want_new = true;
+            mergedPC_want_new_cv.notify_all();
+        }
+    }
+
+    void _merge_camera_pointclouds() {
         cwipc_pcl_pointcloud aligned_cld(mergedPC->access_pcl_pointcloud());
         aligned_cld->clear();
 
         // Pre-allocate space in the merged pointcloud
         size_t nPoints = 0;
         for (auto cam : cameras) {
-            cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
+            cwipc_pcl_pointcloud cam_cld = cam->access_current_pcl_pointcloud();
             if (cam_cld == nullptr) {
-                _log_warning("Returned NULL cloud, ignoring");
+                _log_warning("_merge_camera_pointclouds: camera pointcloud is null for some camera");
                 continue;
             }
 
@@ -516,7 +512,7 @@ protected:
 
         // Now merge all pointclouds
         for (auto cam : cameras) {
-            cwipc_pcl_pointcloud cam_cld = cam->get_current_pointcloud();
+            cwipc_pcl_pointcloud cam_cld = cam->access_current_pcl_pointcloud();
 
             if (cam_cld == nullptr) {
                 continue;
@@ -527,15 +523,6 @@ protected:
 
         if (aligned_cld->size() != nPoints) {
             _log_error("Combined pointcloud has different number of points than expected");
-        }
-    }
-
-    virtual void _request_new_pointcloud() final {
-        std::unique_lock<std::mutex> mylock(mergedPC_mutex);
-
-        if (!mergedPC_want_new && !mergedPC_is_fresh) {
-            mergedPC_want_new = true;
-            mergedPC_want_new_cv.notify_all();
         }
     }
 

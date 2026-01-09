@@ -22,6 +22,7 @@ void K4ACaptureConfig::_from_json(const json& json_data) {
     _CWIPC_CONFIG_JSON_GET(system_data, sync_master_serial, config, sync_master_serial);
     _CWIPC_CONFIG_JSON_GET(system_data, ignore_sync, config, ignore_sync);
     _CWIPC_CONFIG_JSON_GET(system_data, record_to_directory, config, record_to_directory);
+    _CWIPC_CONFIG_JSON_GET(system_data, debug, config, debug);
     _CWIPC_CONFIG_JSON_GET(system_data, new_timestamps, config, new_timestamps);
     _CWIPC_CONFIG_JSON_GET(system_data, color_exposure_time, config.camera_processing, color_exposure_time);
     _CWIPC_CONFIG_JSON_GET(system_data, color_whitebalance, config.camera_processing, color_whitebalance);
@@ -105,6 +106,7 @@ void K4ACaptureConfig::_to_json(json& json_data) {
     _CWIPC_CONFIG_JSON_PUT(system_data, ignore_sync, config, ignore_sync);
     _CWIPC_CONFIG_JSON_PUT(system_data, record_to_directory, config, record_to_directory);
     _CWIPC_CONFIG_JSON_PUT(system_data, new_timestamps, config, new_timestamps);
+    _CWIPC_CONFIG_JSON_PUT(system_data, debug, config, debug);
     _CWIPC_CONFIG_JSON_PUT(system_data, color_exposure_time, config.camera_processing, color_exposure_time);
     _CWIPC_CONFIG_JSON_PUT(system_data, color_whitebalance, config.camera_processing, color_whitebalance);
     _CWIPC_CONFIG_JSON_PUT(system_data, color_brightness, config.camera_processing, color_brightness);

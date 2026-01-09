@@ -132,6 +132,7 @@ bool K4APlaybackCapture::_create_cameras() {
         auto cam = new K4APlaybackCapture::Type_our_camera(camera_handles[i], configuration, camera_index, cd);
         cameras.push_back(cam);
     }
+    return true;
 }
 
 bool K4APlaybackCapture::_capture_all_cameras(uint64_t& timestamp) {

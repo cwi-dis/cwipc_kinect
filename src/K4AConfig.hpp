@@ -41,14 +41,14 @@ struct K4ACameraConfig : CwipcBaseCameraConfig {
     // No extra parameters yet.
 };
 
-struct K4AAuxDataConfig {
+struct K4ACaptureAuxDataConfig {
     bool want_auxdata_rgb = false;
     bool want_auxdata_depth = false;
     bool want_auxdata_skeleton = false;
 };
 
 struct K4ACaptureConfig : CwipcBaseCaptureConfig {
-    K4AAuxDataConfig auxData;
+    K4ACaptureAuxDataConfig auxData;
     int color_height = 720;                     // width of color frame (720, 1080 and various other values allowed, see kinect docs)
     int depth_height = 576;                // width of depth frame (288, 576, 512 and 1024 allowed)
     int fps = 30;                         // capture fps (5, 15 and 30 allowed)
@@ -66,6 +66,7 @@ struct K4ACaptureConfig : CwipcBaseCaptureConfig {
     std::string bt_model_path = "";     // Override k4abt model path
     std::string record_to_directory = ""; // If non-empty all camera streams will be recorded to this directory.
     bool new_timestamps = false; // If true new timestamps are generated (otherwise original timestamps from capture time)
+    bool debug = false; // If true and if the relevant preprocessor symbol is defined print debug output to stdout.
     // We could probably also allow overriding GPU id and model path, but no need for now.
     // per camera data
     std::vector<K4ACameraConfig> all_camera_configs;
