@@ -30,6 +30,9 @@ bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& cam
         
 
         std::string camerafile(configuration.all_camera_configs[i].filename);
+        if (camerafile == "") {
+            camerafile = configuration.all_camera_configs[i].serial + ".mkv";
+        }
 
         if (camerafile.substr(0, 1) != "/") {
             // Relative path (so don''t use windows drive numbers;-)
