@@ -89,6 +89,10 @@ public:
     }
 
     virtual std::string config_get() {
+        // Note: Realsense implementation uses _refresh_camera_hardware_parameters()
+        // to get current hardware paremeters into per-camera configuration, and then
+        // loops over cameras to get it into common config.
+        // Never missed this for Kinect, but that may be oversight.
         return configuration.to_string();
     }
 
@@ -361,16 +365,6 @@ protected:
         _log_debug("stopped all cameras");
     }
 
-
-    virtual Type_our_camera* get_camera(std::string serial) final {
-        for (auto cam : cameras) {
-            if (cam->serial == serial) {
-                return cam;
-            }
-        }
-
-        return NULL;
-    }
 
 protected:
     
