@@ -371,17 +371,6 @@ protected:
 
         return NULL;
     }
-    /// xxxjack needed? Realsense doesn't have it...
-    virtual cwipc* get_mostRecentPointCloud() final {
-        if (!is_valid()) {
-            return nullptr;
-        }
-
-        // This call cdoesn't need a fresh pointcloud (Jack thinks), but it does need one that is
-        // consistent. So we lock, but don't wait on the condition.
-        std::unique_lock<std::mutex> mylock(mergedPC_mutex);
-        return mergedPC;
-    }
 
 protected:
     
