@@ -9,7 +9,7 @@ class K4ACamera : public K4ABaseCamera<k4a_device_t> {
     K4ACamera& operator=(const K4ACamera&); // Disable assignment
 
 public:
-    K4ACamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraConfig& _camData);
+    K4ACamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index);
     virtual ~K4ACamera() {}
 
     // virtual bool pre_start_all_cameras() override final { return true; }

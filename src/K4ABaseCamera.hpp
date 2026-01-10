@@ -44,14 +44,14 @@ typedef union {
 template<typename Type_api_camera> 
 class K4ABaseCamera : public CwipcBaseCamera {
 public:
-    K4ABaseCamera(const std::string& _Classname, Type_api_camera _handle, K4ACaptureConfig& _configuration, int _camera_index, K4ACameraConfig& _camData)
-    :   CwipcBaseCamera(_Classname + ": " + _camData.serial, "kinect"),
+    K4ABaseCamera(const std::string& _Classname, Type_api_camera _handle, K4ACaptureConfig& _configuration, int _camera_index)
+    :   CwipcBaseCamera(_Classname + ": " + _configuration.all_camera_configs[_camera_index].serial, "kinect"),
         configuration(_configuration),
         camera_handle(_handle),
-        camera_config(_camData),
+        camera_config(_configuration.all_camera_configs[_camera_index]),
         auxData(_configuration.auxData),
         camera_index(_camera_index),
-        serial(_camData.serial),
+        serial(_configuration.all_camera_configs[_camera_index].serial),
         captured_frame_queue(1),
         processing_frame_queue(1),
         camera_sync_ismaster(serial == configuration.sync_master_serial),

@@ -89,7 +89,7 @@ bool K4ACapture::_create_cameras() {
             k4a_device_close(handle);
         } else {
             int camera_index = cameras.size();
-            auto cam = _create_single_camera(handle, configuration, camera_index, *cd);
+            auto cam = _create_single_camera(handle, configuration, camera_index);
             cameras.push_back(cam);
             cd->connected = true;
         }

@@ -238,8 +238,8 @@ protected:
         return nullptr;
     }
     /// Create our wrapper around a single camera. Here because it needs to be templated.
-    virtual inline Type_our_camera *_create_single_camera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index, K4ACameraConfig& _camData) final {
-        return new Type_our_camera(_handle, configuration, _camera_index, _camData);
+    virtual inline Type_our_camera *_create_single_camera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index) final {
+        return new Type_our_camera(_handle, configuration, _camera_index);
     }
 
 
