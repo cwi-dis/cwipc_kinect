@@ -55,8 +55,7 @@ public:
         captured_frame_queue(1),
         processing_frame_queue(1),
         camera_sync_ismaster(serial == configuration.sync_master_serial),
-        camera_sync_inuse(configuration.sync_master_serial != ""),
-        do_height_filtering(configuration.height_min != configuration.height_max)
+        camera_sync_inuse(configuration.sync_master_serial != "")
     {
 
     }
@@ -80,7 +79,7 @@ public:
             return false;
         }
         if (auxData.want_auxdata_skeleton) {
-            if (!_init_tracker()) {
+            if (!_init_skeleton_tracker()) {
                 return false;
             }
         }
@@ -111,7 +110,7 @@ protected:
         // xxxjack to be implemented. and used.
     }
 
-    virtual bool _init_tracker() override final {
+    virtual bool _init_skeleton_tracker() override final {
         if (tracker_handle != NULL) {
             return true;
         }
@@ -337,22 +336,22 @@ public:
     {
         float depth = d_2d; // 1000.0; // Note: this comes out of the Depth image, so it is in millimeters
 
-        k4a_float2_t* xy_table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(xy_table);
-        int width = k4a_image_get_width_pixels(xy_table);
-        int height = k4a_image_get_height_pixels(xy_table);
+        k4a_float2_t* uv_factors_for_depth_table = (k4a_float2_t*)(void*)k4a_image_get_buffer(depth_uv_mapping);
+        int width = k4a_image_get_width_pixels(depth_uv_mapping);
+        int height = k4a_image_get_height_pixels(depth_uv_mapping);
         if (y_2d < 0 || y_2d >= height || x_2d < 0 || x_2d >= width) {
             _log_error("map2d3d: requested pixel out of bounds");
             return false;
         }
         int idx = y_2d * width + x_2d;
         cwipc_pcl_point point;
-        point.x = xy_table_data[idx].xy.x * depth;
-        point.y = xy_table_data[idx].xy.y * depth;
+        point.x = uv_factors_for_depth_table[idx].xy.x * depth;
+        point.y = uv_factors_for_depth_table[idx].xy.y * depth;
         point.z = depth;
         if (configuration.camera_processing.map_color_to_depth) {
-            transformDepthToColorPoint(point);
+            _transform_point_depth_to_color(point);
         }
-        transformPoint(point); //transforming from camera to world coordinates
+        _transform_point_cam_to_world(point); //transforming from camera to world coordinates
         out3d[0] = point.x;
         out3d[1] = point.y;
         out3d[2] = point.z;
@@ -429,10 +428,10 @@ protected:
                                 point.z = pos.z;
 
                                 if (!configuration.camera_processing.map_color_to_depth) {
-                                    transformDepthToColorPoint(point);
+                                    _transform_point_depth_to_color(point);
                                 }
 
-                                transformPoint(point);
+                                _transform_point_cam_to_world(point);
                                 pos.x = point.x;
                                 pos.y = point.y;
                                 pos.z = point.z;
@@ -681,10 +680,152 @@ protected:
         return rv;
     }
 
-    virtual cwipc_pcl_pointcloud generate_point_cloud(const k4a_image_t point_cloud_image, const k4a_image_t color_image) final {
+    /// Create the depth to color UV mapping table. Doing this ourselves in
+    /// stead of relying on the Kinect SDK turns out to be much faster.
+    virtual void _create_depth_uv_mapping(const k4a_calibration_t* calibration) {
+        int width;
+        int height;
+
+        if (configuration.camera_processing.map_color_to_depth) {
+            width = calibration->depth_camera_calibration.resolution_width;
+            height = calibration->depth_camera_calibration.resolution_height;
+        } else {
+            width = calibration->color_camera_calibration.resolution_width;
+            height = calibration->color_camera_calibration.resolution_height;
+        }
+
+        k4a_result_t status;
+        status = k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
+            width,
+            height,
+            width * (int)sizeof(k4a_float2_t),
+            &depth_uv_mapping
+        );
+
+        if (status != K4A_RESULT_SUCCEEDED) {
+            _log_error("Failed to create XY table image: " + std::to_string(status));
+            return;
+        }
+
+        k4a_float2_t* table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(depth_uv_mapping);
+
+        k4a_float2_t p;
+        k4a_float3_t ray;
+        int valid;
+
+        for (int y = 0, idx = 0; y < height; y++) {
+            p.xy.y = (float)y;
+
+            for (int x = 0; x < width; x++, idx++) {
+                p.xy.x = (float)x;
+
+                if (configuration.camera_processing.map_color_to_depth) {
+                    k4a_calibration_2d_to_3d(
+                        calibration, &p, 1.f, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_DEPTH, &ray, &valid
+                    );
+                } else {
+                    k4a_calibration_2d_to_3d(
+                        calibration, &p, 1.f, K4A_CALIBRATION_TYPE_COLOR, K4A_CALIBRATION_TYPE_COLOR, &ray, &valid
+                    );
+                }
+
+                if (valid) {
+                    table_data[idx].xy.x = ray.xyz.x;
+                    table_data[idx].xy.y = ray.xyz.y;
+                } else {
+                    table_data[idx].xy.x = nanf("");
+                    table_data[idx].xy.y = nanf("");
+                }
+            }
+        }
+    }
+
+    virtual cwipc_pcl_pointcloud generate_point_cloud_v2(const k4a_image_t depth_image, k4a_image_t color_image) {
+        int width = k4a_image_get_width_pixels(depth_image);
+        int height = k4a_image_get_height_pixels(depth_image);
+
+        float height_min = configuration.height_min;
+        float height_max = configuration.height_max;
+        bool do_height_filtering = height_min < height_max;
+        bool do_greenscreen_removal = configuration.greenscreen_removal;
+        bool do_radius_filtering = configuration.radius_filter > 0;
+
+        //access depth and color data
+        uint16_t* depth_data = (uint16_t*)(void*)k4a_image_get_buffer(depth_image);
+        k4a_float2_t* uv_factors_for_depth_table = (k4a_float2_t*)(void*)k4a_image_get_buffer(depth_uv_mapping);
+        cwi_bgra_t* color_data = (cwi_bgra_t*)(void*)k4a_image_get_buffer(color_image);
+
+        cwipc_pcl_pointcloud new_cloud = new_cwipc_pcl_pointcloud();
+        new_cloud->clear();
+        new_cloud->reserve(width * height);
+
+        for (int i = 0; i < width * height; i++) {
+            if (depth_data[i] != 0 && !isnan(uv_factors_for_depth_table[i].xy.x) && !isnan(uv_factors_for_depth_table[i].xy.y)) {
+                cwipc_pcl_point point;
+                point.x = uv_factors_for_depth_table[i].xy.x * (float)depth_data[i];
+                point.y = uv_factors_for_depth_table[i].xy.y * (float)depth_data[i];
+                point.z = (float)depth_data[i];
+                point.b = color_data[i].bgra.b;
+                point.g = color_data[i].bgra.g;
+                point.r = color_data[i].bgra.r;
+                point.a = (uint8_t)1 << camera_index;
+
+                if (configuration.camera_processing.map_color_to_depth) {
+                    _transform_point_depth_to_color(point);
+                }
+                _transform_point_cam_to_world(point); //transforming from camera to world coordinates
+
+                if (do_height_filtering && (point.y < height_min || point.y > height_max)) { //height filtering
+                    continue;
+                }
+
+                if (do_radius_filtering && !isPointInRadius(point, configuration.radius_filter)) {
+                    continue;
+                }
+
+                if (configuration.greenscreen_removal && !isNotGreen(&point)) { //chromakey removal
+                    continue;
+                }
+
+                //point passed all filters, so we add this to the pointcloud
+                new_cloud->push_back(point);
+            }
+        }
+        _log_debug_thread("produced " + std::to_string(new_cloud->size()) + " points");
+        return new_cloud;
+    }
+
+    /// Convert a 3D point from camera coordinates to world coordinates.
+    virtual void _transform_point_cam_to_world(cwipc_pcl_point& pt) final {
+        float x = pt.x / 1000.0;
+        float y = pt.y / 1000.0;
+        float z = pt.z / 1000.0;
+        pt.x = (*camera_config.trafo)(0,0)*x + (*camera_config.trafo)(0,1)*y + (*camera_config.trafo)(0,2)*z + (*camera_config.trafo)(0,3);
+        pt.y = (*camera_config.trafo)(1,0)*x + (*camera_config.trafo)(1,1)*y + (*camera_config.trafo)(1,2)*z + (*camera_config.trafo)(1,3);
+        pt.z = (*camera_config.trafo)(2,0)*x + (*camera_config.trafo)(2,1)*y + (*camera_config.trafo)(2,2)*z + (*camera_config.trafo)(2,3);
+    }
+
+    /// Convert a 3D point from depth camera coordinates to color camera coordinates.
+    virtual void _transform_point_depth_to_color(cwipc_pcl_point& pt) final {
+        float x = pt.x;
+        float y = pt.y;
+        float z = pt.z;
+        float *rotation = depth_to_color_extrinsics.rotation;
+        float *translation = depth_to_color_extrinsics.translation;
+        pt.x = rotation[0] * x + rotation[1] * y + rotation[2] * z + translation[0];
+        pt.y = rotation[3] * x + rotation[4] * y + rotation[5] * z + translation[1];
+        pt.z = rotation[6] * x + rotation[7] * y + rotation[8] * z + translation[2];
+    }
+    /// Optionally uncompress color image.
+    /// For code simplicity this always returns a value k4a_image_t, even though it may be wrong.
+    virtual k4a_image_t _uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) = 0;
+
+    /// Old method to create point cloud from point cloud image and color image.
+    /// Kept for referrence, because the new method generate_point_cloud_v2 is much faster.
+    virtual cwipc_pcl_pointcloud _old_generate_point_cloud(const k4a_image_t point_cloud_image, const k4a_image_t color_image) final {
         int width = k4a_image_get_width_pixels(point_cloud_image);
         int height = k4a_image_get_height_pixels(color_image);
-
+        bool do_height_filtering = configuration.height_min != 0 || configuration.height_max != 0;
         uint8_t * color_data = k4a_image_get_buffer(color_image);
         int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
 
@@ -726,10 +867,10 @@ protected:
             point.z = z;
 
             if (configuration.camera_processing.map_color_to_depth) {
-              transformDepthToColorPoint(point);
+              _transform_point_depth_to_color(point);
             }
 
-            transformPoint(point);
+            _transform_point_cam_to_world(point);
 
             if (configuration.radius_filter > 0.0) { // apply radius filter
                 if(!isPointInRadius(point, configuration.radius_filter)) {
@@ -748,141 +889,6 @@ protected:
         _log_debug_thread("produced " + std::to_string(new_cloud->size()) + " points");
         return new_cloud;
     }
-
-    virtual void create_xy_table(const k4a_calibration_t* calibration) {
-        int width;
-        int height;
-
-        if (configuration.camera_processing.map_color_to_depth) {
-            width = calibration->depth_camera_calibration.resolution_width;
-            height = calibration->depth_camera_calibration.resolution_height;
-        } else {
-            width = calibration->color_camera_calibration.resolution_width;
-            height = calibration->color_camera_calibration.resolution_height;
-        }
-
-        k4a_result_t status;
-        status = k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
-            width,
-            height,
-            width * (int)sizeof(k4a_float2_t),
-            &xy_table
-        );
-
-        if (status != K4A_RESULT_SUCCEEDED) {
-            _log_error("Failed to create XY table image: " + std::to_string(status));
-            return;
-        }
-
-        k4a_float2_t* table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(xy_table);
-
-        k4a_float2_t p;
-        k4a_float3_t ray;
-        int valid;
-
-        for (int y = 0, idx = 0; y < height; y++) {
-            p.xy.y = (float)y;
-
-            for (int x = 0; x < width; x++, idx++) {
-                p.xy.x = (float)x;
-
-                if (configuration.camera_processing.map_color_to_depth) {
-                    k4a_calibration_2d_to_3d(
-                        calibration, &p, 1.f, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_DEPTH, &ray, &valid
-                    );
-                } else {
-                    k4a_calibration_2d_to_3d(
-                        calibration, &p, 1.f, K4A_CALIBRATION_TYPE_COLOR, K4A_CALIBRATION_TYPE_COLOR, &ray, &valid
-                    );
-                }
-
-                if (valid) {
-                    table_data[idx].xy.x = ray.xyz.x;
-                    table_data[idx].xy.y = ray.xyz.y;
-                } else {
-                    table_data[idx].xy.x = nanf("");
-                    table_data[idx].xy.y = nanf("");
-                }
-            }
-        }
-    }
-
-    virtual cwipc_pcl_pointcloud generate_point_cloud_v2(const k4a_image_t depth_image, k4a_image_t color_image) {
-        int width = k4a_image_get_width_pixels(depth_image);
-        int height = k4a_image_get_height_pixels(depth_image);
-
-        float min_depth = (configuration.camera_processing.threshold_near);
-        float max_depth = (configuration.camera_processing.threshold_far);
-
-        //access depth and color data
-        uint16_t* depth_data = (uint16_t*)(void*)k4a_image_get_buffer(depth_image);
-        k4a_float2_t* xy_table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(xy_table);
-        cwi_bgra_t* color_data = (cwi_bgra_t*)(void*)k4a_image_get_buffer(color_image);
-
-        cwipc_pcl_pointcloud new_cloud = new_cwipc_pcl_pointcloud();
-        new_cloud->clear();
-        new_cloud->reserve(width * height);
-
-        for (int i = 0; i < width * height; i++) {
-            if (depth_data[i] != 0 && !isnan(xy_table_data[i].xy.x) && !isnan(xy_table_data[i].xy.y)) {
-                cwipc_pcl_point point;
-                point.x = xy_table_data[i].xy.x * (float)depth_data[i];
-                point.y = xy_table_data[i].xy.y * (float)depth_data[i];
-                point.z = (float)depth_data[i];
-                point.b = color_data[i].bgra.b;
-                point.g = color_data[i].bgra.g;
-                point.r = color_data[i].bgra.r;
-                point.a = (uint8_t)1 << camera_index;
-
-                if (configuration.camera_processing.map_color_to_depth) {
-                    transformDepthToColorPoint(point);
-                }
-                transformPoint(point); //transforming from camera to world coordinates
-
-                if (do_height_filtering && (point.y < configuration.height_min || point.y > configuration.height_max)) { //height filtering
-                    continue;
-                }
-
-                if (configuration.radius_filter > 0.0) { // apply radius filter
-                    if (!isPointInRadius(point, configuration.radius_filter)) {
-                        continue;
-                    }
-                }
-
-                if (configuration.greenscreen_removal && !isNotGreen(&point)) { //chromakey removal
-                    continue;
-                }
-
-                //point passed all filters, so we add this to the pointcloud
-                new_cloud->push_back(point);
-            }
-        }
-        _log_debug_thread("produced " + std::to_string(new_cloud->size()) + " points");
-        return new_cloud;
-    }
-
-    virtual void transformPoint(cwipc_pcl_point& pt) final {
-        float x = pt.x / 1000.0;
-        float y = pt.y / 1000.0;
-        float z = pt.z / 1000.0;
-        pt.x = (*camera_config.trafo)(0,0)*x + (*camera_config.trafo)(0,1)*y + (*camera_config.trafo)(0,2)*z + (*camera_config.trafo)(0,3);
-        pt.y = (*camera_config.trafo)(1,0)*x + (*camera_config.trafo)(1,1)*y + (*camera_config.trafo)(1,2)*z + (*camera_config.trafo)(1,3);
-        pt.z = (*camera_config.trafo)(2,0)*x + (*camera_config.trafo)(2,1)*y + (*camera_config.trafo)(2,2)*z + (*camera_config.trafo)(2,3);
-    }
-
-    virtual void transformDepthToColorPoint(cwipc_pcl_point& pt) final {
-        float x = pt.x;
-        float y = pt.y;
-        float z = pt.z;
-        float *rotation = depth_to_color_extrinsics.rotation;
-        float *translation = depth_to_color_extrinsics.translation;
-        pt.x = rotation[0] * x + rotation[1] * y + rotation[2] * z + translation[0];
-        pt.y = rotation[3] * x + rotation[4] * y + rotation[5] * z + translation[1];
-        pt.z = rotation[6] * x + rotation[7] * y + rotation[8] * z + translation[2];
-    }
-    /// Optionally uncompress color image.
-    /// For code simplicity this always returns a value k4a_image_t, even though it may be wrong.
-    virtual k4a_image_t _uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) = 0;
 public:
     float pointSize = 0;  //<! (Approximate) 3D cellsize of pointclouds captured by this camera
     std::string serial; //<! Serial number for this camera
@@ -906,7 +912,6 @@ protected:
     k4a_capture_t current_frameset = nullptr; //<! Current frame being moved from captured_frame_queue to processing_frame_queue
     bool camera_sync_ismaster;  //<! Parameter from camData xxxjack needs to go
     bool camera_sync_inuse; //<! Parameter from camData xxxjack needs to go
-    bool do_height_filtering; //<! Parameter from camData xxxjack needs to go
     std::mutex processing_mutex;  //<! Exclusive lock for frame to pointcloud processing.
     std::condition_variable processing_done_cv; //<! Condition variable signalling pointcloud ready
     bool processing_done = false; //<! Boolean for processing_done_cv
@@ -914,6 +919,6 @@ protected:
     k4abt_tracker_t tracker_handle = nullptr; //<! Handle to k4abt skeleton tracker
     k4a_calibration_t sensor_calibration; //<! k4a calibration data read from hardware camera or recording
     k4a_calibration_extrinsics_t depth_to_color_extrinsics; //<! k4a calibration data read from hardware camera or recording
-    k4a_image_t xy_table = NULL;
+    k4a_image_t depth_uv_mapping = NULL;
     std::string record_to_file; //<! If non-empty: file to record the captured streams to.
 };

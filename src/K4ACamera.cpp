@@ -16,6 +16,59 @@ K4ACamera::K4ACamera(Type_api_camera _handle, K4ACaptureConfig& configuration, i
     _init_filters();
 }
 
+// Configure and initialize caputuring of one camera
+bool K4ACamera::start_camera() {
+    assert(camera_stopped);
+    assert(camera_capturer_thread == nullptr);
+    assert(camera_processing_thread == nullptr);
+    k4a_device_configuration_t device_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+    if (!_prepare_config_for_starting_camera(device_config)) {
+        return false;
+    }
+    // xxxjack this is where we should open camera_handle.
+
+    // xxxjack this block is for fast pointcloud generation.
+    if (K4A_RESULT_SUCCEEDED != k4a_device_get_calibration(camera_handle, device_config.depth_mode, device_config.color_resolution, &sensor_calibration)) {
+        _log_error("k4a_device_get_calibration failed");
+        return false;
+    }
+
+    depth_to_color_extrinsics = sensor_calibration.extrinsics[0][1];
+    transformation_handle = k4a_transformation_create(&sensor_calibration);
+
+    if (depth_uv_mapping == NULL) { // generate depth_uv_mapping for the fast pc_gen v2
+        _create_depth_uv_mapping(&sensor_calibration);
+    }
+    // xxxjack end of block
+
+    k4a_result_t res = k4a_device_start_cameras(camera_handle, &device_config);
+    if (res != K4A_RESULT_SUCCEEDED) {
+        _log_error("k4a_device_start_cameras failed");
+        return false;
+    }
+     if (record_to_file != "") {
+        k4a_record_t _recorder;
+        _log_trace("starting recording to " + record_to_file);
+        res = k4a_record_create(record_to_file.c_str(), camera_handle, device_config, &_recorder);
+        if (res != K4A_RESULT_SUCCEEDED) {
+            _log_error("k4a_record_create failed for file " + record_to_file);
+            return false;
+        }
+        res = k4a_record_write_header(_recorder);
+        if (res != K4A_RESULT_SUCCEEDED) {
+            _log_error("k4a_record_write_header failed for file " + record_to_file);
+            return false;
+        }
+        recorder = _recorder;
+    }
+    _log_debug("camera started");
+
+    // xxxjack rs2 has _post_start()
+    // xxxjack rs2 has _ComputePointSize()
+    camera_started = true;
+    return true;
+}
+
 bool K4ACamera::capture_frameset() {
     if (camera_stopped) {
         return false;
@@ -48,59 +101,6 @@ bool K4ACamera::capture_frameset() {
 #endif
 
     return rv;
-}
-
-// Configure and initialize caputuring of one camera
-bool K4ACamera::start_camera() {
-    assert(camera_stopped);
-    assert(camera_capturer_thread == nullptr);
-    assert(camera_processing_thread == nullptr);
-    k4a_device_configuration_t device_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-    if (!_prepare_config_for_starting_camera(device_config)) {
-        return false;
-    }
-    // xxxjack this is where we should open camera_handle.
-
-    // xxxjack this block is for fast pointcloud generation.
-    if (K4A_RESULT_SUCCEEDED != k4a_device_get_calibration(camera_handle, device_config.depth_mode, device_config.color_resolution, &sensor_calibration)) {
-        _log_error("k4a_device_get_calibration failed");
-        return false;
-    }
-
-    depth_to_color_extrinsics = sensor_calibration.extrinsics[0][1];
-    transformation_handle = k4a_transformation_create(&sensor_calibration);
-
-    if (xy_table == NULL) { // generate xy_table for the fast pc_gen v2
-        create_xy_table(&sensor_calibration);
-    }
-    // xxxjack end of block
-
-    k4a_result_t res = k4a_device_start_cameras(camera_handle, &device_config);
-    if (res != K4A_RESULT_SUCCEEDED) {
-        _log_error("k4a_device_start_cameras failed");
-        return false;
-    }
-     if (record_to_file != "") {
-        k4a_record_t _recorder;
-        _log_trace("starting recording to " + record_to_file);
-        res = k4a_record_create(record_to_file.c_str(), camera_handle, device_config, &_recorder);
-        if (res != K4A_RESULT_SUCCEEDED) {
-            _log_error("k4a_record_create failed for file " + record_to_file);
-            return false;
-        }
-        res = k4a_record_write_header(_recorder);
-        if (res != K4A_RESULT_SUCCEEDED) {
-            _log_error("k4a_record_write_header failed for file " + record_to_file);
-            return false;
-        }
-        recorder = _recorder;
-    }
-    _log_debug("camera started");
-
-    // xxxjack rs2 has _post_start()
-    // xxxjack rs2 has _ComputePointSize()
-    camera_started = true;
-    return true;
 }
 
 bool K4ACamera::_prepare_config_for_starting_camera(k4a_device_configuration_t& device_config) {

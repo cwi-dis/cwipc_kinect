@@ -65,6 +65,62 @@ void K4ACaptureConfig::_from_json(const json& json_data) {
     }
 }
 
+void K4ACaptureConfig::_from_json_v4(const json& json_data) {
+    CwipcBaseCaptureConfig::_from_json(json_data);
+    K4ACaptureConfig& config = *this;
+    // version and type should already have been checked.
+
+    json system_data = json_data.at("system");
+    _CWIPC_CONFIG_JSON_GET(system_data, color_height, config, color_height);
+    _CWIPC_CONFIG_JSON_GET(system_data, depth_height, config, depth_height);
+    _CWIPC_CONFIG_JSON_GET(system_data, fps, config, fps);
+    _CWIPC_CONFIG_JSON_GET(system_data, single_tile, config, single_tile);
+    _CWIPC_CONFIG_JSON_GET(system_data, sync_master_serial, config, sync_master_serial);
+    _CWIPC_CONFIG_JSON_GET(system_data, ignore_sync, config, ignore_sync);
+    _CWIPC_CONFIG_JSON_GET(system_data, record_to_directory, config, record_to_directory);
+    _CWIPC_CONFIG_JSON_GET(system_data, debug, config, debug);
+    _CWIPC_CONFIG_JSON_GET(system_data, new_timestamps, config, new_timestamps);
+    _CWIPC_CONFIG_JSON_GET(system_data, color_exposure_time, config.camera_processing, color_exposure_time);
+    _CWIPC_CONFIG_JSON_GET(system_data, color_whitebalance, config.camera_processing, color_whitebalance);
+    _CWIPC_CONFIG_JSON_GET(system_data, color_brightness, config.camera_processing, color_brightness);
+    _CWIPC_CONFIG_JSON_GET(system_data, color_contrast, config.camera_processing, color_contrast);
+    _CWIPC_CONFIG_JSON_GET(system_data, color_saturation, config.camera_processing, color_saturation);
+    _CWIPC_CONFIG_JSON_GET(system_data, color_gain, config.camera_processing, color_gain);
+    _CWIPC_CONFIG_JSON_GET(system_data, color_powerline_frequency, config.camera_processing, color_powerline_frequency);
+    _CWIPC_CONFIG_JSON_GET(system_data, map_color_to_depth, config.camera_processing, map_color_to_depth);
+    
+    json postprocessing = json_data.at("postprocessing");
+    _CWIPC_CONFIG_JSON_GET(postprocessing, greenscreenremoval, config, greenscreen_removal);
+    _CWIPC_CONFIG_JSON_GET(postprocessing, height_min, config, height_min);
+    _CWIPC_CONFIG_JSON_GET(postprocessing, height_max, config, height_max);
+    _CWIPC_CONFIG_JSON_GET(postprocessing, radius_filter, config, radius_filter);
+
+    json depthfilterparameters = postprocessing.at("depthfilterparameters");
+    _CWIPC_CONFIG_JSON_GET(depthfilterparameters, do_threshold, config.camera_processing, do_threshold);
+    _CWIPC_CONFIG_JSON_GET(depthfilterparameters, threshold_near, config.camera_processing, threshold_near);
+    _CWIPC_CONFIG_JSON_GET(depthfilterparameters, threshold_far, config.camera_processing, threshold_far);
+    _CWIPC_CONFIG_JSON_GET(depthfilterparameters, depth_x_erosion, config.camera_processing, depth_x_erosion);
+    _CWIPC_CONFIG_JSON_GET(depthfilterparameters, depth_y_erosion, config.camera_processing, depth_y_erosion);
+
+    json skeleton = json_data.at("skeleton");
+    _CWIPC_CONFIG_JSON_GET(skeleton, sensor_orientation, config, bt_sensor_orientation);
+    _CWIPC_CONFIG_JSON_GET(skeleton, processing_mode, config, bt_processing_mode);
+    _CWIPC_CONFIG_JSON_GET(skeleton, model_path, config, bt_model_path);
+
+    json cameras = json_data.at("camera");
+    int camera_index = 0;
+    config.all_camera_configs.clear();
+
+    for (json::iterator it = cameras.begin(); it != cameras.end(); it++) {
+        json camera_config_json = *it;
+        K4ACameraConfig camera_config;
+        camera_config._from_json(camera_config_json);
+        // xxxjack should check whether the camera with this serial already exists
+        config.all_camera_configs.push_back(camera_config);
+        camera_index++;
+    }
+}
+
 void K4ACaptureConfig::_to_json(json& json_data) {
     CwipcBaseCaptureConfig::_to_json(json_data);
     K4ACaptureConfig& config = *this;
@@ -141,8 +197,8 @@ bool K4ACaptureConfig::from_file(const char* filename, std::string typeWanted) {
         int version = 0;
         json_data.at("version").get_to(version);
 
-        if (version != 3 && version != 4) {
-            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + " ignored, is not version 3 or 4");
+        if (version != 3 && version != 4 && version != 5) {
+            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + " ignored, is not version 3, 4 or 5");
             return false;
         }
 
@@ -153,8 +209,11 @@ bool K4ACaptureConfig::from_file(const char* filename, std::string typeWanted) {
             cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + " ignored, is not " + typeWanted + " but " + type);
             return false;
         }
-
-        _from_json(json_data);
+        if (version < 5) {
+            _from_json_v4(json_data);
+        } else {
+            _from_json(json_data);
+        }
     } catch (const std::exception& e) {
         cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + ": exception " + e.what());
         return false;

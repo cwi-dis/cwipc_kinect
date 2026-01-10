@@ -169,8 +169,8 @@ bool K4APlaybackCamera::start_camera() {
     depth_to_color_extrinsics = sensor_calibration.extrinsics[0][1];
     transformation_handle = k4a_transformation_create(&sensor_calibration);
 
-    if (xy_table == NULL) { // generate xy_table for the fast pc_gen v2
-        create_xy_table(&sensor_calibration);
+    if (depth_uv_mapping == NULL) { // generate depth_uv_mapping for the fast pc_gen v2
+        _create_depth_uv_mapping(&sensor_calibration);
     }
 
     //Get file config for further use of the parameters.
@@ -254,16 +254,18 @@ k4a_image_t K4APlaybackCamera::_uncompress_color_image(k4a_capture_t capture, k4
     assert(capture);
     assert(color_image);
 
+    if (k4a_image_get_format(color_image) != K4A_IMAGE_FORMAT_COLOR_MJPG) {
+        // Not the format we expect. Return as-is.
+        if (k4a_image_get_format(color_image) != K4A_IMAGE_FORMAT_COLOR_BGRA32) {
+            _log_error("Color image format is not MJPG or BGRA32, cannot decompress");
+        }
+        return color_image;
+    }
+
     k4a_image_t uncompressed_color_image = nullptr;
 
     int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
     int color_image_height_pixels = k4a_image_get_height_pixels(color_image);
-
-    if (k4a_image_get_format(color_image) != K4A_IMAGE_FORMAT_COLOR_MJPG) {
-        // Not the format we expect. Return as-is.
-        _log_warning("Color image format is not MJPG, no decompression needed");
-        return color_image;
-    }
 
     //COLOR image is JPEG compressed. we need to convert the image to BGRA format.
     if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
