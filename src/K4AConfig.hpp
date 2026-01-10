@@ -23,8 +23,18 @@ struct K4ACameraProcessingParameters {
     bool do_threshold = true;
     double threshold_near = 0.15;         // float, near point for distance threshold
     double threshold_far = 6.0;           // float, far point for distance threshold
-    int depth_x_erosion = 0;        // How many valid depth pixels to remove in camera x direction
-    int depth_y_erosion = 0;        // How many valid depth pixels to remove in camera y direction
+    bool map_color_to_depth = false; // default DEPTH_TO_COLOR
+};
+
+struct K4ACameraConfig : CwipcBaseCameraConfig {
+    // No extra parameters yet.
+};
+
+
+struct K4ACameraHardwareConfig {
+    int color_height = 720;         // width of color frame (720, 1080 and various other values allowed, see kinect docs)
+    int depth_height = 576;         // width of depth frame (288, 576, 512 and 1024 allowed)
+    int fps = 30;                   // capture fps (5, 15 and 30 allowed)
     int32_t color_exposure_time = -1;     // default for manual: 40000;
     int32_t color_whitebalance = -1;   // default for manual: 3160; range(2500-12500)
     int32_t color_backlight_compensation = 0;     // default for manual: 0;
@@ -34,11 +44,26 @@ struct K4ACameraProcessingParameters {
     int32_t color_sharpness = 2;         // default for manual: 2;
     int32_t color_gain = 0;              // default for manual: 100;
     int32_t color_powerline_frequency = 2;     // default for manual: 2;
-    bool map_color_to_depth = false; // default DEPTH_TO_COLOR
 };
 
-struct K4ACameraConfig : CwipcBaseCameraConfig {
-    // No extra parameters yet.
+struct K4ACaptureProcessingConfig {
+    bool greenscreen_removal = false;   // If true include greenscreen removal
+    int depth_x_erosion = 0;        // How many valid depth pixels to remove in camera x direction
+    int depth_y_erosion = 0;        // How many valid depth pixels to remove in camera y direction
+    double height_min = 0.0;        // If height_min != height_max perform height filtering
+    double height_max = 0.0;        // If height_min != height_max perform height filtering
+    double radius_filter = 0.0;     // If radius_filter > 0 we will remove all points further than radius_filter from the (0,1,0) axis
+};
+
+struct K4ACaptureSyncConfig {
+    std::string sync_master_serial = "";  // If empty run without sync. If non-empty this camera is the sync master
+    bool ignore_sync = false;  // If true dont look at camera master/sub mode in files.
+};
+
+struct K4ASkeletonConfig {
+    int bt_sensor_orientation = -1; // Override k4abt sensor_orientation (if >= 0)
+    int bt_processing_mode = -1;  // Override k4abt processing_mode (if >= 0)
+    std::string bt_model_path = "";     // Override k4abt model path
 };
 
 struct K4ACaptureAuxDataConfig {
@@ -48,22 +73,15 @@ struct K4ACaptureAuxDataConfig {
 };
 
 struct K4ACaptureConfig : CwipcBaseCaptureConfig {
+    K4ACaptureProcessingConfig processing;
+    K4ACameraProcessingParameters filtering;
+    K4ACameraHardwareConfig hardware;
+    K4ACaptureSyncConfig sync;
+    K4ASkeletonConfig skeleton;
     K4ACaptureAuxDataConfig auxData;
-    int color_height = 720;                     // width of color frame (720, 1080 and various other values allowed, see kinect docs)
-    int depth_height = 576;                // width of depth frame (288, 576, 512 and 1024 allowed)
-    int fps = 30;                         // capture fps (5, 15 and 30 allowed)
-    bool greenscreen_removal = false;   // If true include greenscreen removal
-    double height_min = 0.0;        // If height_min != height_max perform height filtering
-    double height_max = 0.0;        // If height_min != height_max perform height filtering
-    double radius_filter = 0.0;     // If radius_filter > 0 we will remove all points further than radius_filter from the (0,1,0) axis
     int single_tile = -1;       // if singletile >=0 all the points will be the specified integer
 
-    std::string sync_master_serial = "";  // If empty run without sync. If non-empty this camera is the sync master
-    bool ignore_sync = false;  // If true dont look at camera master/sub mode in files.
     K4ACameraProcessingParameters camera_processing;
-    int bt_sensor_orientation = -1; // Override k4abt sensor_orientation (if >= 0)
-    int bt_processing_mode = -1;  // Override k4abt processing_mode (if >= 0)
-    std::string bt_model_path = "";     // Override k4abt model path
     std::string record_to_directory = ""; // If non-empty all camera streams will be recorded to this directory.
     bool new_timestamps = false; // If true new timestamps are generated (otherwise original timestamps from capture time)
     bool debug = false; // If true and if the relevant preprocessor symbol is defined print debug output to stdout.

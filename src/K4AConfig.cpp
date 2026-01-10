@@ -15,41 +15,52 @@ void K4ACaptureConfig::_from_json(const json& json_data) {
     // version and type should already have been checked.
 
     json system_data = json_data.at("system");
-    _CWIPC_CONFIG_JSON_GET(system_data, color_height, config, color_height);
-    _CWIPC_CONFIG_JSON_GET(system_data, depth_height, config, depth_height);
-    _CWIPC_CONFIG_JSON_GET(system_data, fps, config, fps);
     _CWIPC_CONFIG_JSON_GET(system_data, single_tile, config, single_tile);
-    _CWIPC_CONFIG_JSON_GET(system_data, sync_master_serial, config, sync_master_serial);
-    _CWIPC_CONFIG_JSON_GET(system_data, ignore_sync, config, ignore_sync);
     _CWIPC_CONFIG_JSON_GET(system_data, record_to_directory, config, record_to_directory);
     _CWIPC_CONFIG_JSON_GET(system_data, debug, config, debug);
     _CWIPC_CONFIG_JSON_GET(system_data, new_timestamps, config, new_timestamps);
-    _CWIPC_CONFIG_JSON_GET(system_data, color_exposure_time, config.camera_processing, color_exposure_time);
-    _CWIPC_CONFIG_JSON_GET(system_data, color_whitebalance, config.camera_processing, color_whitebalance);
-    _CWIPC_CONFIG_JSON_GET(system_data, color_brightness, config.camera_processing, color_brightness);
-    _CWIPC_CONFIG_JSON_GET(system_data, color_contrast, config.camera_processing, color_contrast);
-    _CWIPC_CONFIG_JSON_GET(system_data, color_saturation, config.camera_processing, color_saturation);
-    _CWIPC_CONFIG_JSON_GET(system_data, color_gain, config.camera_processing, color_gain);
-    _CWIPC_CONFIG_JSON_GET(system_data, color_powerline_frequency, config.camera_processing, color_powerline_frequency);
-    _CWIPC_CONFIG_JSON_GET(system_data, map_color_to_depth, config.camera_processing, map_color_to_depth);
-    
-    json postprocessing = json_data.at("postprocessing");
-    _CWIPC_CONFIG_JSON_GET(postprocessing, greenscreenremoval, config, greenscreen_removal);
-    _CWIPC_CONFIG_JSON_GET(postprocessing, height_min, config, height_min);
-    _CWIPC_CONFIG_JSON_GET(postprocessing, height_max, config, height_max);
-    _CWIPC_CONFIG_JSON_GET(postprocessing, radius_filter, config, radius_filter);
-
-    json depthfilterparameters = postprocessing.at("depthfilterparameters");
-    _CWIPC_CONFIG_JSON_GET(depthfilterparameters, do_threshold, config.camera_processing, do_threshold);
-    _CWIPC_CONFIG_JSON_GET(depthfilterparameters, threshold_near, config.camera_processing, threshold_near);
-    _CWIPC_CONFIG_JSON_GET(depthfilterparameters, threshold_far, config.camera_processing, threshold_far);
-    _CWIPC_CONFIG_JSON_GET(depthfilterparameters, depth_x_erosion, config.camera_processing, depth_x_erosion);
-    _CWIPC_CONFIG_JSON_GET(depthfilterparameters, depth_y_erosion, config.camera_processing, depth_y_erosion);
-
-    json skeleton = json_data.at("skeleton");
-    _CWIPC_CONFIG_JSON_GET(skeleton, sensor_orientation, config, bt_sensor_orientation);
-    _CWIPC_CONFIG_JSON_GET(skeleton, processing_mode, config, bt_processing_mode);
-    _CWIPC_CONFIG_JSON_GET(skeleton, model_path, config, bt_model_path);
+    if (json_data.contains("sync")) {
+        json sync_data = json_data.at("sync");
+        _CWIPC_CONFIG_JSON_GET(sync_data, sync_master_serial, sync, sync_master_serial);
+        _CWIPC_CONFIG_JSON_GET(sync_data, ignore_sync, sync, ignore_sync);
+    }
+    if (json_data.contains("hardware")) {
+        json hardware_data = json_data.at("hardware");
+        _CWIPC_CONFIG_JSON_GET(hardware_data, color_height, hardware, color_height);
+        _CWIPC_CONFIG_JSON_GET(hardware_data, depth_height, hardware, depth_height);
+        _CWIPC_CONFIG_JSON_GET(hardware_data, fps, hardware, fps);
+        _CWIPC_CONFIG_JSON_GET(hardware_data, color_exposure_time, hardware, color_exposure_time);
+        _CWIPC_CONFIG_JSON_GET(hardware_data, color_whitebalance, hardware, color_whitebalance);
+        _CWIPC_CONFIG_JSON_GET(hardware_data, color_backlight_compensation, hardware, color_backlight_compensation);
+        _CWIPC_CONFIG_JSON_GET(hardware_data, color_brightness, hardware, color_brightness);
+        _CWIPC_CONFIG_JSON_GET(hardware_data, color_contrast, hardware, color_contrast);
+        _CWIPC_CONFIG_JSON_GET(hardware_data, color_saturation, hardware, color_saturation);
+        _CWIPC_CONFIG_JSON_GET(hardware_data, color_sharpness, hardware, color_sharpness);
+        _CWIPC_CONFIG_JSON_GET(hardware_data, color_gain, hardware, color_gain);
+        _CWIPC_CONFIG_JSON_GET(hardware_data, color_powerline_frequency, hardware, color_powerline_frequency);
+    }
+    if (json_data.contains("processing")) {
+        json processing_data = json_data.at("processing");
+        _CWIPC_CONFIG_JSON_GET(processing_data, greenscreenremoval, processing, greenscreen_removal);
+        _CWIPC_CONFIG_JSON_GET(processing_data, depth_x_erosion, processing, depth_x_erosion);
+        _CWIPC_CONFIG_JSON_GET(processing_data, depth_y_erosion, processing, depth_y_erosion);
+        _CWIPC_CONFIG_JSON_GET(processing_data, height_min, processing, height_min);
+        _CWIPC_CONFIG_JSON_GET(processing_data, height_max, processing, height_max);
+        _CWIPC_CONFIG_JSON_GET(processing_data, radius_filter, processing, radius_filter);
+    }
+    if (json_data.contains("filtering")) {
+        json filtering_data = json_data.at("filtering");
+        _CWIPC_CONFIG_JSON_GET(filtering_data, map_color_to_depth, filtering, map_color_to_depth);
+        _CWIPC_CONFIG_JSON_GET(filtering_data, do_threshold, filtering, do_threshold);
+        _CWIPC_CONFIG_JSON_GET(filtering_data, threshold_near, filtering, threshold_near);
+        _CWIPC_CONFIG_JSON_GET(filtering_data, threshold_far, filtering, threshold_far);
+    }
+    if (json_data.contains("skeleton")) {
+        json skeleton_data = json_data.at("skeleton");
+        _CWIPC_CONFIG_JSON_GET(skeleton_data, sensor_orientation, skeleton, bt_sensor_orientation);
+        _CWIPC_CONFIG_JSON_GET(skeleton_data, processing_mode, skeleton, bt_processing_mode);
+        _CWIPC_CONFIG_JSON_GET(skeleton_data, model_path, skeleton, bt_model_path);
+    }
 
     json cameras = json_data.at("camera");
     int camera_index = 0;
