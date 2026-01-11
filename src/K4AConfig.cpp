@@ -159,16 +159,16 @@ void K4ACaptureConfig::_to_json(json& json_data) {
     json_data["sync"] = sync_data;
 
     json hardware_data;
-    _CWIPC_CONFIG_JSON_PUT(system_data, color_height, hardware, color_height);
-    _CWIPC_CONFIG_JSON_PUT(system_data, depth_height, hardware, depth_height);
-    _CWIPC_CONFIG_JSON_PUT(system_data, fps, hardware, fps);
-    _CWIPC_CONFIG_JSON_PUT(system_data, color_exposure_time, hardware, color_exposure_time);
-    _CWIPC_CONFIG_JSON_PUT(system_data, color_whitebalance, hardware, color_whitebalance);
-    _CWIPC_CONFIG_JSON_PUT(system_data, color_brightness, hardware, color_brightness);
-    _CWIPC_CONFIG_JSON_PUT(system_data, color_contrast, hardware, color_contrast);
-    _CWIPC_CONFIG_JSON_PUT(system_data, color_saturation, hardware, color_saturation);
-    _CWIPC_CONFIG_JSON_PUT(system_data, color_gain, hardware, color_gain);
-    _CWIPC_CONFIG_JSON_PUT(system_data, color_powerline_frequency, hardware, color_powerline_frequency);
+    _CWIPC_CONFIG_JSON_PUT(hardware_data, color_height, hardware, color_height);
+    _CWIPC_CONFIG_JSON_PUT(hardware_data, depth_height, hardware, depth_height);
+    _CWIPC_CONFIG_JSON_PUT(hardware_data, fps, hardware, fps);
+    _CWIPC_CONFIG_JSON_PUT(hardware_data, color_exposure_time, hardware, color_exposure_time);
+    _CWIPC_CONFIG_JSON_PUT(hardware_data, color_whitebalance, hardware, color_whitebalance);
+    _CWIPC_CONFIG_JSON_PUT(hardware_data, color_brightness, hardware, color_brightness);
+    _CWIPC_CONFIG_JSON_PUT(hardware_data, color_contrast, hardware, color_contrast);
+    _CWIPC_CONFIG_JSON_PUT(hardware_data, color_saturation, hardware, color_saturation);
+    _CWIPC_CONFIG_JSON_PUT(hardware_data, color_gain, hardware, color_gain);
+    _CWIPC_CONFIG_JSON_PUT(hardware_data, color_powerline_frequency, hardware, color_powerline_frequency);
     json_data["hardware"] = hardware_data;
 
     json processing_data;
@@ -202,7 +202,7 @@ bool K4ACaptureConfig::from_file(const char* filename, std::string typeWanted) {
         std::ifstream f(filename);
 
         if (!f.is_open()) {
-            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + " not found");
+            cwipc_log(CWIPC_LOG_LEVEL_ERROR, "cwipc_kinect", std::string("CameraConfig ") + filename + " not found");
             return false;
         }
 
@@ -212,15 +212,19 @@ bool K4ACaptureConfig::from_file(const char* filename, std::string typeWanted) {
         json_data.at("version").get_to(version);
 
         if (version != 3 && version != 4 && version != 5) {
-            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + " ignored, is not version 3, 4 or 5");
+            cwipc_log(CWIPC_LOG_LEVEL_ERROR, "cwipc_kinect", std::string("CameraConfig ") + filename + " ignored, is not version 3, 4 or 5");
             return false;
         }
 
         std::string type;
         json_data.at("type").get_to(type);
 
+        if (type == "kinect_offline") {
+            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + " type kinect_offline is deprecated, changing to kinect_playback");
+            type = "kinect_playback";
+        }
         if (type != typeWanted) {
-            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + " ignored, is not " + typeWanted + " but " + type);
+            cwipc_log(CWIPC_LOG_LEVEL_ERROR, "cwipc_kinect", std::string("CameraConfig ") + filename + " ignored, is not " + typeWanted + " but " + type);
             return false;
         }
         if (version < 5) {
