@@ -46,16 +46,21 @@ class K4ABaseCamera : public CwipcBaseCamera {
 public:
     K4ABaseCamera(const std::string& _Classname, Type_api_camera _handle, K4ACaptureConfig& _configuration, int _camera_index)
     :   CwipcBaseCamera(_Classname + ": " + _configuration.all_camera_configs[_camera_index].serial, "kinect"),
-        configuration(_configuration),
-        camera_handle(_handle),
-        camera_config(_configuration.all_camera_configs[_camera_index]),
-        auxData(_configuration.auxData),
         camera_index(_camera_index),
+        configuration(_configuration),
         serial(_configuration.all_camera_configs[_camera_index].serial),
+        camera_sync_ismaster(serial == configuration.sync.sync_master_serial),
+        camera_stopped(true),
+        camera_config(_configuration.all_camera_configs[_camera_index]),
+        filtering(_configuration.filtering),
+        processing(_configuration.processing),
+        hardware(_configuration.hardware),
+        skeleton(_configuration.skeleton),
+        auxData(_configuration.auxData),
+        camera_handle(_handle),
         captured_frame_queue(1),
         processing_frame_queue(1),
-        camera_sync_ismaster(serial == configuration.sync_master_serial),
-        camera_sync_inuse(configuration.sync_master_serial != "")
+        camera_sync_inuse(configuration.sync.sync_master_serial != "")
     {
 
     }
@@ -118,17 +123,17 @@ protected:
         k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
         tracker_config.processing_mode = K4ABT_TRACKER_PROCESSING_MODE_CPU;
 
-        if (configuration.bt_processing_mode >= 0) {
-            tracker_config.processing_mode = (k4abt_tracker_processing_mode_t)configuration.bt_processing_mode;
+        if (skeleton.bt_processing_mode >= 0) {
+            tracker_config.processing_mode = (k4abt_tracker_processing_mode_t)skeleton.bt_processing_mode;
         }
 
-        if (configuration.bt_sensor_orientation >= 0) {
-            tracker_config.sensor_orientation = (k4abt_sensor_orientation_t)configuration.bt_sensor_orientation;
+        if (skeleton.bt_sensor_orientation >= 0) {
+            tracker_config.sensor_orientation = (k4abt_sensor_orientation_t)skeleton.bt_sensor_orientation;
         }
 
 #ifdef K4ABT_SUPPORTS_MODEL_PATH
-        if (configuration.bt_model_path != "") {
-            tracker_config.model_path = configuration.bt_model_path.c_str();
+        if (skeleton.bt_model_path != "") {
+            tracker_config.model_path = skeleton.bt_model_path.c_str();
         }
 #endif
 
@@ -195,7 +200,7 @@ public:
             if (auxData.want_auxdata_rgb) {
                 std::string name = "rgb." + serial;
                 color_image = _uncompress_color_image(current_frameset, color_image);
-                if (configuration.camera_processing.map_color_to_depth) {
+                if (filtering.map_color_to_depth) {
                     k4a_image_t transformed_color_image = NULL;
                     k4a_result_t status;
 
@@ -252,7 +257,7 @@ public:
 
             if (auxData.want_auxdata_depth) {
                 std::string name = "depth." + serial;
-                if (!configuration.camera_processing.map_color_to_depth) {
+                if (!filtering.map_color_to_depth) {
                     k4a_image_t transformed_depth_image = NULL;
                     k4a_result_t status;
                     status = k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16,
@@ -348,7 +353,7 @@ public:
         point.x = uv_factors_for_depth_table[idx].xy.x * depth;
         point.y = uv_factors_for_depth_table[idx].xy.y * depth;
         point.z = depth;
-        if (configuration.camera_processing.map_color_to_depth) {
+        if (filtering.map_color_to_depth) {
             _transform_point_depth_to_color(point);
         }
         _transform_point_cam_to_world(point); //transforming from camera to world coordinates
@@ -427,7 +432,7 @@ protected:
                                 point.y = pos.y;
                                 point.z = pos.z;
 
-                                if (!configuration.camera_processing.map_color_to_depth) {
+                                if (!filtering.map_color_to_depth) {
                                     _transform_point_depth_to_color(point);
                                 }
 
@@ -464,7 +469,7 @@ protected:
 
             //generate pointclouds
             cwipc_pcl_pointcloud new_pointcloud = nullptr;
-            if (configuration.camera_processing.map_color_to_depth) {
+            if (filtering.map_color_to_depth) {
                 new_pointcloud = generate_point_cloud_color_to_depth(depth_image, color_image);
             } else {
                 new_pointcloud = generate_point_cloud_depth_to_color(depth_image, color_image);
@@ -505,14 +510,14 @@ protected:
     }
 
     virtual void _filter_depth_image(k4a_image_t depth_image) {
-        if (configuration.camera_processing.do_threshold) {
+        if (filtering.do_threshold) {
             uint16_t* depth_buffer = (uint16_t*)(void*)k4a_image_get_buffer(depth_image);
 
             int width = k4a_image_get_width_pixels(depth_image);
             int height = k4a_image_get_height_pixels(depth_image);
 
-            int16_t min_depth = (int16_t)(configuration.camera_processing.threshold_near * 1000);
-            int16_t max_depth = (int16_t)(configuration.camera_processing.threshold_far * 1000);
+            int16_t min_depth = (int16_t)(filtering.threshold_near * 1000);
+            int16_t max_depth = (int16_t)(filtering.threshold_far * 1000);
             min_depth = (min_depth > 1) ? min_depth : 1; // min depth should be > minimum_operating_range (250-500 for kinect). 0 means no data.
             max_depth = (max_depth > min_depth) ? max_depth : 5460; // max depth should be >min_depth otherwise we use the maximum_operating_range (5460 for kinect).
 
@@ -524,8 +529,8 @@ protected:
             cv::inRange(depth_in, min_depth, max_depth, mask); //we check if the depth values are in the wanted range and create a mask
 
             // EROSION FILTER: if erosion wanted, we will erode the mask using a kernel.
-            int x_delta = configuration.camera_processing.depth_x_erosion;
-            int y_delta = configuration.camera_processing.depth_y_erosion;
+            int x_delta = processing.depth_x_erosion;
+            int y_delta = processing.depth_y_erosion;
             if (x_delta || y_delta) {
                 cv::Mat kernel = cv::getStructuringElement(CV_16UC1, cv::Size(x_delta*2+1, y_delta*2+1), cv::Point(-1, -1)); //we want erosion on 4 directions. +-x, +-y.
                 cv::erode(mask, mask, kernel, cv::Point(-1, -1), 1);
@@ -541,8 +546,8 @@ protected:
     }
 
     virtual void _filter_depth_data(int16_t* depth_values, int width, int height) final {
-        int16_t min_depth = (int16_t)(configuration.camera_processing.threshold_near * 1000);
-        int16_t max_depth = (int16_t)(configuration.camera_processing.threshold_far * 1000);
+        int16_t min_depth = (int16_t)(filtering.threshold_near * 1000);
+        int16_t max_depth = (int16_t)(filtering.threshold_far * 1000);
         int16_t *z_values = (int16_t *)calloc(width * height, sizeof(int16_t));
 
         // Pass one: Copy Z values to temporary buffer, but leave out-of-range values at zero.
@@ -550,7 +555,7 @@ protected:
             int i_pc = i * 3;
             int16_t z = depth_values[i_pc + 2];
 
-            if (configuration.camera_processing.do_threshold && (z <= min_depth || z >= max_depth)) {
+            if (filtering.do_threshold && (z <= min_depth || z >= max_depth)) {
                 continue;
             }
 
@@ -561,8 +566,8 @@ protected:
         cv::imwrite("test/depth_th.png", depth_in);*/
 
         // Pass two: loop for zero pixels in temp buffer, and clear out x/y pixels adjacent in depth buffer
-        int x_delta = configuration.camera_processing.depth_x_erosion;
-        int y_delta = configuration.camera_processing.depth_y_erosion;
+        int x_delta = processing.depth_x_erosion;
+        int y_delta = processing.depth_y_erosion;
 
         if (x_delta || y_delta) {
             for (int x = 0; x < width; x++) {
@@ -686,7 +691,7 @@ protected:
         int width;
         int height;
 
-        if (configuration.camera_processing.map_color_to_depth) {
+        if (filtering.map_color_to_depth) {
             width = calibration->depth_camera_calibration.resolution_width;
             height = calibration->depth_camera_calibration.resolution_height;
         } else {
@@ -719,7 +724,7 @@ protected:
             for (int x = 0; x < width; x++, idx++) {
                 p.xy.x = (float)x;
 
-                if (configuration.camera_processing.map_color_to_depth) {
+                if (filtering.map_color_to_depth) {
                     k4a_calibration_2d_to_3d(
                         calibration, &p, 1.f, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_DEPTH, &ray, &valid
                     );
@@ -744,11 +749,11 @@ protected:
         int width = k4a_image_get_width_pixels(depth_image);
         int height = k4a_image_get_height_pixels(depth_image);
 
-        float height_min = configuration.height_min;
-        float height_max = configuration.height_max;
+        float height_min = processing.height_min;
+        float height_max = processing.height_max;
         bool do_height_filtering = height_min < height_max;
-        bool do_greenscreen_removal = configuration.greenscreen_removal;
-        bool do_radius_filtering = configuration.radius_filter > 0;
+        bool do_greenscreen_removal = processing.greenscreen_removal;
+        bool do_radius_filtering = processing.radius_filter > 0;
 
         //access depth and color data
         uint16_t* depth_data = (uint16_t*)(void*)k4a_image_get_buffer(depth_image);
@@ -770,7 +775,7 @@ protected:
                 point.r = color_data[i].bgra.r;
                 point.a = (uint8_t)1 << camera_index;
 
-                if (configuration.camera_processing.map_color_to_depth) {
+                if (filtering.map_color_to_depth) {
                     _transform_point_depth_to_color(point);
                 }
                 _transform_point_cam_to_world(point); //transforming from camera to world coordinates
@@ -779,11 +784,11 @@ protected:
                     continue;
                 }
 
-                if (do_radius_filtering && !isPointInRadius(point, configuration.radius_filter)) {
+                if (do_radius_filtering && !isPointInRadius(point, processing.radius_filter)) {
                     continue;
                 }
 
-                if (configuration.greenscreen_removal && !isNotGreen(&point)) { //chromakey removal
+                if (processing.greenscreen_removal && !isNotGreen(&point)) { //chromakey removal
                     continue;
                 }
 
@@ -825,7 +830,7 @@ protected:
     virtual cwipc_pcl_pointcloud _old_generate_point_cloud(const k4a_image_t point_cloud_image, const k4a_image_t color_image) final {
         int width = k4a_image_get_width_pixels(point_cloud_image);
         int height = k4a_image_get_height_pixels(color_image);
-        bool do_height_filtering = configuration.height_min != 0 || configuration.height_max != 0;
+        bool do_height_filtering = processing.height_min != 0 || processing.height_max != 0;
         uint8_t * color_data = k4a_image_get_buffer(color_image);
         int16_t* point_cloud_image_data = (int16_t*)k4a_image_get_buffer(point_cloud_image);
 
@@ -866,23 +871,23 @@ protected:
             point.y = y;
             point.z = z;
 
-            if (configuration.camera_processing.map_color_to_depth) {
+            if (filtering.map_color_to_depth) {
               _transform_point_depth_to_color(point);
             }
 
             _transform_point_cam_to_world(point);
 
-            if (configuration.radius_filter > 0.0) { // apply radius filter
-                if(!isPointInRadius(point, configuration.radius_filter)) {
+            if (processing.radius_filter > 0.0) { // apply radius filter
+                if(!isPointInRadius(point, processing.radius_filter)) {
                     continue;
                 }
             }
 
-            if (do_height_filtering && (point.y < configuration.height_min || point.y > configuration.height_max)) {
+            if (do_height_filtering && (point.y < processing.height_min || point.y > processing.height_max)) {
                 continue;
             }
 
-            if (!configuration.greenscreen_removal || isNotGreen(&point)) {// chromakey removal
+            if (!processing.greenscreen_removal || isNotGreen(&point)) {// chromakey removal
                 new_cloud->push_back(point);
             }
         }
@@ -897,13 +902,18 @@ public:
 
 protected:
     K4ACaptureConfig& configuration;
+    K4ACameraConfig& camera_config; //<! Per-camera data for this camera
+    K4ACaptureProcessingConfig& processing;
+    K4ACameraProcessingParameters& filtering;
+    K4ACameraHardwareConfig& hardware;
+    K4ASkeletonConfig& skeleton;
+    K4ACaptureAuxDataConfig& auxData; //<! Auxiliary data configuration
+
     Type_api_camera camera_handle;
     bool camera_stopped = true;  //<! True when stopping
     bool camera_started = false;  //<! True when camera hardware is grabbing
     std::thread* camera_processing_thread = nullptr; //<! Handle for thread that runs processing loop
     std::thread* camera_capturer_thread = nullptr;  //<! Handle for thread that rungs grabber (if applicable)
-    K4ACameraConfig& camera_config; //<! Per-camera data for this camera
-    K4ACaptureAuxDataConfig& auxData; //<! Auxiliary data configuration
     std::vector<k4abt_skeleton_t> skeletons; //<! Skeletons extracted using the body tracking sdk
     cwipc_pcl_pointcloud current_pointcloud = nullptr;  //<! Most recent grabbed pointcloud
     k4a_transformation_t transformation_handle = nullptr; //<! k4a structure describing relationship between RGB and D cameras

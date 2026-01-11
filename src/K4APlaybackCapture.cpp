@@ -57,7 +57,7 @@ bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& cam
             std::cerr << CLASSNAME << ": Failed to get record configuration for file: " << camerafile << std::endl;
             return false;
         }
-        if (!configuration.ignore_sync) {
+        if (!configuration.sync.ignore_sync) {
             if (file_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_MASTER) {
                 std::cerr << CLASSNAME << ": Opened master recording file: " << camerafile << std::endl;
 
@@ -96,12 +96,12 @@ bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& cam
         //initialize cameradata attributes:
         configuration.all_camera_configs[i].cameraposition = { 0, 0, 0 };
     }
-    if (configuration.sync_master_serial == "" && master_id >= 0) {
-        configuration.sync_master_serial = configuration.all_camera_configs[master_id].serial;
+    if (configuration.sync.sync_master_serial == "" && master_id >= 0) {
+        configuration.sync.sync_master_serial = configuration.all_camera_configs[master_id].serial;
     }
     // xxxjack we should chack that configuration.sync_master_serial matches master_id...
 
-    if (master_id != -1 && configuration.sync_master_serial != "") {
+    if (master_id != -1 && configuration.sync.sync_master_serial != "") {
         sync_inuse = true;
     }
 

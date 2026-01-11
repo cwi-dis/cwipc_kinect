@@ -106,7 +106,7 @@ bool K4ACamera::capture_frameset() {
 bool K4ACamera::_prepare_config_for_starting_camera(k4a_device_configuration_t& device_config) {
     device_config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
 
-    switch (configuration.color_height) {
+    switch (hardware.color_height) {
     case 720:
         device_config.color_resolution = K4A_COLOR_RESOLUTION_720P;
         break;
@@ -126,11 +126,11 @@ bool K4ACamera::_prepare_config_for_starting_camera(k4a_device_configuration_t& 
         device_config.color_resolution = K4A_COLOR_RESOLUTION_3072P;
         break;
     default:
-        _log_error("invalid color_height: " + std::to_string(configuration.color_height));
+        _log_error("invalid color_height: " + std::to_string(hardware.color_height));
         return false;
     }
 
-    switch (configuration.depth_height) {
+    switch (hardware.depth_height) {
     case 288:
         device_config.depth_mode = K4A_DEPTH_MODE_NFOV_2X2BINNED;
         break;
@@ -144,11 +144,11 @@ bool K4ACamera::_prepare_config_for_starting_camera(k4a_device_configuration_t& 
         device_config.depth_mode = K4A_DEPTH_MODE_WFOV_UNBINNED;
         break;
     default:
-        _log_error("invalid depth_height: " + std::to_string(configuration.depth_height));
+        _log_error("invalid depth_height: " + std::to_string(hardware.depth_height));
         return false;
     }
 
-    switch (configuration.fps) {
+    switch (hardware.fps) {
     case 5:
         device_config.camera_fps = K4A_FRAMES_PER_SECOND_5;
         break;
@@ -159,7 +159,7 @@ bool K4ACamera::_prepare_config_for_starting_camera(k4a_device_configuration_t& 
         device_config.camera_fps = K4A_FRAMES_PER_SECOND_30;
         break;
     default:
-        _log_error("invalid camera_fps: " + std::to_string(configuration.fps));
+        _log_error("invalid camera_fps: " + std::to_string(hardware.fps));
         return false;
     }
 
@@ -260,8 +260,8 @@ bool K4ACamera::_init_hardware_for_this_camera()
     // Set various camera hardware parameters (color)
 
     //options for color sensor
-    if (configuration.camera_processing.color_exposure_time >= 0) { //MANUAL
-        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_exposure_time); // Exposure_time (in microseconds)
+    if (hardware.color_exposure_time >= 0) { //MANUAL
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_MANUAL, hardware.color_exposure_time); // Exposure_time (in microseconds)
 
         if (res != K4A_RESULT_SUCCEEDED) {
             _log_error("configuration: k4a_device_set_color_control: color_exposure_time should be microsecond and in range (500-133330)");
@@ -271,8 +271,8 @@ bool K4ACamera::_init_hardware_for_this_camera()
         k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
     }
 
-    if (configuration.camera_processing.color_whitebalance >= 0) {  //MANUAL
-        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_whitebalance); // White_balance (2500-12500)
+    if (hardware.color_whitebalance >= 0) {  //MANUAL
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_MANUAL, hardware.color_whitebalance); // White_balance (2500-12500)
 
         if (res != K4A_RESULT_SUCCEEDED) {
             _log_error("configuration: k4a_device_set_color_control: color_whitebalance should be in range (2500-12500)");
@@ -282,8 +282,8 @@ bool K4ACamera::_init_hardware_for_this_camera()
         k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_WHITEBALANCE, K4A_COLOR_CONTROL_MODE_AUTO, 0);
     }
 
-    if (configuration.camera_processing.color_backlight_compensation >= 0){
-        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_backlight_compensation); // Backlight_compensation 0=disabled | 1=enabled. Default=0
+    if (hardware.color_backlight_compensation >= 0){
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, K4A_COLOR_CONTROL_MODE_MANUAL, hardware.color_backlight_compensation); // Backlight_compensation 0=disabled | 1=enabled. Default=0
 
         if (res != K4A_RESULT_SUCCEEDED) {
             _log_error("configuration: k4a_device_set_color_control: color_backlight_compensation should be 0=disabled | 1=enabled");
@@ -291,8 +291,8 @@ bool K4ACamera::_init_hardware_for_this_camera()
         }
     }
 
-    if (configuration.camera_processing.color_brightness >= 0){
-        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_BRIGHTNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_brightness); // Brightness. (0 to 255). Default=128.
+    if (hardware.color_brightness >= 0){
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_BRIGHTNESS, K4A_COLOR_CONTROL_MODE_MANUAL, hardware.color_brightness); // Brightness. (0 to 255). Default=128.
 
         if (res != K4A_RESULT_SUCCEEDED) {
             _log_warning("configuration: k4a_device_set_color_control: color_brightness should be in range (0-255)");
@@ -300,8 +300,8 @@ bool K4ACamera::_init_hardware_for_this_camera()
         }
     }
 
-    if (configuration.camera_processing.color_contrast >= 0){
-        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_CONTRAST, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_contrast); // Contrast (0-10). Default=5
+    if (hardware.color_contrast >= 0){
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_CONTRAST, K4A_COLOR_CONTROL_MODE_MANUAL, hardware.color_contrast); // Contrast (0-10). Default=5
 
         if (res != K4A_RESULT_SUCCEEDED) {
             _log_error("configuration: k4a_device_set_color_control: color_contrast should be in range (0-10)");
@@ -309,8 +309,8 @@ bool K4ACamera::_init_hardware_for_this_camera()
         }
     }
 
-    if (configuration.camera_processing.color_saturation >= 0){
-        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_SATURATION, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_saturation); // saturation (0-63). Default=32
+    if (hardware.color_saturation >= 0){
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_SATURATION, K4A_COLOR_CONTROL_MODE_MANUAL, hardware.color_saturation); // saturation (0-63). Default=32
 
         if (res != K4A_RESULT_SUCCEEDED) {
             _log_error("configuration: k4a_device_set_color_control: color_saturation should be in range (0-63)");
@@ -318,8 +318,8 @@ bool K4ACamera::_init_hardware_for_this_camera()
         }
     }
 
-    if (configuration.camera_processing.color_sharpness >= 0){
-        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_SHARPNESS, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_sharpness); // Sharpness (0-4). Default=2
+    if (hardware.color_sharpness >= 0){
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_SHARPNESS, K4A_COLOR_CONTROL_MODE_MANUAL, hardware.color_sharpness); // Sharpness (0-4). Default=2
 
         if (res != K4A_RESULT_SUCCEEDED) {
             _log_error("configuration: k4a_device_set_color_control: color_sharpness should be in range (0-4)");
@@ -327,8 +327,8 @@ bool K4ACamera::_init_hardware_for_this_camera()
         }
     }
 
-    if (configuration.camera_processing.color_gain >= 0){ //if autoexposure mode=AUTO gain does not affect
-        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_GAIN, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_gain); // Gain (0-255). Default=0
+    if (hardware.color_gain >= 0){ //if autoexposure mode=AUTO gain does not affect
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_GAIN, K4A_COLOR_CONTROL_MODE_MANUAL, hardware.color_gain); // Gain (0-255). Default=0
 
         if (res != K4A_RESULT_SUCCEEDED) {
             _log_error("configuration: k4a_device_set_color_control: color_gain should be in range (0-255)");
@@ -336,8 +336,8 @@ bool K4ACamera::_init_hardware_for_this_camera()
         }
     }
 
-    if (configuration.camera_processing.color_powerline_frequency >= 0){
-        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, K4A_COLOR_CONTROL_MODE_MANUAL, configuration.camera_processing.color_powerline_frequency); // Powerline_Frequency (1=50Hz, 2=60Hz). Default=2
+    if (hardware.color_powerline_frequency >= 0){
+        k4a_result_t res = k4a_device_set_color_control(camera_handle, K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, K4A_COLOR_CONTROL_MODE_MANUAL, hardware.color_powerline_frequency); // Powerline_Frequency (1=50Hz, 2=60Hz). Default=2
 
         if (res != K4A_RESULT_SUCCEEDED) {
             _log_error("configuration:k4a_device_set_color_control: color_powerline_frequency should be 1=50Hz or 2=60Hz");
