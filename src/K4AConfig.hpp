@@ -81,7 +81,6 @@ struct K4ACaptureConfig : CwipcBaseCaptureConfig {
     K4ACaptureAuxDataConfig auxData;
     int single_tile = -1;       // if singletile >=0 all the points will be the specified integer
 
-    K4ACameraProcessingParameters camera_processing;
     std::string record_to_directory = ""; // If non-empty all camera streams will be recorded to this directory.
     bool new_timestamps = false; // If true new timestamps are generated (otherwise original timestamps from capture time)
     bool debug = false; // If true and if the relevant preprocessor symbol is defined print debug output to stdout.
