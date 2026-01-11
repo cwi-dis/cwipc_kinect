@@ -102,6 +102,29 @@ public:
     virtual bool is_sync_master() final {
         return camera_sync_ismaster;
     }
+
+    /// Get current camera hardware parameters.
+    /// xxxjack to be overridden for real cameras.
+    virtual void get_camera_hardware_parameters(K4ACameraHardwareConfig& output) {
+        output = hardware;
+    }
+    /// Return true if current hardware parameters of this camera match input.
+    bool match_camera_hardware_parameters(K4ACameraHardwareConfig& input) {
+        return (
+            input.color_backlight_compensation == hardware.color_backlight_compensation &&
+            input.color_brightness == hardware.color_brightness &&
+            input.color_contrast == hardware.color_contrast &&
+            input.color_exposure_time == hardware.color_exposure_time &&
+            input.color_gain == hardware.color_gain &&
+            input.color_height == hardware.color_height &&
+            input.color_powerline_frequency == hardware.color_powerline_frequency &&
+            input.color_saturation == hardware.color_saturation &&
+            input.color_sharpness == hardware.color_sharpness &&
+            input.color_whitebalance == hardware.color_whitebalance &&
+            input.depth_height == hardware.depth_height &&
+            input.fps == hardware.fps
+        )
+    }
 protected:
     // internal API that is "shared" with other implementations (realsense, kinect)
     virtual bool _init_hardware_for_this_camera() = 0;

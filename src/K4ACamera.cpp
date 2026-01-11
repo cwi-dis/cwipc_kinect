@@ -255,6 +255,110 @@ void K4ACamera::start_camera_streaming() {
     _cwipc_setThreadName(camera_processing_thread, L"cwipc_kinect::K4ACamera::camera_processing_thread");
 }
 
+void K4ACamera::get_camera_hardware_parameters(K4ACameraHardwareConfig &output)
+{
+    // Some parameters are easiest to get from our config, as they won't
+    // change anyway
+    output.color_height = hardware.color_height;
+    output.depth_height = hardware.depth_height;
+    output.fps = hardware.fps;
+
+    k4a_result_t res;
+    k4a_color_control_mode_t mode;
+    int32_t value;
+    // color_exposure_time
+    res = k4a_device_get_color_control(camera_handle, K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, &mode, &value);
+    if (res == K4A_RESULT_SUCCEEDED) {
+        if (mode == K4A_COLOR_CONTROL_MODE_AUTO) {
+            output.color_exposure_time = -value;
+        } else {
+            output.color_exposure_time = value;
+        }
+    } else {
+        _log_warning("k4a_device_get_color_control: cannot get color_exposure_time");
+        output.color_exposure_time = hardware.color_exposure_time;
+    }
+    // color_whitebalance
+    res = k4a_device_get_color_control(camera_handle, K4A_COLOR_CONTROL_WHITEBALANCE, &mode, &value);
+    if (res == K4A_RESULT_SUCCEEDED) {
+        if (mode == K4A_COLOR_CONTROL_MODE_AUTO) {
+            output.color_whitebalance = -value;
+        } else {
+            output.color_whitebalance = value;
+        }
+    } else {
+        _log_warning("k4a_device_get_color_control: cannot get color_whitebalance");
+        output.color_exposure_time = hardware.color_exposure_time;
+    }
+    // color_backlight_compensation
+    res = k4a_device_get_color_control(camera_handle, K4A_COLOR_CONTROL_EXPOSURE_TIME_ABSOLUTE, &mode, &value);
+    if (res == K4A_RESULT_SUCCEEDED) {
+        if (mode == K4A_COLOR_CONTROL_MODE_AUTO) {
+            output.color_exposure_time = -value;
+        } else {
+            output.color_exposure_time = value;
+        }
+    } else {
+        _log_warning("k4a_device_get_color_control: cannot get color_exposure_time");
+        output.color_exposure_time = hardware.color_exposure_time;
+    }
+    // color_backlight_compensation
+    res = k4a_device_get_color_control(camera_handle, K4A_COLOR_CONTROL_BACKLIGHT_COMPENSATION, &mode, &value);
+    if (res == K4A_RESULT_SUCCEEDED) {
+        output.color_backlight_compensation = value;
+    } else {
+        _log_warning("k4a_device_get_color_control: cannot get color_backlight_compensation");
+        output.color_backlight_compensation = hardware.color_backlight_compensation;
+    }
+    // color_brightness
+    res = k4a_device_get_color_control(camera_handle, K4A_COLOR_CONTROL_BRIGHTNESS, &mode, &value);
+    if (res == K4A_RESULT_SUCCEEDED) {
+        output.color_brightness = value;
+    } else {
+        _log_warning("k4a_device_get_color_control: cannot get color_brightness");
+        output.color_brightness = hardware.color_brightness;
+    }
+    // color_contrast
+    res = k4a_device_get_color_control(camera_handle, K4A_COLOR_CONTROL_CONTRAST, &mode, &value);
+    if (res == K4A_RESULT_SUCCEEDED) {
+        output.color_contrast = value;
+    } else {
+        _log_warning("k4a_device_get_color_control: cannot get color_contrast");
+        output.color_contrast = hardware.color_contrast;
+    }
+    // color_saturation
+    res = k4a_device_get_color_control(camera_handle, K4A_COLOR_CONTROL_SATURATION, &mode, &value);
+    if (res == K4A_RESULT_SUCCEEDED) {
+        output.color_saturation = value;
+    } else {
+        _log_warning("k4a_device_get_color_control: cannot get color_saturation");
+        output.color_saturation = hardware.color_saturation;
+    }
+    // color_sharpness
+    res = k4a_device_get_color_control(camera_handle, K4A_COLOR_CONTROL_SHARPNESS, &mode, &value);
+    if (res == K4A_RESULT_SUCCEEDED) {
+        output.color_sharpness = value;
+    } else {
+        _log_warning("k4a_device_get_color_control: cannot get color_sharpness");
+        output.color_sharpness = hardware.color_sharpness;
+    }
+    // color_gain
+    res = k4a_device_get_color_control(camera_handle, K4A_COLOR_CONTROL_GAIN, &mode, &value);
+    if (res == K4A_RESULT_SUCCEEDED) {
+        output.color_gain = value;
+    } else {
+        _log_warning("k4a_device_get_color_control: cannot get color_gain");
+        output.color_gain = hardware.color_gain;
+    }
+    // color_powerline_frequency
+    res = k4a_device_get_color_control(camera_handle, K4A_COLOR_CONTROL_POWERLINE_FREQUENCY, &mode, &value);
+    if (res == K4A_RESULT_SUCCEEDED) {
+        output.color_powerline_frequency = value;
+    } else {
+        _log_warning("k4a_device_get_color_control: cannot get color_powerline_frequency");
+        output.color_powerline_frequency = hardware.color_powerline_frequency;
+    }
+}
 bool K4ACamera::_init_hardware_for_this_camera()
 {
     // Set various camera hardware parameters (color)

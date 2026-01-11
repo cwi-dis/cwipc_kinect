@@ -17,6 +17,8 @@ public:
     virtual void start_camera_streaming() override final;
     // virtual void pre_stop_camera() override final {}
     void stop_camera() override;
+    virtual void get_camera_hardware_parameters(K4ACameraHardwareConfig& output) override final;
+public:
     bool capture_frameset();
 
 protected:

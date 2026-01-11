@@ -89,10 +89,21 @@ public:
     }
 
     virtual std::string config_get() {
-        // Note: Realsense implementation uses _refresh_camera_hardware_parameters()
-        // to get current hardware paremeters into per-camera configuration, and then
-        // loops over cameras to get it into common config.
-        // Never missed this for Kinect, but that may be oversight.
+        bool match_only = false;
+        // We get parameters like exposure here.
+        // But framerate and width/height are gotten in the camera code.
+        K4ACameraHardwareConfig curHardwareConfig;
+        cameras[0]->get_camera_hardware_parameters(curHardwareConfig);
+        configuration.hardware = curHardwareConfig;
+#if 0
+        for(auto cam : cameras) {
+            bool ok = cam->match_camera_hardware_parameters(curHardwareConfig);
+            if (!ok) {
+                _log_warning("Not all cameras have the same hardware parameters.");
+            }
+            match_only = true;
+        }
+#endif
         return configuration.to_string();
     }
 
