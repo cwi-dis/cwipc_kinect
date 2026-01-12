@@ -103,6 +103,39 @@ public:
         return camera_sync_ismaster;
     }
 
+    virtual bool mapcolordepth(int x_c, int y_c, int* out2d) override final {
+        // For Kinect the depth and color images have the same coordinate system.
+        out2d[0] = x_c;
+        out2d[1] = y_c;
+        return true;
+    }
+
+    virtual bool map2d3d(int x_2d, int y_2d, int d_2d, float* out3d) override final
+    {
+        float depth = d_2d; // 1000.0; // Note: this comes out of the Depth image, so it is in millimeters
+
+        k4a_float2_t* uv_factors_for_depth_table = (k4a_float2_t*)(void*)k4a_image_get_buffer(depth_uv_mapping);
+        int width = k4a_image_get_width_pixels(depth_uv_mapping);
+        int height = k4a_image_get_height_pixels(depth_uv_mapping);
+        if (y_2d < 0 || y_2d >= height || x_2d < 0 || x_2d >= width) {
+            _log_error("map2d3d: requested pixel out of bounds");
+            return false;
+        }
+        int idx = y_2d * width + x_2d;
+        cwipc_pcl_point point;
+        point.x = uv_factors_for_depth_table[idx].xy.x * depth;
+        point.y = uv_factors_for_depth_table[idx].xy.y * depth;
+        point.z = depth;
+        if (filtering.map_color_to_depth) {
+            _transform_point_depth_to_color(point);
+        }
+        _transform_point_cam_to_world(point); //transforming from camera to world coordinates
+        out3d[0] = point.x;
+        out3d[1] = point.y;
+        out3d[2] = point.z;
+        return true;
+    }
+
     /// Get current camera hardware parameters.
     /// xxxjack to be overridden for real cameras.
     virtual void get_camera_hardware_parameters(K4ACameraHardwareConfig& output) {
@@ -176,7 +209,7 @@ protected:
 
         return true;
     }
-    // xxxjack _prepare_config_for_starting_camera() has different signatures for camera/recording.
+    // xxxjack _init_config_for_this_camera() has different signatures for camera/recording.
 
 
 public:
@@ -330,7 +363,8 @@ public:
             _save_auxdata_skeleton(pc);
         }
     }
-
+protected:
+    /// Kinect-specific: save skeleton auxdata into point cloud.
     void _save_auxdata_skeleton(cwipc* pc) {
         int n_skeletons = skeletons.size();
         size_t size_str = sizeof(cwipc_skeleton_collection) + n_skeletons * (int)K4ABT_JOINT_COUNT * sizeof(cwipc_skeleton_joint);
@@ -359,34 +393,6 @@ public:
             ap->_add(name, "", (void*)skl, size_str, ::free);
         }
     }
-
-    bool map2d3d(int x_2d, int y_2d, int d_2d, float* out3d)
-    {
-        float depth = d_2d; // 1000.0; // Note: this comes out of the Depth image, so it is in millimeters
-
-        k4a_float2_t* uv_factors_for_depth_table = (k4a_float2_t*)(void*)k4a_image_get_buffer(depth_uv_mapping);
-        int width = k4a_image_get_width_pixels(depth_uv_mapping);
-        int height = k4a_image_get_height_pixels(depth_uv_mapping);
-        if (y_2d < 0 || y_2d >= height || x_2d < 0 || x_2d >= width) {
-            _log_error("map2d3d: requested pixel out of bounds");
-            return false;
-        }
-        int idx = y_2d * width + x_2d;
-        cwipc_pcl_point point;
-        point.x = uv_factors_for_depth_table[idx].xy.x * depth;
-        point.y = uv_factors_for_depth_table[idx].xy.y * depth;
-        point.z = depth;
-        if (filtering.map_color_to_depth) {
-            _transform_point_depth_to_color(point);
-        }
-        _transform_point_cam_to_world(point); //transforming from camera to world coordinates
-        out3d[0] = point.x;
-        out3d[1] = point.y;
-        out3d[2] = point.z;
-        return true;
-    }
-protected:
-
 
     virtual void _start_capture_thread() = 0;
     virtual void _capture_thread_main() = 0;
@@ -493,9 +499,9 @@ protected:
             //generate pointclouds
             cwipc_pcl_pointcloud new_pointcloud = nullptr;
             if (filtering.map_color_to_depth) {
-                new_pointcloud = generate_point_cloud_color_to_depth(depth_image, color_image);
+                new_pointcloud = _generate_point_cloud_color_to_depth(depth_image, color_image);
             } else {
-                new_pointcloud = generate_point_cloud_depth_to_color(depth_image, color_image);
+                new_pointcloud = _generate_point_cloud_depth_to_color(depth_image, color_image);
             }
 
             if (new_pointcloud != nullptr) {
@@ -635,7 +641,7 @@ protected:
     }
 
     //virtual void _computePointSize() = 0;
-    virtual cwipc_pcl_pointcloud generate_point_cloud_color_to_depth(const k4a_image_t depth_image, const k4a_image_t color_image) final {
+    virtual cwipc_pcl_pointcloud _generate_point_cloud_color_to_depth(const k4a_image_t depth_image, const k4a_image_t color_image) final {
         int depth_image_width_pixels = k4a_image_get_width_pixels(depth_image);
         int depth_image_height_pixels = k4a_image_get_height_pixels(depth_image);
         k4a_image_t transformed_color_image = NULL;
@@ -667,14 +673,14 @@ protected:
         cwipc_pcl_pointcloud rv;
 
 
-        rv = generate_point_cloud_v2(depth_image, transformed_color_image);
+        rv = _generate_point_cloud(depth_image, transformed_color_image);
 
         k4a_image_release(transformed_color_image);
 
         return rv;
     }
 
-    virtual cwipc_pcl_pointcloud generate_point_cloud_depth_to_color(const k4a_image_t depth_image, const k4a_image_t color_image) final {
+    virtual cwipc_pcl_pointcloud _generate_point_cloud_depth_to_color(const k4a_image_t depth_image, const k4a_image_t color_image) final {
         // transform color image into depth camera geometry
         int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
         int color_image_height_pixels = k4a_image_get_height_pixels(color_image);
@@ -701,7 +707,7 @@ protected:
 
         cwipc_pcl_pointcloud rv;
 
-        rv = generate_point_cloud_v2(transformed_depth_image, color_image);
+        rv = _generate_point_cloud(transformed_depth_image, color_image);
 
         k4a_image_release(transformed_depth_image);
 
@@ -768,7 +774,7 @@ protected:
         }
     }
 
-    virtual cwipc_pcl_pointcloud generate_point_cloud_v2(const k4a_image_t depth_image, k4a_image_t color_image) {
+    virtual cwipc_pcl_pointcloud _generate_point_cloud(const k4a_image_t depth_image, k4a_image_t color_image) {
         int width = k4a_image_get_width_pixels(depth_image);
         int height = k4a_image_get_height_pixels(depth_image);
 
@@ -849,7 +855,7 @@ protected:
     virtual k4a_image_t _uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) = 0;
 
     /// Old method to create point cloud from point cloud image and color image.
-    /// Kept for referrence, because the new method generate_point_cloud_v2 is much faster.
+    /// Kept for referrence, because the new method _generate_point_cloud is much faster.
     virtual cwipc_pcl_pointcloud _old_generate_point_cloud(const k4a_image_t point_cloud_image, const k4a_image_t color_image) final {
         int width = k4a_image_get_width_pixels(point_cloud_image);
         int height = k4a_image_get_height_pixels(color_image);

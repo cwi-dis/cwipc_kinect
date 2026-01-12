@@ -29,5 +29,5 @@ protected:
 
     k4a_record_t recorder = nullptr;
 private:
-    bool _prepare_config_for_starting_camera(k4a_device_configuration_t& device_config);
+    bool _init_config_for_this_camera(k4a_device_configuration_t& device_config);
 };

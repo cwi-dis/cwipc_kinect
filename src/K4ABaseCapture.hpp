@@ -259,7 +259,7 @@ protected:
     /// Setup camera synchronization (if needed).
     virtual bool _setup_inter_camera_sync() override final {
         // Nothing to do for K4A: real cameras need some setup, but it is done
-        // in K4ACamera::_prepare_config_for_starting_camera().
+        // in K4ACamera::_init_config_for_this_camera().
         return true;
     }
     /// xxxjack another one?

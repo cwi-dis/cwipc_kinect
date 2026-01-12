@@ -22,7 +22,7 @@ bool K4ACamera::start_camera() {
     assert(camera_capturer_thread == nullptr);
     assert(camera_processing_thread == nullptr);
     k4a_device_configuration_t device_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-    if (!_prepare_config_for_starting_camera(device_config)) {
+    if (!_init_config_for_this_camera(device_config)) {
         return false;
     }
     // xxxjack this is where we should open camera_handle.
@@ -103,7 +103,7 @@ bool K4ACamera::capture_frameset() {
     return rv;
 }
 
-bool K4ACamera::_prepare_config_for_starting_camera(k4a_device_configuration_t& device_config) {
+bool K4ACamera::_init_config_for_this_camera(k4a_device_configuration_t& device_config) {
     device_config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
 
     switch (hardware.color_height) {
