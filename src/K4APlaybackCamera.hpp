@@ -6,9 +6,6 @@ class K4APlaybackCamera : public K4ABaseCamera<k4a_playback_t> {
     typedef k4a_playback_t Type_api_camera;
     const std::string CLASSNAME = "cwipc_kinect: K4APlaybackCamera";
 
-public:
-    uint64_t current_frameset_timestamp = 0; //!< Unsure? How is this different from get_capture_timestamp()?
-
 private:
     K4APlaybackCamera(const K4APlaybackCamera&);  // Disable copy constructor
     K4APlaybackCamera& operator=(const K4APlaybackCamera&); // Disable assignment
@@ -22,7 +19,7 @@ public:
     virtual void start_camera_streaming() override final;
     // virtual void pre_stop_camera() override final {};
     virtual void stop_camera() override final;
-    bool capture_frameset(uint64_t master_timestamp);
+    virtual uint64_t wait_for_captured_frameset(uint64_t earliest_timestamp) override final;
     bool seek(uint64_t timestamp);
 
 protected:
@@ -34,10 +31,11 @@ protected:
     k4a_image_t _uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) override final;
 
 private:
-    bool _prepare_next_valid_frame();
-    bool _prepare_cond_next_valid_frame(uint64_t master_timestamp);
+    bool _capture_next_valid_frame();
+    bool _capture_frame_no_earlier_than_timestamp(uint64_t master_timestamp);
 
     uint64_t max_delay = 0;
     int capture_id = 0;
     k4a_record_configuration_t file_config;
+    uint64_t current_frameset_timestamp = 0; //!< Needed so we can skip frames that are outdated.
 };

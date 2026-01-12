@@ -161,6 +161,7 @@ public:
 protected:
     // internal API that is "shared" with other implementations (realsense, kinect)
     virtual bool _init_hardware_for_this_camera() = 0;
+    // xxxjack _init_config_for_this_camera() has different signatures for camera/recording.
     virtual bool _init_filters() override final {
         // K4A API does not implement any filtering, so nothing to initialize
         // xxxjack or should we initialize the XY table here?
@@ -209,30 +210,25 @@ protected:
 
         return true;
     }
-    // xxxjack _init_config_for_this_camera() has different signatures for camera/recording.
 
 
 public:
-
+    virtual uint64_t wait_for_captured_frameset(uint64_t minimum_timestamp) = 0;
     virtual void process_pointcloud_from_frameset() final {
-        assert(current_frameset);
+        assert(current_captured_frameset);
 
-        if (!processing_frame_queue.try_enqueue(current_frameset)) {
+        if (!processing_frame_queue.try_enqueue(current_captured_frameset)) {
             _log_warning("processing frame queue full, dropping frame");
-            k4a_capture_release(current_frameset);
+            k4a_capture_release(current_captured_frameset);
         }
 
-        current_frameset = NULL;
+        current_captured_frameset = NULL;
     }
 
     virtual void wait_for_pointcloud_processed() final {
         std::unique_lock<std::mutex> lock(processing_mutex);
         processing_done_cv.wait(lock, [this] { return processing_done; });
         processing_done = false;
-    }
-
-    virtual uint64_t get_capture_timestamp() final {
-        return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     }
 
     virtual cwipc_pcl_pointcloud access_current_pcl_pointcloud() final {
@@ -242,8 +238,8 @@ public:
     void save_frameset_auxdata(cwipc* pc) {
         // xxxjack do we need to lock current_frameset here?
         if (auxData.want_auxdata_rgb || auxData.want_auxdata_depth) {
-            k4a_image_t color_image = k4a_capture_get_color_image(current_frameset);
-            k4a_image_t depth_image = k4a_capture_get_depth_image(current_frameset);
+            k4a_image_t color_image = k4a_capture_get_color_image(current_captured_frameset);
+            k4a_image_t depth_image = k4a_capture_get_depth_image(current_captured_frameset);
             if (color_image == nullptr || depth_image == nullptr) {
                 _log_error("Failed to get color or depth image from capture for auxiliary data");
                 return;
@@ -255,7 +251,7 @@ public:
 
             if (auxData.want_auxdata_rgb) {
                 std::string name = "rgb." + serial;
-                color_image = _uncompress_color_image(current_frameset, color_image);
+                color_image = _uncompress_color_image(current_captured_frameset, color_image);
                 if (filtering.map_color_to_depth) {
                     k4a_image_t transformed_color_image = NULL;
                     k4a_result_t status;
@@ -363,6 +359,7 @@ public:
             _save_auxdata_skeleton(pc);
         }
     }
+    // xxxjack wait_for_pointcloud_processed?
 protected:
     /// Kinect-specific: save skeleton auxdata into point cloud.
     void _save_auxdata_skeleton(cwipc* pc) {
@@ -948,7 +945,7 @@ protected:
     k4a_transformation_t transformation_handle = nullptr; //<! k4a structure describing relationship between RGB and D cameras
     moodycamel::BlockingReaderWriterQueue<k4a_capture_t> captured_frame_queue;  //<! Frames from capture-thread, waiting to be inter-camera synchronized
     moodycamel::BlockingReaderWriterQueue<k4a_capture_t> processing_frame_queue;  //<! Synchronized frames, waiting for processing thread
-    k4a_capture_t current_frameset = nullptr; //<! Current frame being moved from captured_frame_queue to processing_frame_queue
+    k4a_capture_t current_captured_frameset = nullptr; //<! Current frame being moved from captured_frame_queue to processing_frame_queue
     bool camera_sync_ismaster;  //<! Parameter from camData xxxjack needs to go
     bool camera_sync_inuse; //<! Parameter from camData xxxjack needs to go
     std::mutex processing_mutex;  //<! Exclusive lock for frame to pointcloud processing.

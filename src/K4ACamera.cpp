@@ -69,38 +69,43 @@ bool K4ACamera::start_camera() {
     return true;
 }
 
-bool K4ACamera::capture_frameset() {
-    if (camera_stopped) {
-        return false;
-    }
-
+uint64_t K4ACamera::wait_for_captured_frameset(uint64_t minimum_timestamp) {
+    
     k4a_capture_t new_frameset = NULL;
-    bool rv = captured_frame_queue.wait_dequeue_timed(new_frameset, 5000000);
+    uint64_t candidate_timestamp = 0;
+    do {
+        if (camera_stopped) {
+            return 0;
+        }
+        bool rv = captured_frame_queue.wait_dequeue_timed(new_frameset, 5000000);
 
-    if (!rv) {
-        return rv;
+        if (!rv) {
+            _log_warning("No frameset captured in 5 seconds");
+            return 0;
+        }
+        // We only look at the depth image timestamp.
+        // We print a warning if they are not eqaul, and use the oldest.
+        k4a_image_t depth_image = k4a_capture_get_depth_image(new_frameset);
+        uint64_t ts_depth_image = k4a_image_get_device_timestamp_usec(depth_image);
+        k4a_image_release(depth_image);
+        k4a_image_t color_image = k4a_capture_get_color_image(new_frameset);
+        uint64_t ts_color_image = k4a_image_get_device_timestamp_usec(color_image);
+        k4a_image_release(color_image);
+        if (ts_depth_image != ts_color_image) {
+            _log_warning("Frameset has color_ts=" + std::to_string(ts_color_image) + " depth_ts=" + std::to_string(ts_depth_image));
+        }
+        candidate_timestamp = ts_depth_image < ts_color_image ? ts_depth_image : ts_color_image;
+        if (candidate_timestamp < minimum_timestamp) {
+            _log_warning("Frameset skipped, ts=" + std::to_string(candidate_timestamp) + ", earlier than " + std::to_string(minimum_timestamp));
+        }
+    } while (candidate_timestamp < minimum_timestamp);
+
+    if (current_captured_frameset) {
+        k4a_capture_release(current_captured_frameset);
     }
 
-    if (current_frameset) {
-        k4a_capture_release(current_frameset);
-    }
-
-    current_frameset = new_frameset;
-#ifdef CWIPC_DEBUG_THREAD
-    if (current_frameset == NULL) {
-        _log_debug_thread("forward frame: NULL frameset");
-    } else {
-        k4a_image_t color = k4a_capture_get_color_image(current_frameset);
-        uint64_t tsRGB = k4a_image_get_device_timestamp_usec(color);
-        k4a_image_release(color);
-        k4a_image_t depth = k4a_capture_get_depth_image(current_frameset);
-        uint64_t tsD = k4a_image_get_device_timestamp_usec(depth);
-        k4a_image_release(depth);
-        _log_debug_thread("forward frame: cam=" + serial + ", rgbseq=" + std::to_string(tsRGB) + ", dseq=" + std::to_string(tsD));
-    }
-#endif
-
-    return rv;
+    current_captured_frameset = new_frameset;
+    return candidate_timestamp;
 }
 
 bool K4ACamera::_init_config_for_this_camera(k4a_device_configuration_t& device_config) {
@@ -229,9 +234,9 @@ void K4ACamera::stop_camera() {
     }
 
     // Delete objects
-    if (current_frameset != NULL) {
-        k4a_capture_release(current_frameset);
-        current_frameset = NULL;
+    if (current_captured_frameset != NULL) {
+        k4a_capture_release(current_captured_frameset);
+        current_captured_frameset = NULL;
     }
 
     if (transformation_handle) {

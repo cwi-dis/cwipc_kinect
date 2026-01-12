@@ -132,56 +132,49 @@ bool K4APlaybackCapture::_create_cameras() {
 
         int camera_index = cameras.size();
 
-        auto cam = new K4APlaybackCapture::Type_our_camera(camera_handles[i], configuration, camera_index);
+        auto cam = _create_single_camera(camera_handles[i], configuration, camera_index);
         cameras.push_back(cam);
     }
     return true;
 }
 
 bool K4APlaybackCapture::_capture_all_cameras(uint64_t& timestamp) {
-    bool all_captures_ok = true;
+    uint64_t first_timestamp = 0;
 
     //
     //f irst capture master frame (it is the referrence to sync).
     // For the master we simply get the next frame available (indicated by timestamp==0)
     //
    for (auto cam : cameras) { //MASTER
-        if (!cam->is_sync_master()) {
-            continue;
-        }
+        if (cam->is_sync_master()) {
+            first_timestamp = cam->wait_for_captured_frameset(0);
+            if (first_timestamp == 0) {
+                _log_error("Master camera " + cam->serial + " failed to capture frameset");
+                return false;
+            }
+            break;
 
-        if (!cam->capture_frameset(0)) {
-            _log_error("Master camera " + cam->serial + " failed to capture frameset");
-            all_captures_ok = false;
         }
-        break;
-   }
-
-   //
-   // If we have a sync master we now know the timestamp we want from the other cameras.
-   //
-   uint64_t wanted_timestamp = 0;
-   if (sync_inuse) {
-        wanted_timestamp = cameras[master_id]->current_frameset_timestamp; // xxxjack should be a method.
     }
 
     //
-    // Now capture the rest of the cameras
+    // If we have a sync master we now know the timestamp we want from the other cameras.
+    // If we don't have a sync master we simply sync everything to the first camera.
     //
     for (auto cam : cameras) { //SUBORDINATE or STANDALONE
-        if (cam->is_sync_master()) {
+        if (!cam->is_sync_master()) {
+            uint64_t this_cam_timestamp = cam->wait_for_captured_frameset(first_timestamp);
+            if (this_cam_timestamp == 0) {
+                _log_warning("no frameset captured for camera");
+                return false;
+            }
             continue;
-        }
-
-        if (!cam->capture_frameset(wanted_timestamp)) {
-            _log_error("Camera " + cam->serial + " failed to capture frameset at timestamp " + std::to_string(wanted_timestamp));
-            all_captures_ok = false;
+            if (first_timestamp == 0) {
+                first_timestamp = this_cam_timestamp;
+            }
         }
     }
-    _log_debug("Captured all cameras for timestamp " + std::to_string(wanted_timestamp));
-
-    timestamp = wanted_timestamp;
-    return all_captures_ok;
+    return true;
 }
 
 bool K4APlaybackCapture::seek(uint64_t timestamp) {

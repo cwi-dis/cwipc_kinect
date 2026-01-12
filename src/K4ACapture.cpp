@@ -114,20 +114,25 @@ bool K4ACapture::_init_hardware_for_all_cameras() {
 }
 
 bool K4ACapture::_capture_all_cameras(uint64_t& timestamp) {
-    bool all_captures_ok = true;
+        uint64_t first_timestamp = 0;
+        for(auto cam : cameras) {
+            uint64_t this_cam_timestamp = cam->wait_for_captured_frameset(first_timestamp);
+            if (this_cam_timestamp == 0) {
+                _log_warning("no frameset captured from camera");
+                return false;
+            }
+            if (first_timestamp == 0) {
+                first_timestamp = this_cam_timestamp;
+            }
+        }
 
-    timestamp = 0;
-    for(auto cam : cameras) {
-        if (!cam->capture_frameset()) {
-            all_captures_ok = false;
-            continue;
+        // And get the best timestamp
+        if (configuration.new_timestamps) {
+            timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        } else {
+            timestamp = first_timestamp;
         }
-        uint64_t camts = cam->get_capture_timestamp();
-        if (camts > timestamp) {
-            timestamp = camts;
-        }
-    }
-    return all_captures_ok;
+        return true;
 }
 
 bool K4ACapture::seek(uint64_t timestamp) {

@@ -19,8 +19,7 @@ public:
     void stop_camera() override;
     virtual void get_camera_hardware_parameters(K4ACameraHardwareConfig& output) override final;
 public:
-    bool capture_frameset();
-
+    virtual uint64_t wait_for_captured_frameset(uint64_t minimum_timestamp) override final;
 protected:
     virtual bool _init_hardware_for_this_camera() override final;
     virtual void _start_capture_thread() override final;

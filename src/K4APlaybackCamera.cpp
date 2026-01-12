@@ -20,38 +20,23 @@ K4APlaybackCamera::K4APlaybackCamera(Type_api_camera _handle, K4ACaptureConfig& 
     _init_filters();
 }
 
-bool K4APlaybackCamera::capture_frameset(uint64_t master_timestamp) {
+uint64_t K4APlaybackCamera::wait_for_captured_frameset(uint64_t earliest_timestamp) {
     if (camera_stopped) {
         return false;
     }
-
-    bool rv;
-    bool use_timestamp = camera_sync_inuse && !camera_sync_ismaster;
-
-    if (use_timestamp) {
-        rv = _prepare_cond_next_valid_frame(master_timestamp);
+    bool ok = true;
+    if (earliest_timestamp > 0) {
+        ok = _capture_frame_no_earlier_than_timestamp(earliest_timestamp);
     } else {
-        rv = _prepare_next_valid_frame();
+        ok = _capture_next_valid_frame();
     }
 
-    if (!rv) {
-        return rv;
+    if (!ok) {
+        // Any error message will have been printed by the methods above.
+        return 0;
     }
 
-#ifdef CWIPC_DEBUG_THREAD
-    if (current_frameset == NULL) {
-        _log_debug_thread("forward NULL frame");
-    } else {
-        k4a_image_t color = k4a_capture_get_color_image(current_frameset);
-        uint64_t tsRGB = k4a_image_get_device_timestamp_usec(color);
-        k4a_image_release(color);
-        k4a_image_t depth = k4a_capture_get_depth_image(current_frameset);
-        uint64_t tsD = k4a_image_get_device_timestamp_usec(depth);
-        k4a_image_release(depth);
-        _log_debug_thread("forward frame: cam=" + serial + ", rgbseq=" + std::to_string(tsRGB) + ", dseq=" + std::to_string(tsD));
-    }
-#endif
-    return rv;
+    return current_frameset_timestamp;
 }
 
 bool K4APlaybackCamera::seek(uint64_t timestamp) {
@@ -70,7 +55,7 @@ bool K4APlaybackCamera::seek(uint64_t timestamp) {
     }
 }
 
-bool K4APlaybackCamera::_prepare_next_valid_frame() {
+bool K4APlaybackCamera::_capture_next_valid_frame() {
     k4a_stream_result_t stream_result;
     // Read the next capture into memory
     bool succeeded = false;
@@ -82,12 +67,12 @@ bool K4APlaybackCamera::_prepare_next_valid_frame() {
 
         assert(camera_handle);
 
-        if (current_frameset != NULL) {
-            k4a_capture_release(current_frameset);
-            current_frameset = nullptr;
+        if (current_captured_frameset != NULL) {
+            k4a_capture_release(current_captured_frameset);
+            current_captured_frameset = nullptr;
         }
 
-        stream_result = k4a_playback_get_next_capture(camera_handle, &current_frameset);
+        stream_result = k4a_playback_get_next_capture(camera_handle, &current_captured_frameset);
         if (stream_result == K4A_STREAM_RESULT_EOF) {
             end_of_stream_reached = true; // xxxjack note that this means eof is true *after all frames have been processed*.
             if (current_frameset_timestamp == 0) {
@@ -104,8 +89,8 @@ bool K4APlaybackCamera::_prepare_next_valid_frame() {
         }
 
         capture_id++;
-        k4a_image_t color = k4a_capture_get_color_image(current_frameset);
-        k4a_image_t depth = k4a_capture_get_depth_image(current_frameset);
+        k4a_image_t color = k4a_capture_get_color_image(current_captured_frameset);
+        k4a_image_t depth = k4a_capture_get_depth_image(current_captured_frameset);
 
         if (color == NULL) {
             _log_warning("Color is missing in capture " + std::to_string(capture_id) + " serial " + camera_config.serial + " from " + camera_config.filename);
@@ -120,7 +105,7 @@ bool K4APlaybackCamera::_prepare_next_valid_frame() {
         if (!succeeded) {
             continue;
         }
-
+        // xxxjack note that this code uses *color* frame timestamp...
         current_frameset_timestamp = k4a_image_get_device_timestamp_usec(color);
         _log_debug("Prepared frame " + std::to_string(capture_id) + " with timestamp " + std::to_string(current_frameset_timestamp) + " from file " + camera_config.filename);
         k4a_image_release(color);
@@ -130,9 +115,9 @@ bool K4APlaybackCamera::_prepare_next_valid_frame() {
     return succeeded;
 }
 
-bool K4APlaybackCamera::_prepare_cond_next_valid_frame(uint64_t master_timestamp) {
+bool K4APlaybackCamera::_capture_frame_no_earlier_than_timestamp(uint64_t master_timestamp) {
     //check if current frame already satisfies the condition
-    if (current_frameset != NULL && (current_frameset_timestamp > master_timestamp)) {
+    if (current_captured_frameset != NULL && (current_frameset_timestamp > master_timestamp)) {
         // Even if the current frame is too far in the future we use it.
         _log_warning("reusing frame " + std::to_string(current_frameset_timestamp) + " for master timestamp " +  std::to_string(master_timestamp));
         return true;
@@ -140,7 +125,7 @@ bool K4APlaybackCamera::_prepare_cond_next_valid_frame(uint64_t master_timestamp
 
     //otherwise start process to find a frame that satisfies the condition.
     while (true) {
-        if (!_prepare_next_valid_frame()) {
+        if (!_capture_next_valid_frame()) {
             return false;
         }
 
@@ -207,9 +192,9 @@ void K4APlaybackCamera::stop_camera() {
     }
 
     // Delete objects
-    if (current_frameset != NULL) {
-        k4a_capture_release(current_frameset);
-        current_frameset = NULL;
+    if (current_captured_frameset != NULL) {
+        k4a_capture_release(current_captured_frameset);
+        current_captured_frameset = NULL;
     }
 
     if (camera_handle) {
