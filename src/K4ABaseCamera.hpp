@@ -93,7 +93,16 @@ public:
     /// Step 2 in starting: starts the camera. Called for all cameras. 
     virtual bool start_camera() = 0;
     /// Step 3 in starting: starts the capturer. Called after all cameras have been started.
-    virtual void start_camera_streaming() = 0;
+    virtual void start_camera_streaming() final {
+        if (!camera_started) {
+            return;
+        }
+        assert(camera_stopped);
+        camera_stopped = false;
+        _start_capture_thread();
+        _start_processing_thread();
+
+    }
     /// Step 4, called after all capturers have been started.
     virtual void post_start_all_cameras() final {}
     virtual void pre_stop_camera() final {}
@@ -213,7 +222,11 @@ protected:
 
 
 public:
+    /// Step 1 in capturing: wait for a valid frameset. Any image processing will have been done. 
+    /// Returns timestamp of depth frame, or zero if none available.
+    /// This ensures protected attribute current_captured_frameset is valid.
     virtual uint64_t wait_for_captured_frameset(uint64_t minimum_timestamp) = 0;
+    /// Step 2: Forward the current_captured_frameset to the processing thread to turn it into a point cloud.
     virtual void process_pointcloud_from_frameset() final {
         assert(current_captured_frameset);
 
@@ -224,17 +237,20 @@ public:
 
         current_captured_frameset = NULL;
     }
-
+    /// Step 3: Wait for the point cloud processing.
+    /// After this, current_pcl_pointcloud will be valid.
     virtual void wait_for_pointcloud_processed() final {
         std::unique_lock<std::mutex> lock(processing_mutex);
         processing_done_cv.wait(lock, [this] { return processing_done; });
         processing_done = false;
     }
-
+    /// Step 4: borrow a pointer to the point cloud just created, as a PCL point cloud.
+    /// The capturer will use this to populate the resultant cwipc point cloud with points
+    /// from all cameras.
     virtual cwipc_pcl_pointcloud access_current_pcl_pointcloud() final {
-        return current_pointcloud;
+        return current_pcl_pointcloud;
     }
-
+    /// Step 5: Save auxdata from frameset into given cwipc object.
     void save_frameset_auxdata(cwipc* pc) {
         // xxxjack do we need to lock current_frameset here?
         if (auxData.want_auxdata_rgb || auxData.want_auxdata_depth) {
@@ -359,8 +375,148 @@ public:
             _save_auxdata_skeleton(pc);
         }
     }
-    // xxxjack wait_for_pointcloud_processed?
 protected:
+    virtual void _start_capture_thread() = 0;
+    virtual void _capture_thread_main() = 0;
+    virtual void _start_processing_thread() final {
+        camera_processing_thread = new std::thread(&K4ABaseCamera::_processing_thread_main, this);
+        _cwipc_setThreadName(camera_processing_thread, L"cwipc_kinect::camera_processing_thread");
+    }
+
+    virtual void _processing_thread_main() final {
+        _log_debug_thread("frame processing thread started for camera " + serial);
+        while (!camera_stopped) {
+            k4a_capture_t processing_frameset = NULL;
+
+            bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(10000));
+
+            if (!ok) {
+                _log_warning("processing thread dequeue timeout");
+                continue;
+            }
+
+            _log_debug_thread("processing thread got frameset for camera " + serial);
+            assert(processing_frameset);
+            std::lock_guard<std::mutex> lock(processing_mutex);
+
+            // use body tracker for skeleton extraction
+            if (tracker_handle) {
+                _feed_frameset_to_tracker(processing_frameset);
+            }
+            // xxxjack-here-I-am
+            // get depth and color images. Apply filters and uncompress color image if needed
+            k4a_image_t depth_image = k4a_capture_get_depth_image(processing_frameset);
+            k4a_image_t color_image = k4a_capture_get_color_image(processing_frameset);
+
+            // Do processing on the images (filtering, decompressing)
+            _apply_filters_to_depth_image(depth_image); //filtering depthmap => better now because if we map depth to color then we need to filter more points.
+            color_image = _uncompress_color_image(processing_frameset, color_image);
+
+            //generate pointclouds
+            cwipc_pcl_pointcloud new_pointcloud = nullptr;
+            if (filtering.map_color_to_depth) {
+                new_pointcloud = _generate_point_cloud_color_to_depth(depth_image, color_image);
+            } else {
+                new_pointcloud = _generate_point_cloud_depth_to_color(depth_image, color_image);
+            }
+
+            if (new_pointcloud != nullptr) {
+                current_pcl_pointcloud = new_pointcloud;
+                _log_debug_thread("generated pointcloud with " + std::to_string(current_pcl_pointcloud->size()) + " points");
+
+                if (current_pcl_pointcloud->size() == 0) {
+                    _log_warning("generated pointcloud has zero points");
+                    //continue;
+                }
+
+                // Notify wait_for_pointcloud_processed that we're done.
+                processing_done = true;
+                processing_done_cv.notify_one();
+            }
+
+            if (depth_image) {
+                k4a_image_release(depth_image);
+            }
+            if (color_image) {
+                k4a_image_release(color_image);
+            }
+            if (processing_frameset) {
+                k4a_capture_release(processing_frameset);
+            }
+        }
+
+        _log_debug_thread("processing thread exiting");
+    }
+
+    void _feed_frameset_to_tracker(k4a_capture_t processing_frameset) {
+        //
+        // Push frameset into the tracker. Wait indefinitely for the result.
+        //
+        k4a_wait_result_t queue_capture_result = k4abt_tracker_enqueue_capture(tracker_handle, processing_frameset, K4A_WAIT_INFINITE);
+        if (queue_capture_result == K4A_WAIT_RESULT_TIMEOUT) {
+            // It should never hit timeout when K4A_WAIT_INFINITE is set.
+            _log_warning("k4abt_tracker_enqueue_capture: timeout");
+        } else if (queue_capture_result == K4A_WAIT_RESULT_FAILED) {
+            _log_warning("k4abt_tracker_enqueue_capture: failed");
+        }
+
+        //
+        // Now pop the result. Again wait indefinitely.
+        //
+        k4abt_frame_t body_frame = NULL;
+        skeletons.clear();
+        k4a_wait_result_t pop_frame_result = k4abt_tracker_pop_result(tracker_handle, &body_frame, K4A_WAIT_INFINITE);
+
+        if (pop_frame_result == K4A_WAIT_RESULT_SUCCEEDED) {
+            uint32_t num_bodies = k4abt_frame_get_num_bodies(body_frame);
+            _log_debug_thread("_feed_frameset_to_tracker: detected " + std::to_string(num_bodies) + " bodies");
+            if (num_bodies > 0) {
+                // Transform each 3d joints from 3d depth space to 2d color image space
+                for (uint32_t i = 0; i < num_bodies; i++) {
+                    //printf("- Person[%u]:\n", i);
+                    k4abt_skeleton_t skeleton;
+                    auto sts = k4abt_frame_get_body_skeleton(body_frame, i, &skeleton);
+
+                    if (sts != K4A_RESULT_SUCCEEDED) {
+                        _log_error("_feed_frameset_to_tracker: Get body from body frame failed");
+                        break;
+                    }
+
+                    for (int joint_id = 0; joint_id < (int)K4ABT_JOINT_COUNT; joint_id++) {
+                        k4a_float3_t::_xyz pos = skeleton.joints[joint_id].position.xyz; //millimiters
+                        cwipc_pcl_point point;
+                        point.x = pos.x;
+                        point.y = pos.y;
+                        point.z = pos.z;
+
+                        if (!filtering.map_color_to_depth) {
+                            _transform_point_depth_to_color(point);
+                        }
+
+                        _transform_point_cam_to_world(point);
+                        pos.x = point.x;
+                        pos.y = point.y;
+                        pos.z = point.z;
+                        skeleton.joints[joint_id].position.xyz = pos;
+                        //k4abt_joint_confidence_level_t confidence = skeleton.joints[joint_id].confidence_level;
+                        //k4a_quaternion_t orientation = skeleton.joints[joint_id].orientation;
+                        //std::cout << "\tJoint " << joint_id << " : \t(" << pos.x << "," << pos.y << "," << pos.z << ")\t\tconfidence_level = " << confidence << "\t orientation_wxyz: (" << orientation.wxyz.w << "," << orientation.wxyz.x << "," << orientation.wxyz.y << "," << orientation.wxyz.z << ")" << std::endl;
+                    }
+
+                    skeletons.push_back(skeleton);
+                }
+            }
+        } else if (pop_frame_result == K4A_WAIT_RESULT_TIMEOUT) {
+            _log_warning("k4abt_tracker_pop_result: timeout");
+        } else {
+            _log_warning("k4abt_tracker_pop_result: failed");
+        }
+
+        if (body_frame != nullptr) {
+            k4abt_frame_release(body_frame);
+        }
+    }
+
     /// Kinect-specific: save skeleton auxdata into point cloud.
     void _save_auxdata_skeleton(cwipc* pc) {
         int n_skeletons = skeletons.size();
@@ -391,151 +547,8 @@ protected:
         }
     }
 
-    virtual void _start_capture_thread() = 0;
-    virtual void _capture_thread_main() = 0;
 
-    virtual void _processing_thread_main() final {
-        _log_debug_thread("processing thread started for camera " + serial);
-        while (!camera_stopped) {
-            k4a_capture_t processing_frameset = NULL;
-            k4a_image_t depth_image = NULL;
-            k4a_image_t color_image = NULL;
-
-            bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(10000));
-            if (processing_frameset == NULL) {
-            _log_debug_thread("processing thread stopping for camera " + serial);
-                continue;
-            }
-
-            if (!ok) {
-                _log_warning("processing thread dequeue timeout");
-                continue;
-            }
-
-            _log_debug_thread("processing thread got frameset for camera " + serial);
-            assert(processing_frameset);
-            std::lock_guard<std::mutex> lock(processing_mutex);
-
-            // use body tracker for skeleton extraction
-            if (tracker_handle) {
-                //
-                // Push frameset into the tracker. Wait indefinitely for the result.
-                //
-                k4a_wait_result_t queue_capture_result = k4abt_tracker_enqueue_capture(tracker_handle, processing_frameset, K4A_WAIT_INFINITE);
-                if (queue_capture_result == K4A_WAIT_RESULT_TIMEOUT) {
-                  // It should never hit timeout when K4A_WAIT_INFINITE is set.
-                  _log_warning("k4abt_tracker_enqueue_capture: timeout");
-                } else if (queue_capture_result == K4A_WAIT_RESULT_FAILED) {
-                  _log_warning("k4abt_tracker_enqueue_capture: failed");
-                }
-
-                //
-                // Now pop the result. Again wait indefinitely.
-                //
-                k4abt_frame_t body_frame = NULL;
-                skeletons.clear();
-                k4a_wait_result_t pop_frame_result = k4abt_tracker_pop_result(tracker_handle, &body_frame, K4A_WAIT_INFINITE);
-
-                if (pop_frame_result == K4A_WAIT_RESULT_SUCCEEDED) {
-                    uint32_t num_bodies = k4abt_frame_get_num_bodies(body_frame);
-                    _log_debug_thread("processing thread: detected " + std::to_string(num_bodies) + " bodies");
-                    if (num_bodies > 0) {
-                        // Transform each 3d joints from 3d depth space to 2d color image space
-                        for (uint32_t i = 0; i < num_bodies; i++) {
-                            //printf("- Person[%u]:\n", i);
-                            k4abt_skeleton_t skeleton;
-                            auto sts = k4abt_frame_get_body_skeleton(body_frame, i, &skeleton);
-
-                            if (sts != K4A_RESULT_SUCCEEDED) {
-                                _log_error("Get body from body frame failed");
-                                break;
-                            }
-
-                            for (int joint_id = 0; joint_id < (int)K4ABT_JOINT_COUNT; joint_id++) {
-                                k4a_float3_t::_xyz pos = skeleton.joints[joint_id].position.xyz; //millimiters
-                                cwipc_pcl_point point;
-                                point.x = pos.x;
-                                point.y = pos.y;
-                                point.z = pos.z;
-
-                                if (!filtering.map_color_to_depth) {
-                                    _transform_point_depth_to_color(point);
-                                }
-
-                                _transform_point_cam_to_world(point);
-                                pos.x = point.x;
-                                pos.y = point.y;
-                                pos.z = point.z;
-                                skeleton.joints[joint_id].position.xyz = pos;
-                                //k4abt_joint_confidence_level_t confidence = skeleton.joints[joint_id].confidence_level;
-                                //k4a_quaternion_t orientation = skeleton.joints[joint_id].orientation;
-                                //std::cout << "\tJoint " << joint_id << " : \t(" << pos.x << "," << pos.y << "," << pos.z << ")\t\tconfidence_level = " << confidence << "\t orientation_wxyz: (" << orientation.wxyz.w << "," << orientation.wxyz.x << "," << orientation.wxyz.y << "," << orientation.wxyz.z << ")" << std::endl;
-                            }
-
-                            skeletons.push_back(skeleton);
-                        }
-                    }
-                } else if (pop_frame_result == K4A_WAIT_RESULT_TIMEOUT) {
-                    _log_warning("k4abt_tracker_pop_result: timeout");
-                } else {
-                    _log_warning("k4abt_tracker_pop_result: failed");
-                }
-
-                if (body_frame != nullptr) {
-                    k4abt_frame_release(body_frame);
-                }
-            }
-
-            // get depth and color images. Apply filters and uncompress color image if needed
-            depth_image = k4a_capture_get_depth_image(processing_frameset);
-
-            _filter_depth_image(depth_image); //filtering depthmap => better now because if we map depth to color then we need to filter more points.
-            color_image = k4a_capture_get_color_image(processing_frameset);
-            color_image = _uncompress_color_image(processing_frameset, color_image);
-
-            //generate pointclouds
-            cwipc_pcl_pointcloud new_pointcloud = nullptr;
-            if (filtering.map_color_to_depth) {
-                new_pointcloud = _generate_point_cloud_color_to_depth(depth_image, color_image);
-            } else {
-                new_pointcloud = _generate_point_cloud_depth_to_color(depth_image, color_image);
-            }
-
-            if (new_pointcloud != nullptr) {
-                current_pointcloud = new_pointcloud;
-                _log_debug_thread("generated pointcloud with " + std::to_string(current_pointcloud->size()) + " points");
-
-                if (current_pointcloud->size() == 0) {
-                    _log_warning("generated pointcloud has zero points");
-                    //continue;
-                }
-
-                // Notify wait_for_pointcloud_processed that we're done.
-                processing_done = true;
-                processing_done_cv.notify_one();
-            }
-
-            if (depth_image) {
-                k4a_image_release(depth_image);
-            }
-
-            depth_image = nullptr;
-            if (color_image) {
-                k4a_image_release(color_image);
-            }
-
-            color_image = nullptr;
-            if (processing_frameset) {
-                k4a_capture_release(processing_frameset);
-            }
-
-            processing_frameset = nullptr;
-        }
-
-        _log_debug_thread("processing thread exiting");
-    }
-
-    virtual void _filter_depth_image(k4a_image_t depth_image) {
+    virtual void _apply_filters_to_depth_image(k4a_image_t depth_image) {
         if (filtering.do_threshold) {
             uint16_t* depth_buffer = (uint16_t*)(void*)k4a_image_get_buffer(depth_image);
 
@@ -571,73 +584,62 @@ protected:
         }
     }
 
-    virtual void _filter_depth_data(int16_t* depth_values, int width, int height) final {
-        int16_t min_depth = (int16_t)(filtering.threshold_near * 1000);
-        int16_t max_depth = (int16_t)(filtering.threshold_far * 1000);
-        int16_t *z_values = (int16_t *)calloc(width * height, sizeof(int16_t));
+    //virtual void _computePointSize() = 0;
 
-        // Pass one: Copy Z values to temporary buffer, but leave out-of-range values at zero.
+    virtual cwipc_pcl_pointcloud _generate_point_cloud(const k4a_image_t depth_image, k4a_image_t color_image) {
+        int width = k4a_image_get_width_pixels(depth_image);
+        int height = k4a_image_get_height_pixels(depth_image);
+
+        float height_min = processing.height_min;
+        float height_max = processing.height_max;
+        bool do_height_filtering = height_min < height_max;
+        bool do_greenscreen_removal = processing.greenscreen_removal;
+        bool do_radius_filtering = processing.radius_filter > 0;
+
+        //access depth and color data
+        uint16_t* depth_data = (uint16_t*)(void*)k4a_image_get_buffer(depth_image);
+        k4a_float2_t* uv_factors_for_depth_table = (k4a_float2_t*)(void*)k4a_image_get_buffer(depth_uv_mapping);
+        cwi_bgra_t* color_data = (cwi_bgra_t*)(void*)k4a_image_get_buffer(color_image);
+
+        cwipc_pcl_pointcloud new_cloud = new_cwipc_pcl_pointcloud();
+        new_cloud->clear();
+        new_cloud->reserve(width * height);
+
         for (int i = 0; i < width * height; i++) {
-            int i_pc = i * 3;
-            int16_t z = depth_values[i_pc + 2];
+            if (depth_data[i] != 0 && !isnan(uv_factors_for_depth_table[i].xy.x) && !isnan(uv_factors_for_depth_table[i].xy.y)) {
+                cwipc_pcl_point point;
+                point.x = uv_factors_for_depth_table[i].xy.x * (float)depth_data[i];
+                point.y = uv_factors_for_depth_table[i].xy.y * (float)depth_data[i];
+                point.z = (float)depth_data[i];
+                point.b = color_data[i].bgra.b;
+                point.g = color_data[i].bgra.g;
+                point.r = color_data[i].bgra.r;
+                point.a = (uint8_t)1 << camera_index;
 
-            if (filtering.do_threshold && (z <= min_depth || z >= max_depth)) {
-                continue;
-            }
-
-            z_values[i] = z;
-        }
-
-        /*cv::Mat depth_in(height, width, CV_16UC1, z_values);
-        cv::imwrite("test/depth_th.png", depth_in);*/
-
-        // Pass two: loop for zero pixels in temp buffer, and clear out x/y pixels adjacent in depth buffer
-        int x_delta = processing.depth_x_erosion;
-        int y_delta = processing.depth_y_erosion;
-
-        if (x_delta || y_delta) {
-            for (int x = 0; x < width; x++) {
-                for (int y = 0; y < height; y++) {
-                    if (z_values[x + y * width] != 0) {
-                        continue;
-                    }
-
-                    // Zero depth at (x, y). Clear out pixels 
-                    for (int ix = x - x_delta; ix <= x + x_delta; ix++) {
-                        if (ix < 0 || ix >= width) {
-                            continue;
-                        }
-
-                        int i_pc = (ix + y * width) * 3;
-                        depth_values[i_pc + 2] = 0;
-                    }
-
-                    for (int iy = y - y_delta; iy <= y + y_delta; iy++) {
-                        if (iy < 0 || iy >= height) {
-                            continue;
-                        }
-
-                        int i_pc = (x + iy * width) * 3;
-                        depth_values[i_pc + 2] = 0;
-                    }
+                if (filtering.map_color_to_depth) {
+                    _transform_point_depth_to_color(point);
                 }
-            }
-        } else {
-          // Pass three: clear out zero pixels from temporary buffer.
-            for (int i = 0; i < width * height; i++) {
-                if (z_values[i] != 0) {
+                _transform_point_cam_to_world(point); //transforming from camera to world coordinates
+
+                if (do_height_filtering && (point.y < height_min || point.y > height_max)) { //height filtering
                     continue;
                 }
 
-                int i_pc = i * 3;
-                depth_values[i_pc + 2] = 0;
+                if (do_radius_filtering && !isPointInRadius(point, processing.radius_filter)) {
+                    continue;
+                }
+
+                if (processing.greenscreen_removal && !isNotGreen(&point)) { //chromakey removal
+                    continue;
+                }
+
+                //point passed all filters, so we add this to the pointcloud
+                new_cloud->push_back(point);
             }
         }
-
-        free(z_values);
+        _log_debug_thread("produced " + std::to_string(new_cloud->size()) + " points");
+        return new_cloud;
     }
-
-    //virtual void _computePointSize() = 0;
     virtual cwipc_pcl_pointcloud _generate_point_cloud_color_to_depth(const k4a_image_t depth_image, const k4a_image_t color_image) final {
         int depth_image_width_pixels = k4a_image_get_width_pixels(depth_image);
         int depth_image_height_pixels = k4a_image_get_height_pixels(depth_image);
@@ -771,61 +773,6 @@ protected:
         }
     }
 
-    virtual cwipc_pcl_pointcloud _generate_point_cloud(const k4a_image_t depth_image, k4a_image_t color_image) {
-        int width = k4a_image_get_width_pixels(depth_image);
-        int height = k4a_image_get_height_pixels(depth_image);
-
-        float height_min = processing.height_min;
-        float height_max = processing.height_max;
-        bool do_height_filtering = height_min < height_max;
-        bool do_greenscreen_removal = processing.greenscreen_removal;
-        bool do_radius_filtering = processing.radius_filter > 0;
-
-        //access depth and color data
-        uint16_t* depth_data = (uint16_t*)(void*)k4a_image_get_buffer(depth_image);
-        k4a_float2_t* uv_factors_for_depth_table = (k4a_float2_t*)(void*)k4a_image_get_buffer(depth_uv_mapping);
-        cwi_bgra_t* color_data = (cwi_bgra_t*)(void*)k4a_image_get_buffer(color_image);
-
-        cwipc_pcl_pointcloud new_cloud = new_cwipc_pcl_pointcloud();
-        new_cloud->clear();
-        new_cloud->reserve(width * height);
-
-        for (int i = 0; i < width * height; i++) {
-            if (depth_data[i] != 0 && !isnan(uv_factors_for_depth_table[i].xy.x) && !isnan(uv_factors_for_depth_table[i].xy.y)) {
-                cwipc_pcl_point point;
-                point.x = uv_factors_for_depth_table[i].xy.x * (float)depth_data[i];
-                point.y = uv_factors_for_depth_table[i].xy.y * (float)depth_data[i];
-                point.z = (float)depth_data[i];
-                point.b = color_data[i].bgra.b;
-                point.g = color_data[i].bgra.g;
-                point.r = color_data[i].bgra.r;
-                point.a = (uint8_t)1 << camera_index;
-
-                if (filtering.map_color_to_depth) {
-                    _transform_point_depth_to_color(point);
-                }
-                _transform_point_cam_to_world(point); //transforming from camera to world coordinates
-
-                if (do_height_filtering && (point.y < height_min || point.y > height_max)) { //height filtering
-                    continue;
-                }
-
-                if (do_radius_filtering && !isPointInRadius(point, processing.radius_filter)) {
-                    continue;
-                }
-
-                if (processing.greenscreen_removal && !isNotGreen(&point)) { //chromakey removal
-                    continue;
-                }
-
-                //point passed all filters, so we add this to the pointcloud
-                new_cloud->push_back(point);
-            }
-        }
-        _log_debug_thread("produced " + std::to_string(new_cloud->size()) + " points");
-        return new_cloud;
-    }
-
     /// Convert a 3D point from camera coordinates to world coordinates.
     virtual void _transform_point_cam_to_world(cwipc_pcl_point& pt) final {
         float x = pt.x / 1000.0;
@@ -941,7 +888,7 @@ protected:
     std::thread* camera_processing_thread = nullptr; //<! Handle for thread that runs processing loop
     std::thread* camera_capturer_thread = nullptr;  //<! Handle for thread that rungs grabber (if applicable)
     std::vector<k4abt_skeleton_t> skeletons; //<! Skeletons extracted using the body tracking sdk
-    cwipc_pcl_pointcloud current_pointcloud = nullptr;  //<! Most recent grabbed pointcloud
+    cwipc_pcl_pointcloud current_pcl_pointcloud = nullptr;  //<! Most recent grabbed pointcloud
     k4a_transformation_t transformation_handle = nullptr; //<! k4a structure describing relationship between RGB and D cameras
     moodycamel::BlockingReaderWriterQueue<k4a_capture_t> captured_frame_queue;  //<! Frames from capture-thread, waiting to be inter-camera synchronized
     moodycamel::BlockingReaderWriterQueue<k4a_capture_t> processing_frame_queue;  //<! Synchronized frames, waiting for processing thread

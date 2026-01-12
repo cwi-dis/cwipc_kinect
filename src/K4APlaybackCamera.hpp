@@ -16,7 +16,6 @@ public:
 
     // virtual bool pre_start_all_cameras() override final { return true; }
     virtual bool start_camera() override final;
-    virtual void start_camera_streaming() override final;
     // virtual void pre_stop_camera() override final {};
     virtual void stop_camera() override final;
     virtual uint64_t wait_for_captured_frameset(uint64_t earliest_timestamp) override final;
@@ -26,8 +25,8 @@ protected:
     virtual bool _init_hardware_for_this_camera() override final {
         return true; // No hardware to initialize for the playback device
     }
-    virtual void _start_capture_thread() override final;
-    virtual void _capture_thread_main() override final;
+    virtual void _start_capture_thread() override final {};
+    virtual void _capture_thread_main() override final {};
     k4a_image_t _uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) override final;
 
 private:

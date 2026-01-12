@@ -14,7 +14,6 @@ public:
 
     // virtual bool pre_start_all_cameras() override final { return true; }
     virtual bool start_camera() override final;
-    virtual void start_camera_streaming() override final;
     // virtual void pre_stop_camera() override final {}
     void stop_camera() override;
     virtual void get_camera_hardware_parameters(K4ACameraHardwareConfig& output) override final;

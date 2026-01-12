@@ -216,25 +216,6 @@ void K4APlaybackCamera::stop_camera() {
     }
 }
 
-void K4APlaybackCamera::start_camera_streaming() {
-    if (!camera_started) {
-        return;
-    }
-
-    assert(camera_stopped);
-    camera_stopped = false;
-    camera_processing_thread = new std::thread(&K4APlaybackCamera::_processing_thread_main, this);
-    _cwipc_setThreadName(camera_processing_thread, L"cwipc_kinect::K4APlaybackCamera::camera_processing_thread");
-}
-
-void K4APlaybackCamera::_start_capture_thread() {
-    // Not needed for playback camera
-}
-
-void K4APlaybackCamera::_capture_thread_main() {
-    // Not needed for playback camera
-}
-
 k4a_image_t K4APlaybackCamera::_uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) {
     assert(capture);
     assert(color_image);

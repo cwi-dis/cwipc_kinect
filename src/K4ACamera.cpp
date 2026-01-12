@@ -63,7 +63,7 @@ bool K4ACamera::start_camera() {
     }
     _log_debug("camera started");
 
-    // xxxjack rs2 has _post_start()
+    // xxxjack rs2 has _post_start_this_camera()
     // xxxjack rs2 has _ComputePointSize()
     camera_started = true;
     return true;
@@ -246,18 +246,6 @@ void K4ACamera::stop_camera() {
 
     processing_done = true;
     processing_done_cv.notify_one();
-}
-
-void K4ACamera::start_camera_streaming() {
-    if (!camera_started) {
-        return;
-    }
-
-    assert(camera_stopped);
-    camera_stopped = false;
-    _start_capture_thread();
-    camera_processing_thread = new std::thread(&K4ACamera::_processing_thread_main, this);
-    _cwipc_setThreadName(camera_processing_thread, L"cwipc_kinect::K4ACamera::camera_processing_thread");
 }
 
 void K4ACamera::get_camera_hardware_parameters(K4ACameraHardwareConfig &output)
