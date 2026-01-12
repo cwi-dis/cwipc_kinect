@@ -14,7 +14,7 @@ typedef struct {
     k4a_record_configuration_t record_config;
     k4a_capture_t capture;
     uint64_t current_capture_timestamp;
-    int capture_id = 0;
+    int capture_id;
 } recording_t;
 
 int frame_num = 0;

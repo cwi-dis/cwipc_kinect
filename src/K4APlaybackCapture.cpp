@@ -17,16 +17,16 @@ K4APlaybackCapture::K4APlaybackCapture()
 
 
 bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& camera_handles) {
-    if (camera_handles.size() == 0) {
+    int n_files = camera_handles.size();
+    if (n_files == 0) {
         // no camera connected, so we'll return nothing
         return false;
     }
-
     bool master_found = false;
     k4a_result_t result;
 
     // Open each recording file and validate they were recorded in master/subordinate mode.
-    for (size_t i = 0; i < camera_handles.size(); i++) {
+    for (size_t i = 0; i < n_files; i++) {
         
 
         std::string camerafile(configuration.all_camera_configs[i].filename);
@@ -57,7 +57,7 @@ bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& cam
             std::cerr << CLASSNAME << ": Failed to get record configuration for file: " << camerafile << std::endl;
             return false;
         }
-        if (!configuration.sync.ignore_sync) {
+        if (n_files > 1 && !configuration.sync.ignore_sync) {
             if (file_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_MASTER) {
                 std::cerr << CLASSNAME << ": Opened master recording file: " << camerafile << std::endl;
 

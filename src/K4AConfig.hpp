@@ -88,11 +88,11 @@ struct K4ACaptureConfig : CwipcBaseCaptureConfig {
     // per camera data
     std::vector<K4ACameraConfig> all_camera_configs;
 
-    std::string to_string() override;
+    std::string to_string(bool for_recording=false) override;
     bool from_string(const char* buffer, std::string typeWanted) override;
     bool from_file(const char* filename, std::string typeWanted) override;
 
     void _from_json(const json& json_data) override;
     void _from_json_v4(const json& json_data);
-    void _to_json(json& json_data) override;
+    void _to_json(json& json_data, bool for_recording=false) override;
 };

@@ -132,15 +132,22 @@ void K4ACaptureConfig::_from_json_v4(const json& json_data) {
     }
 }
 
-void K4ACaptureConfig::_to_json(json& json_data) {
-    CwipcBaseCaptureConfig::_to_json(json_data);
+void K4ACaptureConfig::_to_json(json& json_data, bool for_recording) {
+    CwipcBaseCaptureConfig::_to_json(json_data, for_recording);
+    if (for_recording) {
+        json_data["type"] = "kinect_playback";
+    }
     K4ACaptureConfig& config = *this;
     json cameras;
     int camera_index = 0;
 
     for (K4ACameraConfig camera_config : config.all_camera_configs) {
         json camera_config_json;
-        camera_config._to_json(camera_config_json);
+        camera_config._to_json(camera_config_json, for_recording);
+        // xxxjack hack: Override camera type
+        if (for_recording) {
+            camera_config_json["type"] = "kinect_playback";
+        }
         cameras[camera_index] = camera_config_json;
         camera_index++;
     }
@@ -148,7 +155,11 @@ void K4ACaptureConfig::_to_json(json& json_data) {
     json_data["camera"] = cameras;
     json system_data;
     _CWIPC_CONFIG_JSON_PUT(system_data, single_tile, config, single_tile);
-    _CWIPC_CONFIG_JSON_PUT(system_data, record_to_directory, config, record_to_directory);
+    if (for_recording) {
+        system_data["record_to_directory"] = "";
+    } else {
+        _CWIPC_CONFIG_JSON_PUT(system_data, record_to_directory, config, record_to_directory);
+    }
     _CWIPC_CONFIG_JSON_PUT(system_data, new_timestamps, config, new_timestamps);
     _CWIPC_CONFIG_JSON_PUT(system_data, debug, config, debug);
     json_data["system"] = system_data;
@@ -271,9 +282,9 @@ bool K4ACaptureConfig::from_string(const char* jsonBuffer, std::string typeWante
     return true;
 }
 
-std::string K4ACaptureConfig::to_string() {
+std::string K4ACaptureConfig::to_string(bool for_recording) {
     json result;
-    _to_json(result);
+    _to_json(result, for_recording);
 
-    return result.dump();
+    return result.dump(2);
 }

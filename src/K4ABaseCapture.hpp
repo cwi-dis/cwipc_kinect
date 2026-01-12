@@ -3,6 +3,8 @@
 #include <string>
 #include <mutex>
 #include <condition_variable>
+#include <iostream>
+#include <fstream>
 
 #include <k4a/k4a.h>
 #include <k4abt.h>
@@ -370,12 +372,23 @@ protected:
         for (auto cam : cameras) {
             cam->stop_camera();
         }
-
+        _post_stop_all_cameras();
         mergedPC_is_fresh = false;
         mergedPC_want_new = false;
         _log_debug("stopped all cameras");
     }
 
+    /// Create the cameraconfig file for the recording, if needed.
+    virtual void _post_stop_all_cameras() override final {
+        if (configuration.record_to_directory != "") {
+            std::string recording_config = configuration.to_string(true);
+            std::string filename = configuration.record_to_directory + "/" + "cameraconfig.json";
+            std::ofstream ofp;
+            ofp.open(filename);
+            ofp << recording_config << std::endl;
+            ofp.close();
+        }
+    }
 
 protected:
     
