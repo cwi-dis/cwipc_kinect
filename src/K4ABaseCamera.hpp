@@ -167,59 +167,6 @@ public:
             input.fps == hardware.fps
         )
     }
-protected:
-    // internal API that is "shared" with other implementations (realsense, kinect)
-    virtual bool _init_hardware_for_this_camera() = 0;
-    // xxxjack _init_config_for_this_camera() has different signatures for camera/recording.
-    virtual bool _init_filters() override final {
-        // K4A API does not implement any filtering, so nothing to initialize
-        // xxxjack or should we initialize the XY table here?
-        return true;
-    }
-
-    virtual void _apply_filters() final {
-        // xxxjack to be implemented. and used.
-    }
-
-    virtual bool _init_skeleton_tracker() override final {
-        if (tracker_handle != NULL) {
-            return true;
-        }
-
-        k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
-        tracker_config.processing_mode = K4ABT_TRACKER_PROCESSING_MODE_CPU;
-
-        if (skeleton.bt_processing_mode >= 0) {
-            tracker_config.processing_mode = (k4abt_tracker_processing_mode_t)skeleton.bt_processing_mode;
-        }
-
-        if (skeleton.bt_sensor_orientation >= 0) {
-            tracker_config.sensor_orientation = (k4abt_sensor_orientation_t)skeleton.bt_sensor_orientation;
-        }
-
-#ifdef K4ABT_SUPPORTS_MODEL_PATH
-        if (skeleton.bt_model_path != "") {
-            tracker_config.model_path = skeleton.bt_model_path.c_str();
-        }
-#endif
-
-        auto sts = k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle);
-        const char* processingModesStr[] = { "GPU", "CPU", "GPU_CUDA", "GPU_TENSORRT", "GPU_DIRECTML" };
-        const char* sensorOrientationsStr[] = { "Default", "Clockwise_90", "CounterClockwise_90", "Flip_180" };
-
-        if (sts != K4A_RESULT_SUCCEEDED) {
-            _log_error("Body tracker initialization failed: " + std::to_string(sts));
-            return false;
-        } else {
-            _log_trace(std::string("Body tracker initialized. Processing mode: ") +
-                processingModesStr[tracker_config.processing_mode] +
-                ", Sensor orientation: " + sensorOrientationsStr[tracker_config.sensor_orientation]
-            );
-        }
-
-        return true;
-    }
-
 
 public:
     /// Step 1 in capturing: wait for a valid frameset. Any image processing will have been done. 
@@ -375,15 +322,103 @@ public:
             _save_auxdata_skeleton(pc);
         }
     }
+
 protected:
+    // internal API that is "shared" with other implementations (realsense, kinect)
+    virtual bool _init_hardware_for_this_camera() = 0;
+    // xxxjack _init_config_for_this_camera() has different signatures for camera/recording.
+    virtual bool _init_filters() override final {
+        // K4A API does not implement any filtering, so nothing to initialize
+        // xxxjack or should we initialize the XY table here?
+        return true;
+    }
+
+    virtual bool _init_skeleton_tracker() override final {
+        if (tracker_handle != NULL) {
+            return true;
+        }
+
+        k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
+        tracker_config.processing_mode = K4ABT_TRACKER_PROCESSING_MODE_CPU;
+
+        if (skeleton.bt_processing_mode >= 0) {
+            tracker_config.processing_mode = (k4abt_tracker_processing_mode_t)skeleton.bt_processing_mode;
+        }
+
+        if (skeleton.bt_sensor_orientation >= 0) {
+            tracker_config.sensor_orientation = (k4abt_sensor_orientation_t)skeleton.bt_sensor_orientation;
+        }
+
+#ifdef K4ABT_SUPPORTS_MODEL_PATH
+        if (skeleton.bt_model_path != "") {
+            tracker_config.model_path = skeleton.bt_model_path.c_str();
+        }
+#endif
+
+        auto sts = k4abt_tracker_create(&sensor_calibration, tracker_config, &tracker_handle);
+        const char* processingModesStr[] = { "GPU", "CPU", "GPU_CUDA", "GPU_TENSORRT", "GPU_DIRECTML" };
+        const char* sensorOrientationsStr[] = { "Default", "Clockwise_90", "CounterClockwise_90", "Flip_180" };
+
+        if (sts != K4A_RESULT_SUCCEEDED) {
+            _log_error("Body tracker initialization failed: " + std::to_string(sts));
+            return false;
+        } else {
+            _log_trace(std::string("Body tracker initialized. Processing mode: ") +
+                processingModesStr[tracker_config.processing_mode] +
+                ", Sensor orientation: " + sensorOrientationsStr[tracker_config.sensor_orientation]
+            );
+        }
+
+        return true;
+    }
+
+    virtual void _apply_filters() final {
+        // xxxjack to be implemented. and used.
+    }
+
+    virtual void _apply_filters_to_depth_image(k4a_image_t depth_image) {
+        if (filtering.do_threshold) {
+            uint16_t* depth_buffer = (uint16_t*)(void*)k4a_image_get_buffer(depth_image);
+
+            int width = k4a_image_get_width_pixels(depth_image);
+            int height = k4a_image_get_height_pixels(depth_image);
+
+            int16_t min_depth = (int16_t)(filtering.threshold_near * 1000);
+            int16_t max_depth = (int16_t)(filtering.threshold_far * 1000);
+            min_depth = (min_depth > 1) ? min_depth : 1; // min depth should be > minimum_operating_range (250-500 for kinect). 0 means no data.
+            max_depth = (max_depth > min_depth) ? max_depth : 5460; // max depth should be >min_depth otherwise we use the maximum_operating_range (5460 for kinect).
+
+            // First we create the depth material from the depth_data
+            cv::Mat depth_in(height, width, CV_16UC1, depth_buffer);
+
+            // DISTANCE FILTER: we create a mask to filter data using the distance thresholds
+            cv::Mat mask = cv::Mat::ones(height, width, CV_8UC1);
+            cv::inRange(depth_in, min_depth, max_depth, mask); //we check if the depth values are in the wanted range and create a mask
+
+            // EROSION FILTER: if erosion wanted, we will erode the mask using a kernel.
+            int x_delta = processing.depth_x_erosion;
+            int y_delta = processing.depth_y_erosion;
+            if (x_delta || y_delta) {
+                cv::Mat kernel = cv::getStructuringElement(CV_16UC1, cv::Size(x_delta*2+1, y_delta*2+1), cv::Point(-1, -1)); //we want erosion on 4 directions. +-x, +-y.
+                cv::erode(mask, mask, kernel, cv::Point(-1, -1), 1);
+            }
+
+            //APPLYING THE MASK:
+            cv::Mat depth_out;
+            depth_in.copyTo(depth_out, mask); //we apply the mask
+
+            //copy filtered_depthmap data back to initial depth_buffer
+            memcpy(depth_buffer, depth_out.data, depth_out.step * depth_out.rows);
+        }
+    }
     virtual void _start_capture_thread() = 0;
     virtual void _capture_thread_main() = 0;
-    virtual void _start_processing_thread() final {
+    void _start_processing_thread() {
         camera_processing_thread = new std::thread(&K4ABaseCamera::_processing_thread_main, this);
         _cwipc_setThreadName(camera_processing_thread, L"cwipc_kinect::camera_processing_thread");
     }
 
-    virtual void _processing_thread_main() final {
+    void _processing_thread_main() {
         _log_debug_thread("frame processing thread started for camera " + serial);
         while (!camera_stopped) {
             k4a_capture_t processing_frameset = NULL;
@@ -448,6 +483,8 @@ protected:
         _log_debug_thread("processing thread exiting");
     }
 
+protected:
+    // Auxiliary methods only applicable to Kinect implementation.
     void _feed_frameset_to_tracker(k4a_capture_t processing_frameset) {
         //
         // Push frameset into the tracker. Wait indefinitely for the result.
@@ -548,44 +585,9 @@ protected:
     }
 
 
-    virtual void _apply_filters_to_depth_image(k4a_image_t depth_image) {
-        if (filtering.do_threshold) {
-            uint16_t* depth_buffer = (uint16_t*)(void*)k4a_image_get_buffer(depth_image);
-
-            int width = k4a_image_get_width_pixels(depth_image);
-            int height = k4a_image_get_height_pixels(depth_image);
-
-            int16_t min_depth = (int16_t)(filtering.threshold_near * 1000);
-            int16_t max_depth = (int16_t)(filtering.threshold_far * 1000);
-            min_depth = (min_depth > 1) ? min_depth : 1; // min depth should be > minimum_operating_range (250-500 for kinect). 0 means no data.
-            max_depth = (max_depth > min_depth) ? max_depth : 5460; // max depth should be >min_depth otherwise we use the maximum_operating_range (5460 for kinect).
-
-            // First we create the depth material from the depth_data
-            cv::Mat depth_in(height, width, CV_16UC1, depth_buffer);
-
-            // DISTANCE FILTER: we create a mask to filter data using the distance thresholds
-            cv::Mat mask = cv::Mat::ones(height, width, CV_8UC1);
-            cv::inRange(depth_in, min_depth, max_depth, mask); //we check if the depth values are in the wanted range and create a mask
-
-            // EROSION FILTER: if erosion wanted, we will erode the mask using a kernel.
-            int x_delta = processing.depth_x_erosion;
-            int y_delta = processing.depth_y_erosion;
-            if (x_delta || y_delta) {
-                cv::Mat kernel = cv::getStructuringElement(CV_16UC1, cv::Size(x_delta*2+1, y_delta*2+1), cv::Point(-1, -1)); //we want erosion on 4 directions. +-x, +-y.
-                cv::erode(mask, mask, kernel, cv::Point(-1, -1), 1);
-            }
-
-            //APPLYING THE MASK:
-            cv::Mat depth_out;
-            depth_in.copyTo(depth_out, mask); //we apply the mask
-
-            //copy filtered_depthmap data back to initial depth_buffer
-            memcpy(depth_buffer, depth_out.data, depth_out.step * depth_out.rows);
-        }
-    }
-
     //virtual void _computePointSize() = 0;
 
+    /// Create a cwipc_pcl_pointcloud from depth and color frame.
     virtual cwipc_pcl_pointcloud _generate_point_cloud(const k4a_image_t depth_image, k4a_image_t color_image) {
         int width = k4a_image_get_width_pixels(depth_image);
         int height = k4a_image_get_height_pixels(depth_image);
@@ -640,6 +642,8 @@ protected:
         _log_debug_thread("produced " + std::to_string(new_cloud->size()) + " points");
         return new_cloud;
     }
+
+    /// Create a cwipc_pcl_pointcloud from depth and color frame, helper.
     virtual cwipc_pcl_pointcloud _generate_point_cloud_color_to_depth(const k4a_image_t depth_image, const k4a_image_t color_image) final {
         int depth_image_width_pixels = k4a_image_get_width_pixels(depth_image);
         int depth_image_height_pixels = k4a_image_get_height_pixels(depth_image);
@@ -679,6 +683,7 @@ protected:
         return rv;
     }
 
+    /// Create a cwipc_pcl_pointcloud from depth and color frame, helper.
     virtual cwipc_pcl_pointcloud _generate_point_cloud_depth_to_color(const k4a_image_t depth_image, const k4a_image_t color_image) final {
         // transform color image into depth camera geometry
         int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
