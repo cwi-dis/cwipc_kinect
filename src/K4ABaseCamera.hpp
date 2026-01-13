@@ -421,8 +421,10 @@ protected:
     void _processing_thread_main() {
         _log_debug_thread("frame processing thread started for camera " + serial);
         while (!camera_stopped) {
+            //
+            // Get the frameset we need to turn into a point cloud
+            ///
             k4a_capture_t processing_frameset = NULL;
-
             bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(10000));
 
             if (!ok) {
@@ -432,22 +434,27 @@ protected:
 
             _log_debug_thread("processing thread got frameset for camera " + serial);
             assert(processing_frameset);
+            
             std::lock_guard<std::mutex> lock(processing_mutex);
-
+            //
             // use body tracker for skeleton extraction
+            //
             if (tracker_handle) {
                 _feed_frameset_to_tracker(processing_frameset);
             }
-            // xxxjack-here-I-am
+            //
             // get depth and color images. Apply filters and uncompress color image if needed
+            //
             k4a_image_t depth_image = k4a_capture_get_depth_image(processing_frameset);
             k4a_image_t color_image = k4a_capture_get_color_image(processing_frameset);
-
+            //
             // Do processing on the images (filtering, decompressing)
+            //
             _apply_filters_to_depth_image(depth_image); //filtering depthmap => better now because if we map depth to color then we need to filter more points.
             color_image = _uncompress_color_image(processing_frameset, color_image);
-
-            //generate pointclouds
+            //  
+            // generate pointcloud
+            //
             cwipc_pcl_pointcloud new_pointcloud = nullptr;
             if (filtering.map_color_to_depth) {
                 new_pointcloud = _generate_point_cloud_color_to_depth(depth_image, color_image);
@@ -460,15 +467,18 @@ protected:
                 _log_debug_thread("generated pointcloud with " + std::to_string(current_pcl_pointcloud->size()) + " points");
 
                 if (current_pcl_pointcloud->size() == 0) {
-                    _log_warning("generated pointcloud has zero points");
+                    _log_warning("Captured empty pointcloud from camera");
                     //continue;
                 }
-
+                //
                 // Notify wait_for_pointcloud_processed that we're done.
+                //
                 processing_done = true;
                 processing_done_cv.notify_one();
             }
-
+            //
+            // Release resources no longer needed.
+            //
             if (depth_image) {
                 k4a_image_release(depth_image);
             }
@@ -587,8 +597,83 @@ protected:
 
     //virtual void _computePointSize() = 0;
 
-    /// Create a cwipc_pcl_pointcloud from depth and color frame.
-    virtual cwipc_pcl_pointcloud _generate_point_cloud(const k4a_image_t depth_image, k4a_image_t color_image) {
+    /// Create a cwipc_pcl_pointcloud from depth and color frame, for color-to-depth mapping.
+    virtual cwipc_pcl_pointcloud _generate_point_cloud_color_to_depth(const k4a_image_t depth_image, const k4a_image_t color_image) final {
+        int depth_image_width_pixels = k4a_image_get_width_pixels(depth_image);
+        int depth_image_height_pixels = k4a_image_get_height_pixels(depth_image);
+        k4a_image_t transformed_color_image = NULL;
+        k4a_result_t status;
+
+        status = k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
+            depth_image_width_pixels,
+            depth_image_height_pixels,
+            depth_image_width_pixels * 4 * (int)sizeof(uint8_t),
+            &transformed_color_image
+        );
+
+        if (status != K4A_RESULT_SUCCEEDED) {
+          _log_error("Failed to create transformed color image: " + std::to_string(status));
+          return nullptr;
+        }
+
+        status = k4a_transformation_color_image_to_depth_camera(transformation_handle,
+            depth_image,
+            color_image,
+            transformed_color_image
+        );
+
+        if (status != K4A_RESULT_SUCCEEDED) {
+            _log_error("Failed to compute transformed color image: " + std::to_string(status));
+            return nullptr;
+        }
+
+        cwipc_pcl_pointcloud rv;
+
+
+        rv = _generate_point_cloud_common(depth_image, transformed_color_image);
+
+        k4a_image_release(transformed_color_image);
+
+        return rv;
+    }
+
+    /// Create a cwipc_pcl_pointcloud from depth and color frame, for depth-to-color mapping.
+    virtual cwipc_pcl_pointcloud _generate_point_cloud_depth_to_color(const k4a_image_t depth_image, const k4a_image_t color_image) final {
+        // transform color image into depth camera geometry
+        int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
+        int color_image_height_pixels = k4a_image_get_height_pixels(color_image);
+        k4a_image_t transformed_depth_image = NULL;
+        k4a_result_t status;
+
+        status = k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16,
+            color_image_width_pixels,
+            color_image_height_pixels,
+            color_image_width_pixels * (int)sizeof(uint16_t),
+            &transformed_depth_image
+        );
+
+        if (status != K4A_RESULT_SUCCEEDED) {
+            _log_error("Failed to create transformed depth image: " + std::to_string(status));
+            return nullptr;
+        }
+
+        status = k4a_transformation_depth_image_to_color_camera(transformation_handle, depth_image, transformed_depth_image);
+        if (status != K4A_RESULT_SUCCEEDED) {
+            _log_error("Failed to compute transformed depth image: " + std::to_string(status));
+            return nullptr;
+        }
+
+        cwipc_pcl_pointcloud rv;
+
+        rv = _generate_point_cloud_common(transformed_depth_image, color_image);
+
+        k4a_image_release(transformed_depth_image);
+
+        return rv;
+    }
+
+    /// Create a cwipc_pcl_pointcloud from depth and color frame, common code.
+    virtual cwipc_pcl_pointcloud _generate_point_cloud_common(const k4a_image_t depth_image, k4a_image_t color_image) {
         int width = k4a_image_get_width_pixels(depth_image);
         int height = k4a_image_get_height_pixels(depth_image);
 
@@ -641,81 +726,6 @@ protected:
         }
         _log_debug_thread("produced " + std::to_string(new_cloud->size()) + " points");
         return new_cloud;
-    }
-
-    /// Create a cwipc_pcl_pointcloud from depth and color frame, helper.
-    virtual cwipc_pcl_pointcloud _generate_point_cloud_color_to_depth(const k4a_image_t depth_image, const k4a_image_t color_image) final {
-        int depth_image_width_pixels = k4a_image_get_width_pixels(depth_image);
-        int depth_image_height_pixels = k4a_image_get_height_pixels(depth_image);
-        k4a_image_t transformed_color_image = NULL;
-        k4a_result_t status;
-
-        status = k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
-            depth_image_width_pixels,
-            depth_image_height_pixels,
-            depth_image_width_pixels * 4 * (int)sizeof(uint8_t),
-            &transformed_color_image
-        );
-
-        if (status != K4A_RESULT_SUCCEEDED) {
-          _log_error("Failed to create transformed color image: " + std::to_string(status));
-          return nullptr;
-        }
-
-        status = k4a_transformation_color_image_to_depth_camera(transformation_handle,
-            depth_image,
-            color_image,
-            transformed_color_image
-        );
-
-        if (status != K4A_RESULT_SUCCEEDED) {
-            _log_error("Failed to compute transformed color image: " + std::to_string(status));
-            return nullptr;
-        }
-
-        cwipc_pcl_pointcloud rv;
-
-
-        rv = _generate_point_cloud(depth_image, transformed_color_image);
-
-        k4a_image_release(transformed_color_image);
-
-        return rv;
-    }
-
-    /// Create a cwipc_pcl_pointcloud from depth and color frame, helper.
-    virtual cwipc_pcl_pointcloud _generate_point_cloud_depth_to_color(const k4a_image_t depth_image, const k4a_image_t color_image) final {
-        // transform color image into depth camera geometry
-        int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
-        int color_image_height_pixels = k4a_image_get_height_pixels(color_image);
-        k4a_image_t transformed_depth_image = NULL;
-        k4a_result_t status;
-
-        status = k4a_image_create(K4A_IMAGE_FORMAT_DEPTH16,
-            color_image_width_pixels,
-            color_image_height_pixels,
-            color_image_width_pixels * (int)sizeof(uint16_t),
-            &transformed_depth_image
-        );
-
-        if (status != K4A_RESULT_SUCCEEDED) {
-            _log_error("Failed to create transformed depth image: " + std::to_string(status));
-            return nullptr;
-        }
-
-        status = k4a_transformation_depth_image_to_color_camera(transformation_handle, depth_image, transformed_depth_image);
-        if (status != K4A_RESULT_SUCCEEDED) {
-            _log_error("Failed to compute transformed depth image: " + std::to_string(status));
-            return nullptr;
-        }
-
-        cwipc_pcl_pointcloud rv;
-
-        rv = _generate_point_cloud(transformed_depth_image, color_image);
-
-        k4a_image_release(transformed_depth_image);
-
-        return rv;
     }
 
     /// Create the depth to color UV mapping table. Doing this ourselves in
