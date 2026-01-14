@@ -165,7 +165,7 @@ bool K4APlaybackCapture::_capture_all_cameras(uint64_t& timestamp) {
         if (!cam->is_sync_master()) {
             uint64_t this_cam_timestamp = cam->wait_for_captured_frameset(first_timestamp);
             if (this_cam_timestamp == 0) {
-                _log_warning("no frameset captured for camera");
+                _log_warning("no frameset captured for camera " + cam->serial);
                 return false;
             }
             continue;

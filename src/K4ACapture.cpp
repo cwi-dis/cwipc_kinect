@@ -118,7 +118,7 @@ bool K4ACapture::_capture_all_cameras(uint64_t& timestamp) {
         for(auto cam : cameras) {
             uint64_t this_cam_timestamp = cam->wait_for_captured_frameset(first_timestamp);
             if (this_cam_timestamp == 0) {
-                _log_warning("no frameset captured from camera");
+                _log_warning("no frameset captured from camera " + cam->serial);
                 return false;
             }
             if (first_timestamp == 0) {
