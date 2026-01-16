@@ -260,8 +260,8 @@ bool K4ACaptureConfig::from_string(const char* jsonBuffer, std::string typeWante
         int version = 0;
         json_data.at("version").get_to(version);
 
-        if (version != 3) {
-            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", std::string("CameraConfig ") + "(inline buffer) " + "ignored, is not version 3");
+        if (version != 5) {
+            cwipc_log(CWIPC_LOG_LEVEL_ERROR, "cwipc_kinect", std::string("CameraConfig ") + "(inline buffer) " + "ignored, is not version 5");
             return false;
         }
 
@@ -269,13 +269,13 @@ bool K4ACaptureConfig::from_string(const char* jsonBuffer, std::string typeWante
         json_data.at("type").get_to(type);
 
         if (type != "kinect") {
-            cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", std::string("CameraConfig ") + "(inline buffer) " + "ignored, is not kinect but " + type);
+            cwipc_log(CWIPC_LOG_LEVEL_ERROR, "cwipc_kinect", std::string("CameraConfig ") + "(inline buffer) " + "ignored, is not kinect but " + type);
             return false;
         }
 
         _from_json(json_data);
     } catch (const std::exception& e) {
-        cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", std::string("CameraConfig ") + "(inline buffer) " + ": exception " + e.what());
+        cwipc_log(CWIPC_LOG_LEVEL_ERROR, "cwipc_kinect", std::string("CameraConfig ") + "(inline buffer) " + ": exception " + e.what());
         return false;
     }
 
