@@ -121,7 +121,7 @@ bool K4APlaybackCapture::_create_cameras() {
 
         // Found a kinect camera. Create a default data entry for it.
         K4ACameraConfig& cd = configuration.all_camera_configs[i];
-        _log_debug("opening camera " + cd.serial);
+        if (configuration.debug) _log_debug("opening camera " + cd.serial);
         if (cd.type == "kinect_offline") {
             _log_warning("configuration: camera with serial " + cd.serial + " has deprecated type 'kinect_offline', changing to 'kinect_playback'");
             cd.type = "kinect_playback";
@@ -149,7 +149,8 @@ bool K4APlaybackCapture::_capture_all_cameras(uint64_t& timestamp) {
         if (cam->is_sync_master()) {
             first_timestamp = cam->wait_for_captured_frameset(0);
             if (first_timestamp == 0) {
-                _log_error("Master camera " + cam->serial + " failed to capture frameset");
+                // For the master camera this is end-of-file, not an error.
+                // _log_error("Master camera " + cam->serial + " failed to capture frameset");
                 return false;
             }
             break;

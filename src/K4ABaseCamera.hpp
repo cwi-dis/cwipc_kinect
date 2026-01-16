@@ -60,13 +60,14 @@ public:
         camera_handle(_handle),
         captured_frame_queue(1),
         processing_frame_queue(1),
+        debug(_configuration.debug),
         camera_sync_inuse(configuration.sync.sync_master_serial != "")
     {
 
     }
 
     virtual ~K4ABaseCamera() {
-        _log_debug("Destroying camera object");
+        if (debug) _log_debug("Destroying camera");
         assert(camera_stopped);
 
         if (tracker_handle) {
@@ -199,6 +200,10 @@ public:
     }
     /// Step 5: Save auxdata from frameset into given cwipc object.
     void save_frameset_auxdata(cwipc* pc) {
+        if (current_captured_frameset == nullptr) {
+            _log_error("save_frameset_auxdata: current_captured_frameset is NULL");
+            return;
+        }
         // xxxjack do we need to lock current_frameset here?
         if (auxData.want_auxdata_rgb || auxData.want_auxdata_depth) {
             k4a_image_t color_image = k4a_capture_get_color_image(current_captured_frameset);
@@ -419,7 +424,7 @@ protected:
     }
 
     void _processing_thread_main() {
-        _log_debug_thread("frame processing thread started");
+        if (debug) _log_debug_thread("frame processing thread started");
         while (!camera_stopped) {
             //
             // Get the frameset we need to turn into a point cloud
@@ -428,11 +433,14 @@ protected:
             bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(10000));
 
             if (!ok) {
-                _log_warning("processing thread dequeue timeout");
+                if (waiting_for_capture) _log_warning("processing thread dequeue timeout");
                 continue;
             }
-
-            _log_debug_thread("processing thread got frameset");
+            if (processing_frameset == nullptr) {
+                if (!camera_stopped) _log_error("processing thread dequeue produced NULL pointer");
+                break;
+            }
+            if (debug) _log_debug_thread("processing thread got frameset");
             assert(processing_frameset);
             
             std::lock_guard<std::mutex> lock(processing_mutex);
@@ -464,7 +472,7 @@ protected:
 
             if (new_pointcloud != nullptr) {
                 current_pcl_pointcloud = new_pointcloud;
-                _log_debug_thread("generated pointcloud with " + std::to_string(current_pcl_pointcloud->size()) + " points");
+                if (debug) _log_debug_thread("generated pointcloud with " + std::to_string(current_pcl_pointcloud->size()) + " points");
 
                 if (current_pcl_pointcloud->size() == 0) {
                     _log_warning("Captured empty pointcloud from camera");
@@ -490,7 +498,7 @@ protected:
             }
         }
 
-        _log_debug_thread("processing thread exiting");
+        if (debug) _log_debug_thread("processing thread exiting");
     }
 
 protected:
@@ -516,7 +524,7 @@ protected:
 
         if (pop_frame_result == K4A_WAIT_RESULT_SUCCEEDED) {
             uint32_t num_bodies = k4abt_frame_get_num_bodies(body_frame);
-            _log_debug_thread("_feed_frameset_to_tracker: detected " + std::to_string(num_bodies) + " bodies");
+            if (debug) _log_debug_thread("_feed_frameset_to_tracker: detected " + std::to_string(num_bodies) + " bodies");
             if (num_bodies > 0) {
                 // Transform each 3d joints from 3d depth space to 2d color image space
                 for (uint32_t i = 0; i < num_bodies; i++) {
@@ -724,7 +732,7 @@ protected:
                 new_cloud->push_back(point);
             }
         }
-        _log_debug_thread("produced " + std::to_string(new_cloud->size()) + " points");
+        if (debug) _log_debug_thread("produced " + std::to_string(new_cloud->size()) + " points");
         return new_cloud;
     }
 
@@ -879,7 +887,7 @@ protected:
                 new_cloud->push_back(point);
             }
         }
-        _log_debug_thread("produced " + std::to_string(new_cloud->size()) + " points");
+        if (debug) _log_debug_thread("produced " + std::to_string(new_cloud->size()) + " points");
         return new_cloud;
     }
 public:
@@ -908,8 +916,10 @@ protected:
     moodycamel::BlockingReaderWriterQueue<k4a_capture_t> captured_frame_queue;  //<! Frames from capture-thread, waiting to be inter-camera synchronized
     moodycamel::BlockingReaderWriterQueue<k4a_capture_t> processing_frame_queue;  //<! Synchronized frames, waiting for processing thread
     k4a_capture_t current_captured_frameset = nullptr; //<! Current frame being moved from captured_frame_queue to processing_frame_queue
+    bool waiting_for_capture = false;
     bool camera_sync_ismaster;  //<! Parameter from camData xxxjack needs to go
     bool camera_sync_inuse; //<! Parameter from camData xxxjack needs to go
+    bool debug = false;
     std::mutex processing_mutex;  //<! Exclusive lock for frame to pointcloud processing.
     std::condition_variable processing_done_cv; //<! Condition variable signalling pointcloud ready
     bool processing_done = false; //<! Boolean for processing_done_cv

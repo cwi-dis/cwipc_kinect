@@ -16,7 +16,7 @@ K4APlaybackCamera::K4APlaybackCamera(Type_api_camera _handle, K4ACaptureConfig& 
     current_frameset_timestamp(0),
     max_delay(0)
 {
-    _log_debug("creating playback camera from file " + camera_config.filename);
+    if (debug) _log_debug("creating playback camera from file " + camera_config.filename);
     _init_filters();
 }
 
@@ -71,7 +71,7 @@ bool K4APlaybackCamera::_capture_next_valid_frame() {
             k4a_capture_release(current_captured_frameset);
             current_captured_frameset = nullptr;
         }
-
+        waiting_for_capture = true;
         stream_result = k4a_playback_get_next_capture(camera_handle, &current_captured_frameset);
         if (stream_result == K4A_STREAM_RESULT_EOF) {
             end_of_stream_reached = true; // xxxjack note that this means eof is true *after all frames have been processed*.
@@ -107,7 +107,7 @@ bool K4APlaybackCamera::_capture_next_valid_frame() {
         }
         // xxxjack note that this code uses *color* frame timestamp...
         current_frameset_timestamp = k4a_image_get_device_timestamp_usec(color);
-        _log_debug("Prepared frame " + std::to_string(capture_id) + " with timestamp " + std::to_string(current_frameset_timestamp) + " from file " + camera_config.filename);
+        if (debug) _log_debug("Prepared frame " + std::to_string(capture_id) + " with timestamp " + std::to_string(current_frameset_timestamp) + " from file " + camera_config.filename);
         k4a_image_release(color);
         k4a_image_release(depth);
     }

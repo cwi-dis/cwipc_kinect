@@ -338,13 +338,14 @@ protected:
 
     /// Stop and unload all cameras and release all resources.
     virtual void _unload_cameras() override final {
+        if (cameras.empty()) return;
         _stop_cameras();
 
         // Delete all cameras
         for (auto cam : cameras)
           delete cam;
         cameras.clear();
-        _log_debug("deleted all cameras");
+        if (configuration.debug) _log_debug("deleted all cameras");
     }
 
     /// Stop all cameras.
@@ -356,7 +357,7 @@ protected:
         mergedPC_want_new = true;
         mergedPC_want_new_cv.notify_all();
 
-        _log_debug("stopping all cameras");
+        if (configuration.debug) _log_debug("stopping all cameras");
 
         if (control_thread && control_thread->joinable()) {
             control_thread->join();
@@ -375,7 +376,7 @@ protected:
         _post_stop_all_cameras();
         mergedPC_is_fresh = false;
         mergedPC_want_new = false;
-        _log_debug("stopped all cameras");
+        if (configuration.debug) _log_debug("stopped all cameras");
     }
 
     /// Create the cameraconfig file for the recording, if needed.
@@ -398,7 +399,7 @@ protected:
 
 
     virtual void _control_thread_main() final {
-        _log_debug_thread("processing thread started");
+        if (configuration.debug) _log_debug_thread("processing thread started");
         _initial_camera_synchronization();
         while (!stopped) {
             {
@@ -492,7 +493,7 @@ protected:
             _merge_camera_pointclouds();
 
             if (mergedPC->access_pcl_pointcloud()->size() > 0) {
-                _log_debug("merged pointcloud has " + std::to_string(mergedPC->access_pcl_pointcloud()->size()) + " points");
+                if (configuration.debug) _log_debug("merged pointcloud has " + std::to_string(mergedPC->access_pcl_pointcloud()->size()) + " points");
             } else {
                 _log_warning("merged pointcloud is empty");
             }

@@ -9,7 +9,7 @@
 K4ACamera::K4ACamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index)
 :   K4ABaseCamera("cwipc_kinect: K4ACamera", _handle, configuration, _camera_index)
 {
-    _log_debug("K4ACamera constructor called");
+    if (debug) _log_debug("Creating camera");
     if (configuration.record_to_directory != "") {
         record_to_file = configuration.record_to_directory + "/" + serial + ".mkv";
     }
@@ -22,6 +22,7 @@ bool K4ACamera::start_camera() {
     assert(camera_capturer_thread == nullptr);
     assert(camera_processing_thread == nullptr);
     k4a_device_configuration_t device_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+    if (debug) _log_debug("Starting pipeline");
     if (!_init_config_for_this_camera(device_config)) {
         return false;
     }
@@ -61,12 +62,80 @@ bool K4ACamera::start_camera() {
         }
         recorder = _recorder;
     }
-    _log_debug("camera started");
+    if (debug) _log_debug("camera started");
 
     // xxxjack rs2 has _post_start_this_camera()
     // xxxjack rs2 has _ComputePointSize()
     camera_started = true;
     return true;
+}
+
+void K4ACamera::stop_camera() {
+    if (camera_stopped) {
+        _log_warning("Camera already stopped");
+        return;
+    }
+    if (debug) _log_debug("stop camera");
+
+    camera_stopped = true;
+    processing_frame_queue.try_enqueue(NULL);
+
+    // Stop threads
+    if (camera_capturer_thread) {
+        camera_capturer_thread->join();
+    }
+
+    delete camera_capturer_thread;
+    camera_capturer_thread = nullptr;
+
+    if (camera_processing_thread) {
+        camera_processing_thread->join();
+    }
+
+    delete camera_processing_thread;
+    camera_processing_thread = nullptr;
+
+    if (tracker_handle) {
+        //Stop body tracker
+        k4abt_tracker_shutdown(tracker_handle);
+        k4abt_tracker_destroy(tracker_handle);
+        tracker_handle = nullptr;
+    }
+
+    if (camera_started) {
+        // Stop camera
+        k4a_device_stop_cameras(camera_handle);
+        camera_started = false;
+    }
+
+    if (recorder) {
+        auto res = k4a_record_flush(recorder);
+        if (res != K4A_RESULT_SUCCEEDED) {
+            _log_error("k4a_record_flush failed");
+        }
+        k4a_record_close(recorder);
+        recorder = nullptr;
+    }
+    
+    if (camera_handle) {
+        k4a_device_close(camera_handle);
+        camera_handle = nullptr;
+    }
+
+    // Delete objects
+    if (current_captured_frameset != NULL) {
+        k4a_capture_release(current_captured_frameset);
+        current_captured_frameset = NULL;
+    }
+
+    if (transformation_handle) {
+        k4a_transformation_destroy(transformation_handle);
+        transformation_handle = NULL;
+    }
+
+    processing_done = true;
+    processing_done_cv.notify_one();
+    if (debug) _log_debug("camera stopped");
 }
 
 uint64_t K4ACamera::wait_for_captured_frameset(uint64_t minimum_timestamp) {
@@ -83,6 +152,9 @@ uint64_t K4ACamera::wait_for_captured_frameset(uint64_t minimum_timestamp) {
             _log_warning("No frameset captured in 5 seconds");
             return 0;
         }
+        if (new_frameset == nullptr) {
+            _log_error("wait_for_captured_frameset: got nullptr");
+        }
         // We only look at the depth image timestamp.
         // We print a warning if they are not eqaul, and use the oldest.
         k4a_image_t depth_image = k4a_capture_get_depth_image(new_frameset);
@@ -91,6 +163,7 @@ uint64_t K4ACamera::wait_for_captured_frameset(uint64_t minimum_timestamp) {
         k4a_image_t color_image = k4a_capture_get_color_image(new_frameset);
         uint64_t ts_color_image = k4a_image_get_device_timestamp_usec(color_image);
         k4a_image_release(color_image);
+        if (debug) _log_debug("wait_for_captured_frameset: dts=" + std::to_string(ts_depth_image) + ", cts=" + std::to_string(ts_color_image));
         if (ts_depth_image != ts_color_image) {
             _log_warning("Frameset has color_ts=" + std::to_string(ts_color_image) + " depth_ts=" + std::to_string(ts_depth_image));
         }
@@ -183,70 +256,6 @@ bool K4ACamera::_init_config_for_this_camera(k4a_device_configuration_t& device_
     return true;
 }
 
-void K4ACamera::stop_camera() {
-    if (camera_stopped) {
-        return;
-    }
-
-    camera_stopped = true;
-    processing_frame_queue.try_enqueue(NULL);
-
-    // Stop threads
-    if (camera_capturer_thread) {
-        camera_capturer_thread->join();
-    }
-
-    delete camera_capturer_thread;
-    camera_capturer_thread = nullptr;
-
-    if (camera_processing_thread) {
-        camera_processing_thread->join();
-    }
-
-    delete camera_processing_thread;
-    camera_processing_thread = nullptr;
-
-    if (tracker_handle) {
-        //Stop body tracker
-        k4abt_tracker_shutdown(tracker_handle);
-        k4abt_tracker_destroy(tracker_handle);
-        tracker_handle = nullptr;
-    }
-
-    if (camera_started) {
-        // Stop camera
-        k4a_device_stop_cameras(camera_handle);
-        camera_started = false;
-    }
-
-    if (recorder) {
-        auto res = k4a_record_flush(recorder);
-        if (res != K4A_RESULT_SUCCEEDED) {
-            _log_error("k4a_record_flush failed");
-        }
-        k4a_record_close(recorder);
-        recorder = nullptr;
-    }
-    
-    if (camera_handle) {
-        k4a_device_close(camera_handle);
-        camera_handle = nullptr;
-    }
-
-    // Delete objects
-    if (current_captured_frameset != NULL) {
-        k4a_capture_release(current_captured_frameset);
-        current_captured_frameset = NULL;
-    }
-
-    if (transformation_handle) {
-        k4a_transformation_destroy(transformation_handle);
-        transformation_handle = NULL;
-    }
-
-    processing_done = true;
-    processing_done_cv.notify_one();
-}
 
 void K4ACamera::get_camera_hardware_parameters(K4ACameraHardwareConfig &output)
 {
@@ -451,7 +460,7 @@ void K4ACamera::_start_capture_thread()
 }
 
 void K4ACamera::_capture_thread_main() {
-    _log_debug_thread("capture thread started");
+    if (debug) _log_debug_thread("capture thread started");
     while(!camera_stopped) {
         k4a_capture_t capture_handle;
         if (k4a_capture_create(&capture_handle) != K4A_RESULT_SUCCEEDED) {
@@ -459,7 +468,7 @@ void K4ACamera::_capture_thread_main() {
 
             break;
         }
-
+        waiting_for_capture = true;
         k4a_wait_result_t ok = k4a_device_get_capture(camera_handle, &capture_handle, 5000);
         if (ok != K4A_WAIT_RESULT_SUCCEEDED) {
             _log_warning("k4a_device_get_capture failed");
@@ -468,7 +477,11 @@ void K4ACamera::_capture_thread_main() {
             continue;
         }
 
-        assert(capture_handle != NULL);
+        if (capture_handle == nullptr) {
+            if (camera_stopped) break;
+            _log_error("k4a_device_get_capture return success, but capture is NULL");
+            continue;
+        }
 
         if (recorder != nullptr) {
             auto res = k4a_record_write_capture(recorder, capture_handle);
@@ -483,7 +496,7 @@ void K4ACamera::_capture_thread_main() {
         k4a_image_t depth = k4a_capture_get_depth_image(capture_handle);
         uint64_t tsD = k4a_image_get_device_timestamp_usec(depth);
         k4a_image_release(depth);
-        _log_debug_thread("captured frame " + std::to_string(tsRGB) + "/" + std::to_string(tsD) + " from camera " + serial);
+        if (debug) _log_debug_thread("captured frame " + std::to_string(tsRGB) + "/" + std::to_string(tsD) + " from camera " + serial);
 #endif
 
         if (!captured_frame_queue.try_enqueue(capture_handle)) {
@@ -495,7 +508,7 @@ void K4ACamera::_capture_thread_main() {
             k4a_image_t depth = k4a_capture_get_depth_image(capture_handle);
             uint64_t tsD = k4a_image_get_device_timestamp_usec(depth);
             k4a_image_release(depth);
-            _log_debug_thread("dropped frame " + std::to_string(tsRGB) + "/" + std::to_string(tsD) + " from camera " + serial);
+            if (debug) _log_debug_thread("dropped frame " + std::to_string(tsRGB) + "/" + std::to_string(tsD) + " from camera " + serial);
 #endif
             k4a_capture_release(capture_handle);
             std::this_thread::sleep_for(std::chrono::milliseconds(25));
@@ -505,7 +518,7 @@ void K4ACamera::_capture_thread_main() {
         }
     }
 
-    _log_debug_thread("capture thread stopping");
+    if (debug) _log_debug_thread("capture thread stopping");
 }
 
 k4a_image_t K4ACamera::_uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) {
