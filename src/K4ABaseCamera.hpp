@@ -419,7 +419,7 @@ protected:
     }
 
     void _processing_thread_main() {
-        _log_debug_thread("frame processing thread started for camera " + serial);
+        _log_debug_thread("frame processing thread started");
         while (!camera_stopped) {
             //
             // Get the frameset we need to turn into a point cloud
@@ -432,7 +432,7 @@ protected:
                 continue;
             }
 
-            _log_debug_thread("processing thread got frameset for camera " + serial);
+            _log_debug_thread("processing thread got frameset");
             assert(processing_frameset);
             
             std::lock_guard<std::mutex> lock(processing_mutex);
