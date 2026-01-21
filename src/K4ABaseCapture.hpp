@@ -273,7 +273,7 @@ protected:
     /// Check that all cameras are connected.
     virtual bool _check_cameras_connected() override = 0;
     /// Start all cameras.
-    virtual void _start_cameras() override final {
+    virtual bool _start_cameras() override final {
         //
         // start the cameras. First start all non-sync-master cameras, then start the sync-master camera.
         //
@@ -283,30 +283,32 @@ protected:
                 start_error = true;
             }
         }
-        // start the cameras in a specific order: first all non-masters, then all masters.
-        for (auto cam : cameras) {
-            if (cam->is_sync_master()) {
-                continue;
+        if (!start_error) {
+            // start the cameras in a specific order: first all non-masters, then all masters.
+            for (auto cam : cameras) {
+                if (cam->is_sync_master()) {
+                    continue;
+                }
+
+                if (!cam->start_camera()) {
+                    start_error = true;
+                }
             }
 
-            if (!cam->start_camera()) {
-                start_error = true;
+            for (auto cam : cameras) {
+                if (!cam->is_sync_master()) {
+                    continue;
+                }
+
+                if (!cam->start_camera()) {
+                    start_error = true;
+                }
             }
         }
 
-        for (auto cam : cameras) {
-            if (!cam->is_sync_master()) {
-                continue;
-            }
-
-            if (!cam->start_camera()) {
-                start_error = true;
-            }
-        }
         if (start_error) {
             _log_error("Not all cameras could be started");
-            _unload_cameras();
-            return;
+            return false;
         }
         for (auto cam: cameras) {
             cam->post_start_all_cameras();
@@ -334,6 +336,7 @@ protected:
         for (auto cam: cameras) {
             cam->post_start_all_cameras();
         }
+        return true;
     }
 
     /// Stop and unload all cameras and release all resources.
