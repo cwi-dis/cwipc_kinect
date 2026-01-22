@@ -39,7 +39,7 @@ public:
     void request_auxiliary_data(const std::string &name) override {
         cwipc_tiledsource::request_auxiliary_data(name);
 
-        m_grabber->request_auxiliary_data(
+        this->m_grabber->request_auxiliary_data(
             cwipc_tiledsource::auxiliary_data_requested("rgb"),
             cwipc_tiledsource::auxiliary_data_requested("depth"),
             false,
@@ -75,8 +75,7 @@ public:
     }
 
     virtual bool seek(uint64_t timestamp) = 0;
-protected:
-    GrabberClass *m_grabber;
+
 };
 
 /** Implementation of Kinect capturer for live Kinect devices */
