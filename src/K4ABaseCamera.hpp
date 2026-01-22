@@ -166,7 +166,7 @@ public:
             input.color_whitebalance == hardware.color_whitebalance &&
             input.depth_height == hardware.depth_height &&
             input.fps == hardware.fps
-        )
+        );
     }
 
 public:

@@ -20,7 +20,10 @@ public:
     virtual void stop_camera() override final;
     virtual uint64_t wait_for_captured_frameset(uint64_t earliest_timestamp) override final;
     bool seek(uint64_t timestamp);
-
+    virtual bool eof() override final {
+        //xxxjack to be implemented
+        return false;
+    }
 protected:
     virtual bool _init_hardware_for_this_camera() override final {
         return true; // No hardware to initialize for the playback device

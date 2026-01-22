@@ -40,10 +40,10 @@ public:
         cwipc_tiledsource::request_auxiliary_data(name);
 
         m_grabber->request_auxiliary_data(
-            auxiliary_data_requested("rgb"),
-            auxiliary_data_requested("depth"),
+            cwipc_tiledsource::auxiliary_data_requested("rgb"),
+            cwipc_tiledsource::auxiliary_data_requested("depth"),
             false,
-            auxiliary_data_requested("skeleton")
+            cwipc_tiledsource::auxiliary_data_requested("skeleton")
         );
     }
 
@@ -75,6 +75,8 @@ public:
     }
 
     virtual bool seek(uint64_t timestamp) = 0;
+protected:
+    GrabberClass *m_grabber;
 };
 
 /** Implementation of Kinect capturer for live Kinect devices */
