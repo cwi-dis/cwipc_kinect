@@ -60,7 +60,7 @@ public:
             int y_2d = (int)infloat[2];
             float d_2d = infloat[3];
 
-            return m_grabber->map2d3d(tilenum, x_2d, y_2d, d_2d, outfloat);
+            return this->m_grabber->map2d3d(tilenum, x_2d, y_2d, d_2d, outfloat);
         } else if (op == "mapcolordepth") {
             if (inbuf == nullptr || insize != 3*sizeof(int)) return false;
             if (outbuf == nullptr || outsize != 2*sizeof(int)) return false;
