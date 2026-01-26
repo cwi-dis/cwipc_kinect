@@ -1,9 +1,3 @@
-//
-//  utils.cpp
-//
-//  Created by Fons Kuijk on 12-12-18.
-//
-#define _CWIPC_CONFIG_IMPLEMENTATION
 #include "K4AConfig.hpp"
 
 #include <fstream>
@@ -244,7 +238,7 @@ bool K4ACaptureConfig::from_file(const char* filename, std::string typeWanted) {
             _from_json(json_data);
         }
     } catch (const std::exception& e) {
-        cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", std::string("CameraConfig ") + filename + ": exception " + e.what());
+        cwipc_log(CWIPC_LOG_LEVEL_ERROR, "cwipc_kinect", std::string("CameraConfig ") + filename + ": exception " + e.what());
         return false;
     }
 
@@ -261,15 +255,15 @@ bool K4ACaptureConfig::from_string(const char* jsonBuffer, std::string typeWante
         json_data.at("version").get_to(version);
 
         if (version != 5) {
-            cwipc_log(CWIPC_LOG_LEVEL_ERROR, "cwipc_kinect", std::string("CameraConfig ") + "(inline buffer) " + "ignored, is not version 5");
+            cwipc_log(CWIPC_LOG_LEVEL_ERROR, "cwipc_kinect", std::string("CameraConfig ") + "(inline buffer) " + " is not version 5");
             return false;
         }
 
         std::string type;
         json_data.at("type").get_to(type);
 
-        if (type != "kinect") {
-            cwipc_log(CWIPC_LOG_LEVEL_ERROR, "cwipc_kinect", std::string("CameraConfig ") + "(inline buffer) " + "ignored, is not kinect but " + type);
+        if (type != typeWanted) {
+            cwipc_log(CWIPC_LOG_LEVEL_ERROR, "cwipc_kinect", std::string("CameraConfig ") + "(inline buffer) " + " type=" + type + " but expected " + typeWanted);
             return false;
         }
 

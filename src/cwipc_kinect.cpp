@@ -110,17 +110,19 @@ cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage,
     if (! _api_versioncheck(errorMessage,  apiVersion)) {
         return NULL;
     }
+    cwipc_log_set_errorbuf(errorMessage);
     cwipc_source_kinect_impl *rv = new cwipc_source_kinect_impl(configFilename);
 
     // If the grabber found cameras everything is fine
     if (rv && rv->is_valid()) {
+        cwipc_log_set_errorbuf(nullptr);
         return rv;
     }
 
     delete rv;
-    cwipc_log(CWIPC_LOG_LEVEL_ERROR, "cwipc_kinect", "no kinect cameras found");
+    cwipc_log_set_errorbuf(nullptr);
     if (errorMessage && *errorMessage == NULL) {
-        *errorMessage = (char *)"cwipc_kinect: no kinect cameras found";
+        *errorMessage = (char *)"cwipc_kinect: unspecified error";
     }
 
     return NULL;
@@ -130,18 +132,20 @@ cwipc_tiledsource* cwipc_k4aplayback(const char* configFilename, char** errorMes
     if (! _api_versioncheck(errorMessage,  apiVersion)) {
         return NULL;
     }
+    cwipc_log_set_errorbuf(errorMessage);
     cwipc_source_k4aplayback_impl* rv = new cwipc_source_k4aplayback_impl(configFilename);
 
     // If the grabber found cameras everything is fine
     if (rv && rv->is_valid()) {
+        cwipc_log_set_errorbuf(nullptr);
         return rv;
     }
 
     delete rv;
+    cwipc_log_set_errorbuf(nullptr);
 
-    cwipc_log(CWIPC_LOG_LEVEL_ERROR, "cwipc_k4aplayback", "cannot open recording");
     if (errorMessage && *errorMessage == NULL) {
-        *errorMessage = (char *)"cwipc_k4aplayback: cannot open recording";
+        *errorMessage = (char *)"cwipc_k4aplayback: unspecified error";
     }
     return NULL;
 }

@@ -53,7 +53,10 @@ bool K4ACapture::_apply_auto_config() {
         _unload_cameras();
         return false;
     }
-
+    if (configuration.all_camera_configs.size() == 0) {
+        _log_error("no cameras found during auto-configuration");
+        return false;
+    }
     return true;
 }
 
