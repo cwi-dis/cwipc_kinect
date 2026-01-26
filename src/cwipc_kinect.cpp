@@ -89,7 +89,7 @@ public:
 };
 
 /** Implementation of Kinect capturer for playback */
-class cwipc_source_k4aplayback_impl : public cwipc_source_kinect_impl_base<K4APlaybackCapture> {
+class cwipc_source_kinect_playback_impl : public cwipc_source_kinect_impl_base<K4APlaybackCapture> {
 public:
     using cwipc_source_kinect_impl_base<K4APlaybackCapture>::cwipc_source_kinect_impl_base;
     bool seek(uint64_t timestamp) override {
@@ -128,12 +128,12 @@ cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage,
     return NULL;
 }
 
-cwipc_tiledsource* cwipc_k4aplayback(const char* configFilename, char** errorMessage, uint64_t apiVersion) {
+cwipc_tiledsource* cwipc_kinect_playback(const char* configFilename, char** errorMessage, uint64_t apiVersion) {
     if (! _api_versioncheck(errorMessage,  apiVersion)) {
         return NULL;
     }
     cwipc_log_set_errorbuf(errorMessage);
-    cwipc_source_k4aplayback_impl* rv = new cwipc_source_k4aplayback_impl(configFilename);
+    cwipc_source_kinect_playback_impl* rv = new cwipc_source_kinect_playback_impl(configFilename);
 
     // If the grabber found cameras everything is fine
     if (rv && rv->is_valid()) {
@@ -145,7 +145,7 @@ cwipc_tiledsource* cwipc_k4aplayback(const char* configFilename, char** errorMes
     cwipc_log_set_errorbuf(nullptr);
 
     if (errorMessage && *errorMessage == NULL) {
-        *errorMessage = (char *)"cwipc_k4aplayback: unspecified error";
+        *errorMessage = (char *)"cwipc_kinect_playback: unspecified error";
     }
     return NULL;
 }
@@ -154,6 +154,6 @@ cwipc_tiledsource* cwipc_k4aplayback(const char* configFilename, char** errorMes
 // These static variables only exist to ensure the initializer is called, which registers our camera type.
 //
 int _cwipc_dummy_kinect_initializer = _cwipc_register_capturer("kinect", K4ACapture::count_devices, cwipc_kinect);
-int _cwipc_dummy_kinect_playback_initializer = _cwipc_register_capturer("kinect_playback", nullptr, cwipc_k4aplayback);
+int _cwipc_dummy_kinect_playback_initializer = _cwipc_register_capturer("kinect_playback", nullptr, cwipc_kinect_playback);
 // For backward compatibility
-int _cwipc_dummy_kinect_offline_initializer = _cwipc_register_capturer("kinect_offline", nullptr, cwipc_k4aplayback);
+int _cwipc_dummy_kinect_offline_initializer = _cwipc_register_capturer("kinect_offline", nullptr, cwipc_kinect_playback);

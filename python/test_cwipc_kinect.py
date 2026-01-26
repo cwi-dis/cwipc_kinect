@@ -74,14 +74,14 @@ class TestApi(unittest.TestCase):
             if grabber: grabber.free()
 
     @unittest.skipIf(sys.platform=='linux' and not 'DISPLAY' in os.environ, "Test requires X server/OpenGL")
-    def test_cwipc_k4aplayback(self):
+    def test_cwipc_kinect_playback(self):
         """Test that we can grab a kinect image from the playback grabber"""
         grabber = None
         pc = None
         if not os.path.exists(TEST_FIXTURES_PLAYBACK_CONFIG):
             self.skipTest(f'Playback config file {TEST_FIXTURES_PLAYBACK_CONFIG} not found')
         try:
-            grabber = _cwipc_kinect.cwipc_k4aplayback(TEST_FIXTURES_PLAYBACK_CONFIG)
+            grabber = _cwipc_kinect.cwipc_kinect_playback(TEST_FIXTURES_PLAYBACK_CONFIG)
             self.assertFalse(grabber.eof())
             self.assertTrue(grabber.available(True))
             pc = grabber.get()
@@ -93,14 +93,14 @@ class TestApi(unittest.TestCase):
             if pc: pc.free()
             
     @unittest.skipIf(sys.platform=='linux' and not 'DISPLAY' in os.environ, "Test requires X server/OpenGL")
-    def test_cwipc_k4aplayback_seek(self):
+    def test_cwipc_kinect_playback_seek(self):
         """Test that we can grab a kinect image from the playback grabber"""
         grabber = None
         pc = None
         if not os.path.exists(TEST_FIXTURES_PLAYBACK_CONFIG):
             self.skipTest(f'Playback config file {TEST_FIXTURES_PLAYBACK_CONFIG} not found')
         try:
-            grabber = _cwipc_kinect.cwipc_k4aplayback(TEST_FIXTURES_PLAYBACK_CONFIG)
+            grabber = _cwipc_kinect.cwipc_kinect_playback(TEST_FIXTURES_PLAYBACK_CONFIG)
             self.assertFalse(grabber.eof())
             self.assertTrue(grabber.available(True))
             result = grabber.seek(1600233)

@@ -42,7 +42,7 @@ _CWIPC_KINECT_EXPORT cwipc_tiledsource* cwipc_kinect(const char *configFilename,
  * cameras.
  */
 
-_CWIPC_KINECT_EXPORT cwipc_tiledsource* cwipc_k4aplayback(const char* configFilename, char** errorMessage, uint64_t apiVersion);
+_CWIPC_KINECT_EXPORT cwipc_tiledsource* cwipc_kinect_playback(const char* configFilename, char** errorMessage, uint64_t apiVersion);
 
 #ifdef __cplusplus
 }

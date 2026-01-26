@@ -9,7 +9,7 @@ from cwipc.util import _cwipc_dll_search_path_collection # type: ignore
 
 __all__ = [
     "cwipc_kinect",
-    "cwipc_k4aplayback",
+    "cwipc_kinect_playback",
     "cwipc_kinect_dll_load"
 ]
 
@@ -61,8 +61,8 @@ def cwipc_kinect_dll_load(libname : Optional[str]=None) -> ctypes.CDLL:
     _cwipc_kinect_dll_reference.cwipc_kinect.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_char_p), ctypes.c_ulong]
     _cwipc_kinect_dll_reference.cwipc_kinect.restype = cwipc_tiledsource_p
     
-    _cwipc_kinect_dll_reference.cwipc_k4aplayback.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_char_p), ctypes.c_ulong]
-    _cwipc_kinect_dll_reference.cwipc_k4aplayback.restype = cwipc_tiledsource_p
+    _cwipc_kinect_dll_reference.cwipc_kinect_playback.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_char_p), ctypes.c_ulong]
+    _cwipc_kinect_dll_reference.cwipc_kinect_playback.restype = cwipc_tiledsource_p
 
     return _cwipc_kinect_dll_reference
         
@@ -81,17 +81,17 @@ def cwipc_kinect(conffile : Optional[str]=None) -> cwipc_tiledsource_wrapper:
         return cwipc_tiledsource_wrapper(rv)
     raise CwipcError("cwipc_kinect: no cwipc_tiledsource created, but no specific error returned from C library")
 
-def cwipc_k4aplayback(conffile : Optional[str]=None) -> cwipc_tiledsource_wrapper:
+def cwipc_kinect_playback(conffile : Optional[str]=None) -> cwipc_tiledsource_wrapper:
     """Returns a cwipc_source object that grabs from kinect camera recordings and returns cwipc objects on every get() call."""
     errorString = ctypes.c_char_p()
     cconffile = None
     if conffile:
         cconffile = conffile.encode('utf8')
-    rv = cwipc_kinect_dll_load().cwipc_k4aplayback(cconffile, ctypes.byref(errorString), CWIPC_API_VERSION)
+    rv = cwipc_kinect_dll_load().cwipc_kinect_playback(cconffile, ctypes.byref(errorString), CWIPC_API_VERSION)
     if errorString and errorString.value and not rv:
         raise CwipcError(errorString.value.decode('utf8'))
     if errorString and errorString.value:
         warnings.warn(errorString.value.decode('utf8'))
     if rv:
         return cwipc_tiledsource_wrapper(rv)
-    raise CwipcError("cwipc_k4aplayback: no cwipc_tiledsource created, but no specific error returned from C library")
+    raise CwipcError("cwipc_kinect_playback: no cwipc_tiledsource created, but no specific error returned from C library")
