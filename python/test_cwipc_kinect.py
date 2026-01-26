@@ -104,6 +104,8 @@ class TestApi(unittest.TestCase):
         """Test that we can grab a kinect image from the playback grabber"""
         grabber = None
         pc = None
+        if not os.path.exists(TEST_FIXTURES_PLAYBACK_CONFIG):
+            self.skipTest(f'Playback config file {TEST_FIXTURES_PLAYBACK_CONFIG} not found')
         try:
             grabber = _cwipc_kinect.cwipc_k4aplayback(TEST_FIXTURES_PLAYBACK_CONFIG)
             self.assertFalse(grabber.eof())
@@ -121,6 +123,8 @@ class TestApi(unittest.TestCase):
         """Test that we can grab a kinect image from the playback grabber"""
         grabber = None
         pc = None
+        if not os.path.exists(TEST_FIXTURES_PLAYBACK_CONFIG):
+            self.skipTest(f'Playback config file {TEST_FIXTURES_PLAYBACK_CONFIG} not found')
         try:
             grabber = _cwipc_kinect.cwipc_k4aplayback(TEST_FIXTURES_PLAYBACK_CONFIG)
             self.assertFalse(grabber.eof())
