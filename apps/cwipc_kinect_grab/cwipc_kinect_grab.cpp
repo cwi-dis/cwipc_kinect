@@ -35,10 +35,6 @@ int main(int argc, char** argv) {
     if (generator == NULL) {
         std::cerr << argv[0] << ": creating kinect grabber failed: " << error << std::endl;
 
-        if (getenv("CWIPC_KINECT_TESTING") != NULL) {
-            return 0; // No failure while running tests, so we can at least test linking, etc.
-        }
-
         return 1;
     }
 

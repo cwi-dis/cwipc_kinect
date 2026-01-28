@@ -7,37 +7,33 @@
 #include "cwipc_util/api.h"
 #include "cwipc_kinect/api.h"
 
-#undef DEBUG_AUXDATA
+#define DEBUG_AUXDATA
+#define DEBUG_CONFIG
 
 int main(int argc, char** argv) {
     if (argc < 3) {
-        std::cerr << "ERROR. Usage: " << argv[0] << " inputdirectory outputdirectory [count]" << std::endl;
-        std::cerr << "Generates pointclouds from kinect4a camera recordings using the cameraconfig.json" << std::endl;
-        std::cerr << "If no outputdirectory a subfolder is created in the current folder" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " count directory [configfile]" << std::endl;
+        std::cerr << "Creates COUNT pointclouds from a kinect4a camera and stores the PLY files in the given DIRECTORY" << std::endl;
+        std::cerr << "If directory is - then drop the pointclouds on the floor" << std::endl;
+
         return 2;
     }
 
-    int countWanted = 0;
+    int countWanted = atoi(argv[1]);
+    char filename[500];
+    char *error = NULL;
+    cwipc_tiledsource *generator;
+    char *outputdir = argv[2];
+    char *configFile = NULL;
 
-    if (argc > 3) {
-        countWanted = atoi(argv[3]);
+    if (argc == 4) {
+        configFile = argv[3];
     }
 
-    char filename[500];
-    char* error = NULL;
-    cwipc_tiledsource* generator;
-    char* inputdir = NULL;
-    inputdir = argv[1];
-    char *outputdir = argv[2];
-
-    std::string configFile(inputdir);
-    configFile += "/cameraconfig.json";
-
-    generator = cwipc_kinect_playback(configFile.c_str(), &error, CWIPC_API_VERSION);
+    generator = cwipc_kinect_playback(configFile, &error, CWIPC_API_VERSION);
 
     if (generator == NULL) {
         std::cerr << argv[0] << ": creating kinect_playback grabber failed: " << error << std::endl;
-        //if (getenv("CWIPC_KINECT_TESTING") != NULL) return 0; // No failure while running tests, so we can at least test linking, etc.
 
         return 1;
     }
@@ -49,7 +45,16 @@ int main(int argc, char** argv) {
 #ifdef DEBUG_AUXDATA
     generator->request_auxiliary_data("rgb");
     generator->request_auxiliary_data("depth");
-    generator->request_auxiliary_data("skeletons");
+    generator->request_auxiliary_data("skeleton");
+#endif
+
+#ifdef DEBUG_CONFIG
+    size_t configSize = generator->get_config(nullptr, 0);
+    char* configBuf = (char *)malloc(configSize + 1);
+    memset(configBuf, 0, configSize + 1);
+    generator->get_config(configBuf, configSize);
+
+    std::cerr << "cameraconfig as json:\n=================\n" << configBuf << "\n======================\n";
 #endif
 
     int ok = 0;
@@ -67,14 +72,12 @@ int main(int argc, char** argv) {
         if (pc == NULL) {
             error = (char*)"grabber returned NULL pointcloud";
             ok = -1;
-
             break;
         }
 
         if (pc->count() <= 0) {
             std::cerr << argv[0] << ": warning: empty pointcloud, grabbing again" << std::endl;
             pc->free();
-
             continue;
         }
 
@@ -92,13 +95,12 @@ int main(int argc, char** argv) {
             }
         }
 #endif
-
         framenum++;
 
         if (strcmp(outputdir, "-") != 0) {
-            snprintf(filename, sizeof(filename), "%s/pointcloud-%08.8" PRIu64 ".ply", outputdir, pc->timestamp());
+            snprintf(filename, sizeof(filename), "%s/pointcloud-%" PRIu64 ".ply", outputdir, pc->timestamp());
             std::cout << "-> Writing frame " << framenum << " with " << pc->count() << " points to "<< filename << std::endl;
-            ok = cwipc_write_ext(filename, pc, 1, &error);
+            ok = cwipc_write(filename, pc, &error);
         } else {
             std::cout << "-> Dropping frame " << framenum << " with " << pc->count() << " points" << std::endl;
         }
@@ -110,16 +112,15 @@ int main(int argc, char** argv) {
     generator->free();
 
     if (ok < 0) {
-        std::cerr << "cwipc_kinect_playback: Error: " << error << std::endl;
+        std::cerr << "Error: " << error << std::endl;
         return 1;
     }
 
     if (countWanted != 0 && nGrabbedSuccessfully != countWanted) {
-        std::cerr << "cwipc_kinect_playback: Wanted " << countWanted << " pointclouds but got only " << nGrabbedSuccessfully << std::endl;
+        std::cerr << "cwipc_k4agrab: Wanted " << countWanted << " pointclouds but got only " << nGrabbedSuccessfully << std::endl;
         return 1;
     }
 
-    std::cerr << "cwipc_kinect_playback: Saved " << nGrabbedSuccessfully << " pointclouds" << std::endl;
     return 0;
 }
 
