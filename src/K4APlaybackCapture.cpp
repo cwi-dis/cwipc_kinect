@@ -46,7 +46,7 @@ bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& cam
         result = k4a_playback_open(camerafile.c_str(), &camera_handles[i]);
 
         if (result != K4A_RESULT_SUCCEEDED) {
-            std::cerr << CLASSNAME << ": Failed to open file: " << camerafile << std::endl;
+            _log_error("Failed to open recording file: " + camerafile);
             return false;
         }
 
@@ -54,15 +54,15 @@ bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& cam
         result = k4a_playback_get_record_configuration(camera_handles[i], &file_config);
 
         if (result != K4A_RESULT_SUCCEEDED) {
-            std::cerr << CLASSNAME << ": Failed to get record configuration for file: " << camerafile << std::endl;
+            _log_error("Failed to get recording file configuration: " + camerafile);
             return false;
         }
         if (n_files > 1 && !configuration.sync.ignore_sync) {
             if (file_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_MASTER) {
-                std::cerr << CLASSNAME << ": Opened master recording file: " << camerafile << std::endl;
+                _log_trace("Opened master recording file: " + camerafile);
 
                 if (master_found) {
-                    std::cerr << CLASSNAME << ": ERROR: Multiple master recordings listed!" << std::endl;
+                    _log_error("Multiple master recording files");
                     result = K4A_RESULT_FAILED;
 
                     return false;
@@ -73,10 +73,10 @@ bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& cam
                 }
             }
             else if (file_config.wired_sync_mode == K4A_WIRED_SYNC_MODE_SUBORDINATE) {
-                std::cout << CLASSNAME << ": Opened subordinate recording file: " << camerafile << std::endl;
+                _log_trace("Opened subordinate recording file: " + camerafile);
             }
             else {
-                std::cerr << CLASSNAME << ": ERROR: Recording file was not recorded in master/sub mode: " << camerafile << std::endl;
+                _log_error("Recording file was not recorded in master/sub mode: " + camerafile);
                 result = K4A_RESULT_FAILED;
 
                 return false;
@@ -90,7 +90,8 @@ bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& cam
         }
         else
         {
-            std::cerr << CLASSNAME << ": Could not get camera serial from recording " << camerafile << std::endl;
+            _log_error("Failed to get device serial number from recording file: " + camerafile);
+            return false;
         }
 
         //initialize cameradata attributes:
@@ -123,11 +124,11 @@ bool K4APlaybackCapture::_create_cameras() {
         K4ACameraConfig& cd = configuration.all_camera_configs[i];
         if (configuration.debug) _log_debug("opening camera " + cd.serial);
         if (cd.type == "kinect_offline") {
-            _log_warning("configuration: camera with serial " + cd.serial + " has deprecated type 'kinect_offline', changing to 'kinect_playback'");
+            _log_warning("camera with serial " + cd.serial + " has deprecated type 'kinect_offline', changing to 'kinect_playback'");
             cd.type = "kinect_playback";
         }
         if (cd.type != "kinect_playback") {
-            _log_error("configuration: camera with serial " + cd.serial + " has wrong type " + cd.type);
+            _log_error("camera with serial " + cd.serial + " has wrong type " + cd.type);
         }
 
         int camera_index = cameras.size();

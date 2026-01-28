@@ -48,7 +48,6 @@ public:
 
     bool auxiliary_operation(const std::string op, const void* inbuf, size_t insize, void* outbuf, size_t outsize) override {
         // For test purposes, really...
-        std::cerr << "xxxjack cwipc_kinect aux-op " << op << std::endl;
         if (op == "map2d3d") {
             if (inbuf == nullptr || insize != 4 * sizeof(float)) return false;
             if (outbuf == nullptr || outsize != 3 * sizeof(float)) return false;

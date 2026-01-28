@@ -553,9 +553,6 @@ protected:
                         pos.y = point.y;
                         pos.z = point.z;
                         skeleton.joints[joint_id].position.xyz = pos;
-                        //k4abt_joint_confidence_level_t confidence = skeleton.joints[joint_id].confidence_level;
-                        //k4a_quaternion_t orientation = skeleton.joints[joint_id].orientation;
-                        //std::cout << "\tJoint " << joint_id << " : \t(" << pos.x << "," << pos.y << "," << pos.z << ")\t\tconfidence_level = " << confidence << "\t orientation_wxyz: (" << orientation.wxyz.w << "," << orientation.wxyz.x << "," << orientation.wxyz.y << "," << orientation.wxyz.z << ")" << std::endl;
                     }
 
                     skeletons.push_back(skeleton);
