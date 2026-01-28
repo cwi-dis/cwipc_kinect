@@ -5,8 +5,7 @@
 
 #include "cwipc_util/api_pcl.h"
 #include "cwipc_util/api.h"
-#include "cwipc_util/capturers.hpp"
-#include "cwipc_util/vectors.h"
+#include "cwipc_util/internal/capturers.hpp"
 #include "cwipc_kinect/api.h"
 #include "K4AConfig.hpp"
 #include "K4ACapture.hpp"
