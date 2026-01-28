@@ -33,16 +33,8 @@ cwipc_install_wheel(NAME "cwipc_kinect" WHEELDIR ${CMAKE_PYWHEELS_OUTPUT_DIRECTO
 # Testing.
 #
 
-# setup test environment (installs module into venv)
-
-add_test(NAME _python_setup_cwipc_kinect
-	COMMAND ${Python3_EXECUTABLE} -m pip install --no-cache-dir --upgrade --find-links=${CMAKE_PYWHEELS_OUTPUT_DIRECTORY} cwipc_kinect
-	)
-set_tests_properties(_python_setup_cwipc_kinect PROPERTIES FIXTURES_SETUP venv RUN_SERIAL TRUE)
-
-
 add_test(NAME cwipc_kinect_python_tests
 	COMMAND ${Python3_EXECUTABLE} ${CMAKE_PYWHEELS_OUTPUT_DIRECTORY}/test_cwipc_kinect.py
 	WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )
-cwipc_python_test(TEST cwipc_kinect_python_tests FIXTURES_REQUIRED venv)
+cwipc_python_test(TEST cwipc_kinect_python_tests FIXTURES_REQUIRED venv_with_cwipc)
