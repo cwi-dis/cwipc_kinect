@@ -33,6 +33,15 @@ public:
         _unload_cameras();
     }
 
+    virtual bool start() override final {
+        cwipc_log(CWIPC_LOG_LEVEL_WARNING, CLASSNAME, "start() not yet implemented (nor needed)");
+        return true;
+    }
+
+    virtual void stop() override final{
+        cwipc_log(CWIPC_LOG_LEVEL_WARNING, CLASSNAME, "stop() not yet implemented (nor needed)");
+    }   
+    
     virtual int get_camera_count() override final { 
         return cameras.size(); 
     }
