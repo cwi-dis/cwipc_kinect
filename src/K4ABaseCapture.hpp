@@ -33,8 +33,12 @@ public:
         _unload_cameras();
     }
 
+    virtual bool can_start() override final {
+        return _is_initialized;
+    }
+
     virtual bool start() override final {
-        if (!is_valid()) {
+        if (!can_start()) {
             _log_error("start() called but not valid()");
             return false;
         }
@@ -77,8 +81,8 @@ public:
         return cameras.size(); 
     }
 
-    virtual bool is_valid() override final { 
-        return cameras.size() > 0; 
+    virtual bool is_playing() override final { 
+        return control_thread != nullptr; 
     }
     
 
@@ -91,6 +95,7 @@ public:
         // Read the configuration.
         //
         if (!_apply_config(configFilename)) {
+            _is_initialized = false;
             return false;
         }
         if (cwipc_log_get_level() >= CWIPC_LOG_LEVEL_DEBUG) {
@@ -98,9 +103,11 @@ public:
         }
         auto camera_config_count = configuration.all_camera_configs.size();
         if (camera_config_count == 0) {
+            _is_initialized = false;
             return false;
         }
 
+        _is_initialized = true;
         return true;
     }
 
@@ -131,7 +138,8 @@ public:
 
 
     virtual bool pointcloud_available(bool wait) override final {
-        if (!is_valid()) {
+        if (!is_playing()) {
+            _log_warning("available() called but not playing");
             return false;
         }
 
@@ -148,8 +156,8 @@ public:
     }
 
     virtual cwipc* get_pointcloud() override final {
-        if (!is_valid()) {
-          _log_warning("get_pointcloud: returning NULL, no cameras");
+        if (!is_playing()) {
+          _log_error("get_pointcloud: not playing");
           return nullptr;
         }
 
@@ -179,7 +187,7 @@ public:
     }
 
     virtual float get_pointSize() override final {
-        if (!is_valid()) {
+        if (!is_playing()) {
             return 0;
         }
 
@@ -579,7 +587,7 @@ public:
 protected:
     // protected attibutes. Accessible from subclasses.
     std::vector<Type_our_camera*> cameras;  //<! Cameras used by this capturer
-
+    bool _is_initialized = false; //<! True when configuration has been applied successfully
     bool stopped = false; //<! True when stopping capture
     bool _eof = false; //<! True when end-of-file seen on pointcloud source
     

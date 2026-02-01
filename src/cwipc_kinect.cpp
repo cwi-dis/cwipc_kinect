@@ -112,7 +112,7 @@ cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage,
     cwipc_source_kinect_impl *rv = new cwipc_source_kinect_impl(configFilename);
 
     // If the grabber found cameras everything is fine
-    if (rv && rv->is_valid()) {
+    if (rv && rv->can_start()) {
         cwipc_log_set_errorbuf(nullptr);
         return rv;
     }
@@ -134,7 +134,7 @@ cwipc_tiledsource* cwipc_kinect_playback(const char* configFilename, char** erro
     cwipc_source_kinect_playback_impl* rv = new cwipc_source_kinect_playback_impl(configFilename);
 
     // If the grabber found cameras everything is fine
-    if (rv && rv->is_valid()) {
+    if (rv && rv->can_start()) {
         cwipc_log_set_errorbuf(nullptr);
         return rv;
     }
