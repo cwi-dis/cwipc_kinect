@@ -7,8 +7,8 @@
 #include "cwipc_util/api.h"
 #include "cwipc_kinect/api.h"
 
-#define DEBUG_AUXDATA
-#define DEBUG_CONFIG
+#undef DEBUG_AUXDATA
+#undef DEBUG_CONFIG
 
 int main(int argc, char** argv) {
     if (argc < 3) {
@@ -19,66 +19,61 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    int countWanted = atoi(argv[1]);
+    char *configFile = argv[3];
+    int count = atoi(argv[1]);
     char filename[500];
     char *error = NULL;
-    cwipc_tiledsource *generator;
-    char *outputdir = argv[2];
-    char *configFile = NULL;
 
-    if (argc == 4) {
-        configFile = argv[3];
-    }
+    cwipc_tiledsource *generator;
 
     generator = cwipc_kinect_playback(configFile, &error, CWIPC_API_VERSION);
 
     if (generator == NULL) {
-        std::cerr << argv[0] << ": creating kinect_playback grabber failed: " << error << std::endl;
+        std::cerr << argv[0] << ": creating realsense2_playback grabber failed: " << error << std::endl;
 
         return 1;
-    }
-
-    if (error) {
-        std::cerr << argv[0] << ": warning while creating kinect grabber: " << error << std::endl;
     }
 
 #ifdef DEBUG_AUXDATA
     generator->request_auxiliary_data("rgb");
     generator->request_auxiliary_data("depth");
-    generator->request_auxiliary_data("skeleton");
 #endif
 
 #ifdef DEBUG_CONFIG
     size_t configSize = generator->get_config(nullptr, 0);
-    char* configBuf = (char *)malloc(configSize + 1);
+    char* configBuf = (char*)malloc(configSize + 1);
     memset(configBuf, 0, configSize + 1);
     generator->get_config(configBuf, configSize);
 
     std::cerr << "cameraconfig as json:\n=================\n" << configBuf << "\n======================\n";
 #endif
 
-    int ok = 0;
-    int framenum = 0;
-    int nGrabbedSuccessfully = 0;
-
-    while (!generator->eof()) {
-        if (countWanted != 0 && framenum >= countWanted) {
-            break;
-        }
-
-        cwipc* pc = NULL;
+    cwipc_tileinfo tif;
+    bool ok = generator->get_tileinfo(0, &tif);
+    if (!ok) {
+        std::cerr << argv[0] << ": get_tileinfo(0) failed" << std::endl;
+        return 1;
+    }
+    generator->start();
+    while (count-- > 0) {
+        cwipc *pc = NULL;
         pc = generator->get();
-
         if (pc == NULL) {
-            error = (char*)"grabber returned NULL pointcloud";
-            ok = -1;
-            break;
+            std::cerr << argv[0] << ": get() returned NULL. Try again." << std::endl;
+            pc = generator->get();
+            if (pc == NULL) {
+                std::cerr << argv[0] << ": get() returned NULL on second attempt" << std::endl;
+                ok = false;
+                break;
+            }
         }
-
-        if (pc->count() <= 0) {
-            std::cerr << argv[0] << ": warning: empty pointcloud, grabbing again" << std::endl;
-            pc->free();
-            continue;
+        if (strcmp(argv[2], "-") != 0) {
+            snprintf(filename, sizeof(filename), "%s/pointcloud-%" PRIu64 ".ply", argv[2], pc->timestamp());
+            ok = cwipc_write(filename, pc, &error) == 0;
+            if (!ok) {
+                std::cerr << argv[0] << ": Error writing pointcloud to " << filename << ": " << error << std::endl;
+                break;
+            }
         }
 
 #ifdef DEBUG_AUXDATA
@@ -89,35 +84,23 @@ int main(int argc, char** argv) {
         } else {
             std::cerr << argv[0] << ": auxdata: " << ap->count() << " items:" << std::endl;
 
-            for (int i = 0; i < ap->count(); i++) {
-                void* ptr = ap->pointer(i);
-                std::cerr << argv[0] << "auxdata: item " << i << " name=" << ap->name(i) << ", size=" << (int)ap->size(i) << ", descr=" << ap->description(i) << ", pointer=0x" << std::hex << (uint64_t)ptr << std::dec << std::endl;
+            for (int i=0; i<ap->count(); i++) {
+                const char *name = ap->name(i).c_str();
+                const char *description = ap->description(i).c_str();
+                size_t size = ap->size(i);
+                void *pointer = ap->pointer(i);
+                std::cerr << argv[0] << ": auxdata: item " << i << " name=" << name << ", size=" << (int)size << ", description=" << description << ", pointer=0x" << std::hex << (uint64_t)pointer << std::endl;
             }
         }
 #endif
-        framenum++;
-
-        if (strcmp(outputdir, "-") != 0) {
-            snprintf(filename, sizeof(filename), "%s/pointcloud-%" PRIu64 ".ply", outputdir, pc->timestamp());
-            std::cout << "-> Writing frame " << framenum << " with " << pc->count() << " points to "<< filename << std::endl;
-            ok = cwipc_write(filename, pc, &error);
-        } else {
-            std::cout << "-> Dropping frame " << framenum << " with " << pc->count() << " points" << std::endl;
-        }
-
         pc->free();
-        nGrabbedSuccessfully++;
     }
+
 
     generator->free();
 
-    if (ok < 0) {
-        std::cerr << "Error: " << error << std::endl;
-        return 1;
-    }
-
-    if (countWanted != 0 && nGrabbedSuccessfully != countWanted) {
-        std::cerr << "cwipc_k4agrab: Wanted " << countWanted << " pointclouds but got only " << nGrabbedSuccessfully << std::endl;
+    if (!ok) {
+        std::cerr << argv[0] << ": Error during test." << std::endl;
         return 1;
     }
 
