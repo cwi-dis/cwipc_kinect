@@ -99,6 +99,7 @@ class TestApi(unittest.TestCase):
             self.skipTest(f'Playback config file {TEST_FIXTURES_PLAYBACK_CONFIG} not found')
         try:
             grabber = _cwipc_kinect.cwipc_kinect_playback(TEST_FIXTURES_PLAYBACK_CONFIG)
+            grabber.start()
             self.assertFalse(grabber.eof())
             self.assertTrue(grabber.available(True))
             result = grabber.seek(1600233)
