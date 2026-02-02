@@ -35,14 +35,14 @@ class cwipc_source_kinect_impl_base : public cwipc_capturer_impl_base<GrabberCla
 public:
     using cwipc_capturer_impl_base<GrabberClass, CameraConfigClass>::cwipc_capturer_impl_base;
     
-    void request_auxiliary_data(const std::string &name) override {
-        cwipc_activesource::request_auxiliary_data(name);
+    void request_metadata(const std::string &name) override {
+        cwipc_activesource::request_metadata(name);
 
-        this->m_grabber->request_auxiliary_data(
-            cwipc_activesource::auxiliary_data_requested("rgb"),
-            cwipc_activesource::auxiliary_data_requested("depth"),
+        this->m_grabber->request_metadata(
+            cwipc_activesource::is_metadata_requested("rgb"),
+            cwipc_activesource::is_metadata_requested("depth"),
             false,
-            cwipc_activesource::auxiliary_data_requested("skeleton")
+            cwipc_activesource::is_metadata_requested("skeleton")
         );
     }
 

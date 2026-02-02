@@ -130,10 +130,10 @@ public:
         return configuration.to_string();
     }
 
-    virtual void request_auxiliary_data(bool rgb, bool depth, bool timestamps, bool skeleton) override final {
-        configuration.auxData.want_auxdata_rgb = rgb;
-        configuration.auxData.want_auxdata_depth = depth;
-        configuration.auxData.want_auxdata_skeleton = skeleton;
+    virtual void request_metadata(bool rgb, bool depth, bool timestamps, bool skeleton) override final {
+        configuration.metadata.want_rgb = rgb;
+        configuration.metadata.want_depth = depth;
+        configuration.metadata.want_skeleton = skeleton;
     }
 
 
@@ -232,7 +232,7 @@ protected:
     /// Load configuration from file or string.
     virtual bool _apply_config(const char *configFilename) override final {
         K4ACaptureConfig newConfig;
-        newConfig.auxData = configuration.auxData; // preserve auxdata requests
+        newConfig.metadata = configuration.metadata; // preserve metadata requests
         configuration = newConfig;
         if (configFilename == NULL || *configFilename == '\0') {
             configFilename = "cameraconfig.json";
@@ -476,7 +476,7 @@ protected:
             cwipc* newPC = cwipc_from_pcl(pcl_pointcloud, timestamp, NULL, CWIPC_API_VERSION);
 
             for (auto cam : cameras) {
-                cam->save_frameset_auxdata(newPC);
+                cam->save_frameset_metadata(newPC);
             }
 
             if (stopped) {

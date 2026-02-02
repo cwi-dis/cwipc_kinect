@@ -56,7 +56,7 @@ public:
         processing(_configuration.processing),
         hardware(_configuration.hardware),
         skeleton(_configuration.skeleton),
-        auxData(_configuration.auxData),
+        metadata(_configuration.metadata),
         camera_handle(_handle),
         captured_frame_queue(1),
         processing_frame_queue(1),
@@ -84,7 +84,7 @@ public:
         if (!_init_hardware_for_this_camera()) {
             return false;
         }
-        if (auxData.want_auxdata_skeleton) {
+        if (metadata.want_skeleton) {
             if (!_init_skeleton_tracker()) {
                 return false;
             }
@@ -198,18 +198,18 @@ public:
     virtual cwipc_pcl_pointcloud access_current_pcl_pointcloud() final {
         return current_pcl_pointcloud;
     }
-    /// Step 5: Save auxdata from frameset into given cwipc object.
-    void save_frameset_auxdata(cwipc* pc) {
+    /// Step 5: Save metadata from frameset into given cwipc object.
+    void save_frameset_metadata(cwipc* pc) {
         if (current_captured_frameset == nullptr) {
-            _log_error("save_frameset_auxdata: current_captured_frameset is NULL");
+            _log_error("save_frameset_metadata: current_captured_frameset is NULL");
             return;
         }
         // xxxjack do we need to lock current_frameset here?
-        if (auxData.want_auxdata_rgb || auxData.want_auxdata_depth) {
+        if (metadata.want_rgb || metadata.want_depth) {
             k4a_image_t color_image = k4a_capture_get_color_image(current_captured_frameset);
             k4a_image_t depth_image = k4a_capture_get_depth_image(current_captured_frameset);
             if (color_image == nullptr || depth_image == nullptr) {
-                _log_error("Failed to get color or depth image from capture for auxiliary data");
+                _log_error("Failed to get color or depth image from capture for metadata");
                 return;
             }
             int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
@@ -217,7 +217,7 @@ public:
             int depth_image_width_pixels = k4a_image_get_width_pixels(depth_image);
             int depth_image_height_pixels = k4a_image_get_height_pixels(depth_image);
 
-            if (auxData.want_auxdata_rgb) {
+            if (metadata.want_rgb) {
                 std::string name = "rgb." + serial;
                 color_image = _uncompress_color_image(current_captured_frameset, color_image);
                 if (filtering.map_color_to_depth) {
@@ -268,14 +268,14 @@ public:
 
                 if (pointer) {
                     memcpy(pointer, data_pointer, size);
-                    cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
+                    cwipc_metadata* ap = pc->access_metadata();
                     ap->_add(name, description, pointer, size, ::free);
                 }
 
                 k4a_image_release(color_image);
             }
 
-            if (auxData.want_auxdata_depth) {
+            if (metadata.want_depth) {
                 std::string name = "depth." + serial;
                 if (!filtering.map_color_to_depth) {
                     k4a_image_t transformed_depth_image = NULL;
@@ -318,13 +318,13 @@ public:
 
                 if (pointer) {
                     memcpy(pointer, data_pointer, size);
-                    cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
+                    cwipc_metadata* ap = pc->access_metadata();
                     ap->_add(name, description, pointer, size, ::free);
                 }
             }
         }
-        if (auxData.want_auxdata_skeleton) {
-            _save_auxdata_skeleton(pc);
+        if (metadata.want_skeleton) {
+            _save_metadata_skeleton(pc);
         }
     }
 
@@ -569,8 +569,8 @@ protected:
         }
     }
 
-    /// Kinect-specific: save skeleton auxdata into point cloud.
-    void _save_auxdata_skeleton(cwipc* pc) {
+    /// Kinect-specific: save skeleton metadata into point cloud.
+    void _save_metadata_skeleton(cwipc* pc) {
         int n_skeletons = skeletons.size();
         size_t size_str = sizeof(cwipc_skeleton_collection) + n_skeletons * (int)K4ABT_JOINT_COUNT * sizeof(cwipc_skeleton_joint);
         cwipc_skeleton_collection* skl = (cwipc_skeleton_collection*)malloc(size_str);
@@ -594,7 +594,7 @@ protected:
             }
 
             std::string name = "skeleton." + serial;
-            cwipc_auxiliary_data* ap = pc->access_auxiliary_data();
+            cwipc_metadata* ap = pc->access_metadata();
             ap->_add(name, "", (void*)skl, size_str, ::free);
         }
     }
@@ -900,7 +900,7 @@ protected:
     K4ACameraProcessingParameters& filtering;
     K4ACameraHardwareConfig& hardware;
     K4ASkeletonConfig& skeleton;
-    K4ACaptureAuxDataConfig& auxData; //<! Auxiliary data configuration
+    K4ACaptureMetadataConfig& metadata; //<! Metadata configuration
 
     Type_api_camera camera_handle;
     bool camera_stopped = true;  //<! True when stopping

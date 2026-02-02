@@ -66,10 +66,10 @@ struct K4ASkeletonConfig {
     std::string bt_model_path = "";     // Override k4abt model path
 };
 
-struct K4ACaptureAuxDataConfig {
-    bool want_auxdata_rgb = false;
-    bool want_auxdata_depth = false;
-    bool want_auxdata_skeleton = false;
+struct K4ACaptureMetadataConfig {
+    bool want_rgb = false;
+    bool want_depth = false;
+    bool want_skeleton = false;
 };
 
 struct K4ACaptureConfig : CwipcBaseCaptureConfig {
@@ -78,7 +78,7 @@ struct K4ACaptureConfig : CwipcBaseCaptureConfig {
     K4ACameraHardwareConfig hardware;
     K4ACaptureSyncConfig sync;
     K4ASkeletonConfig skeleton;
-    K4ACaptureAuxDataConfig auxData;
+    K4ACaptureMetadataConfig metadata;
     int single_tile = -1;       // if singletile >=0 all the points will be the specified integer
 
     std::string record_to_directory = ""; // If non-empty all camera streams will be recorded to this directory.
