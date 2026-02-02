@@ -3,8 +3,8 @@ import ctypes
 import ctypes.util
 import warnings
 from typing import Optional
-from cwipc.util import CwipcError, CWIPC_API_VERSION, cwipc_tiledsource_wrapper
-from cwipc.util import cwipc_tiledsource_p
+from cwipc.util import CwipcError, CWIPC_API_VERSION, cwipc_activesource_wrapper
+from cwipc.util import cwipc_activesource_p
 from cwipc.util import _cwipc_dll_search_path_collection # type: ignore
 
 __all__ = [
@@ -59,14 +59,14 @@ def cwipc_kinect_dll_load(libname : Optional[str]=None) -> ctypes.CDLL:
             raise RuntimeError(f'Dynamic library {libname} cannot be loaded')
     
     _cwipc_kinect_dll_reference.cwipc_kinect.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_char_p), ctypes.c_ulong]
-    _cwipc_kinect_dll_reference.cwipc_kinect.restype = cwipc_tiledsource_p
+    _cwipc_kinect_dll_reference.cwipc_kinect.restype = cwipc_activesource_p
     
     _cwipc_kinect_dll_reference.cwipc_kinect_playback.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_char_p), ctypes.c_ulong]
-    _cwipc_kinect_dll_reference.cwipc_kinect_playback.restype = cwipc_tiledsource_p
+    _cwipc_kinect_dll_reference.cwipc_kinect_playback.restype = cwipc_activesource_p
 
     return _cwipc_kinect_dll_reference
         
-def cwipc_kinect(conffile : Optional[str]=None) -> cwipc_tiledsource_wrapper:
+def cwipc_kinect(conffile : Optional[str]=None) -> cwipc_activesource_wrapper:
     """Returns a cwipc_source object that grabs from a kinect camera and returns cwipc object on every get() call."""
     errorString = ctypes.c_char_p()
     cconffile = None
@@ -78,10 +78,10 @@ def cwipc_kinect(conffile : Optional[str]=None) -> cwipc_tiledsource_wrapper:
     if errorString and errorString.value:
         warnings.warn(errorString.value.decode('utf8'))
     if rv:
-        return cwipc_tiledsource_wrapper(rv)
-    raise CwipcError("cwipc_kinect: no cwipc_tiledsource created, but no specific error returned from C library")
+        return cwipc_activesource_wrapper(rv)
+    raise CwipcError("cwipc_kinect: no cwipc_activesource created, but no specific error returned from C library")
 
-def cwipc_kinect_playback(conffile : Optional[str]=None) -> cwipc_tiledsource_wrapper:
+def cwipc_kinect_playback(conffile : Optional[str]=None) -> cwipc_activesource_wrapper:
     """Returns a cwipc_source object that grabs from kinect camera recordings and returns cwipc objects on every get() call."""
     errorString = ctypes.c_char_p()
     cconffile = None
@@ -93,5 +93,5 @@ def cwipc_kinect_playback(conffile : Optional[str]=None) -> cwipc_tiledsource_wr
     if errorString and errorString.value:
         warnings.warn(errorString.value.decode('utf8'))
     if rv:
-        return cwipc_tiledsource_wrapper(rv)
-    raise CwipcError("cwipc_kinect_playback: no cwipc_tiledsource created, but no specific error returned from C library")
+        return cwipc_activesource_wrapper(rv)
+    raise CwipcError("cwipc_kinect_playback: no cwipc_activesource created, but no specific error returned from C library")

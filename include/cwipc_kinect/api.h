@@ -27,7 +27,7 @@ extern "C" {
  * similar to the `cwipc_synthetic()` source.
  */
 
-_CWIPC_KINECT_EXPORT cwipc_tiledsource* cwipc_kinect(const char *configFilename, char **errorMessage, uint64_t apiVersion);
+_CWIPC_KINECT_EXPORT cwipc_activesource* cwipc_kinect(const char *configFilename, char **errorMessage, uint64_t apiVersion);
 
 
 
@@ -35,14 +35,14 @@ _CWIPC_KINECT_EXPORT cwipc_tiledsource* cwipc_kinect(const char *configFilename,
  * \param configFilename An option string with the filename of the camera configuration file.
  * \param errorMessage An optional pointer to a string where any error message will be stored.
  * \param apiVersion Pass in CWIPC_API_VERSION to ensure DLL compatibility.
- * \return A cwipc_tiledsource object.
+ * \return A cwipc_activesource object.
 
  * This function returns a cwipc_source that create pointclouds from color and
  * depth images captured earlier (or elsewhere) from realsense
  * cameras.
  */
 
-_CWIPC_KINECT_EXPORT cwipc_tiledsource* cwipc_kinect_playback(const char* configFilename, char** errorMessage, uint64_t apiVersion);
+_CWIPC_KINECT_EXPORT cwipc_activesource* cwipc_kinect_playback(const char* configFilename, char** errorMessage, uint64_t apiVersion);
 
 #ifdef __cplusplus
 }

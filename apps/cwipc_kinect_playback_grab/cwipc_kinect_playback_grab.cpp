@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
     char filename[500];
     char *error = NULL;
 
-    cwipc_tiledsource *generator;
+    cwipc_activesource *generator;
 
     generator = cwipc_kinect_playback(configFile, &error, CWIPC_API_VERSION);
 
