@@ -133,7 +133,7 @@ bool K4APlaybackCapture::_create_cameras() {
 
         int camera_index = cameras.size();
 
-        auto cam = _create_single_camera(camera_handles[i], configuration, camera_index);
+        auto cam = _create_single_camera(camera_handles[i], configuration, metadata, camera_index);
         cameras.push_back(cam);
     }
     return true;

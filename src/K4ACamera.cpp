@@ -6,8 +6,8 @@
 
 #include "K4ACamera.hpp"
 
-K4ACamera::K4ACamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index)
-:   K4ABaseCamera("cwipc_kinect: K4ACamera", _handle, configuration, _camera_index)
+K4ACamera::K4ACamera(Type_api_camera _handle, K4ACaptureConfig& configuration, K4ACaptureMetadataConfig& metadata, int _camera_index)
+:   K4ABaseCamera("cwipc_kinect: K4ACamera", _handle, configuration, metadata, _camera_index)
 {
     if (debug) _log_debug("Creating camera");
     if (configuration.record_to_directory != "") {

@@ -78,7 +78,6 @@ struct K4ACaptureConfig : CwipcBaseCaptureConfig {
     K4ACameraHardwareConfig hardware;
     K4ACaptureSyncConfig sync;
     K4ASkeletonConfig skeleton;
-    K4ACaptureMetadataConfig metadata;
     int single_tile = -1;       // if singletile >=0 all the points will be the specified integer
 
     std::string record_to_directory = ""; // If non-empty all camera streams will be recorded to this directory.

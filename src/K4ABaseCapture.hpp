@@ -131,9 +131,9 @@ public:
     }
 
     virtual void request_metadata(bool rgb, bool depth, bool timestamps, bool skeleton) override final {
-        configuration.metadata.want_rgb = rgb;
-        configuration.metadata.want_depth = depth;
-        configuration.metadata.want_skeleton = skeleton;
+        metadata.want_rgb = rgb;
+        metadata.want_depth = depth;
+        metadata.want_skeleton = skeleton;
     }
 
 
@@ -232,8 +232,6 @@ protected:
     /// Load configuration from file or string.
     virtual bool _apply_config(const char *configFilename) override final {
         K4ACaptureConfig newConfig;
-        newConfig.metadata = configuration.metadata; // preserve metadata requests
-        configuration = newConfig;
         if (configFilename == NULL || *configFilename == '\0') {
             configFilename = "cameraconfig.json";
         }
@@ -275,8 +273,8 @@ protected:
         return nullptr;
     }
     /// Create our wrapper around a single camera. Here because it needs to be templated.
-    virtual inline Type_our_camera *_create_single_camera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index) final {
-        return new Type_our_camera(_handle, configuration, _camera_index);
+    virtual inline Type_our_camera *_create_single_camera(Type_api_camera _handle, K4ACaptureConfig& configuration, K4ACaptureMetadataConfig& metadata, int _camera_index) final {
+        return new Type_our_camera(_handle, configuration, metadata, _camera_index);
     }
 
 
@@ -582,6 +580,7 @@ public:
     // public attributes. Mainly public so they can be accessed
     // from the Camera class.
     K4ACaptureConfig configuration;  //!< Configuration of this capturer
+    K4ACaptureMetadataConfig metadata;
     std::string configurationCurrentFilename;  //!< Configuration filename
 
 protected:

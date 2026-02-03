@@ -11,7 +11,7 @@ private:
     K4APlaybackCamera& operator=(const K4APlaybackCamera&); // Disable assignment
 
 public:
-    K4APlaybackCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index);
+    K4APlaybackCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, K4ACaptureMetadataConfig& metadata, int _camera_index);
     virtual ~K4APlaybackCamera() {}
 
     // virtual bool pre_start_all_cameras() override final { return true; }

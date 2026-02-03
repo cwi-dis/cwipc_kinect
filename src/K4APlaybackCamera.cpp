@@ -10,8 +10,8 @@
 
 #undef CWIPC_DEBUG
 
-K4APlaybackCamera::K4APlaybackCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, int _camera_index)
-:   K4ABaseCamera("cwipc_kinect: K4APlaybackCamera", _handle, configuration, _camera_index),
+K4APlaybackCamera::K4APlaybackCamera(Type_api_camera _handle, K4ACaptureConfig& configuration, K4ACaptureMetadataConfig& metadata, int _camera_index)
+:   K4ABaseCamera("cwipc_kinect: K4APlaybackCamera", _handle, configuration, metadata, _camera_index),
     capture_id(-1),
     current_frameset_timestamp(0),
     max_delay(0)
