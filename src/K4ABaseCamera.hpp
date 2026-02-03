@@ -193,13 +193,13 @@ public:
         processing_done = false;
     }
     /// Step 4: borrow a pointer to the point cloud just created, as a PCL point cloud.
-    /// The capturer will use this to populate the resultant cwipc point cloud with points
+    /// The capturer will use this to populate the resultant cwipc_pointcloud point cloud with points
     /// from all cameras.
     virtual cwipc_pcl_pointcloud access_current_pcl_pointcloud() final {
         return current_pcl_pointcloud;
     }
-    /// Step 5: Save metadata from frameset into given cwipc object.
-    void save_frameset_metadata(cwipc* pc) {
+    /// Step 5: Save metadata from frameset into given cwipc_pointcloud object.
+    void save_frameset_metadata(cwipc_pointcloud* pc) {
         if (current_captured_frameset == nullptr) {
             _log_error("save_frameset_metadata: current_captured_frameset is NULL");
             return;
@@ -570,7 +570,7 @@ protected:
     }
 
     /// Kinect-specific: save skeleton metadata into point cloud.
-    void _save_metadata_skeleton(cwipc* pc) {
+    void _save_metadata_skeleton(cwipc_pointcloud* pc) {
         int n_skeletons = skeletons.size();
         size_t size_str = sizeof(cwipc_skeleton_collection) + n_skeletons * (int)K4ABT_JOINT_COUNT * sizeof(cwipc_skeleton_joint);
         cwipc_skeleton_collection* skl = (cwipc_skeleton_collection*)malloc(size_str);
