@@ -29,8 +29,11 @@ public:
 
     using CwipcBaseCapture::CwipcBaseCapture;
     virtual ~K4ABaseCapture() {
-        uint64_t stopTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
         _unload_cameras();
+        if (mergedPC) {
+            mergedPC->free();
+            mergedPC = nullptr;
+        }
     }
 
     virtual bool can_start() override final {
@@ -478,6 +481,7 @@ protected:
             }
 
             if (stopped) {
+                newPC->free();
                 break;
             }
 
@@ -487,6 +491,7 @@ protected:
             }
 
             if (stopped) {
+                newPC->free();
                 break;
             }
 
@@ -498,12 +503,12 @@ protected:
                 mergedPC->free();
                 mergedPC = nullptr;
             }
+            mergedPC = newPC;
 
             if (stopped) {
                 break;
             }
 
-            mergedPC = newPC;
 
             // Step 4: wait for frame processing to complete.
             for (auto cam : cameras) {
