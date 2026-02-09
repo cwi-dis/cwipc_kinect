@@ -10,6 +10,8 @@
 #include "K4AConfig.hpp"
 #include "K4ACapture.hpp"
 #include "K4APlaybackCapture.hpp"
+#define stringify(x) _stringify(x)
+#define _stringify(x) #x
 
 
 static bool _api_versioncheck(char **errorMessage, uint64_t apiVersion) {
@@ -103,6 +105,15 @@ public:
 //
 // C-compatible entry points
 //
+
+const char *cwipc_get_version_kinect() {
+#ifdef CWIPC_VERSION
+    return stringify(CWIPC_VERSION);
+#else
+    return "unknown";
+#endif
+}
+
 
 cwipc_activesource* cwipc_kinect(const char *configFilename, char **errorMessage, uint64_t apiVersion) {
     if (! _api_versioncheck(errorMessage,  apiVersion)) {

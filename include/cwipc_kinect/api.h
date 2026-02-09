@@ -16,6 +16,14 @@
 extern "C" {
 #endif
 
+
+/** \brief
+ * Returns version string for realsense2 capturer module.
+ * As a side effect this checks that dependencies have been installed correctly, and it will install the
+ * capturer for use with the auto-capturer.
+ */
+_CWIPC_KINECT_EXPORT const char *cwipc_get_version_kinect();
+
 /** \brief Capture pointclouds from kinect cameras.
  * \param configFilename An option string with the filename of the camera configuration file.
  * \param errorMessage An optional pointer to a string where any error message will be stored.
