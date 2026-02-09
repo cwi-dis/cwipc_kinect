@@ -8,6 +8,7 @@ from cwipc.util import cwipc_activesource_p
 from cwipc.util import _cwipc_dll_search_path_collection # type: ignore
 
 __all__ = [
+    "cwipc_get_version_module",
     "cwipc_kinect",
     "cwipc_kinect_playback",
     "cwipc_kinect_dll_load"
@@ -58,6 +59,9 @@ def cwipc_kinect_dll_load(libname : Optional[str]=None) -> ctypes.CDLL:
         if not _cwipc_kinect_dll_reference:
             raise RuntimeError(f'Dynamic library {libname} cannot be loaded')
     
+    _cwipc_kinect_dll_reference.cwipc_get_version_kinect.argtypes = []
+    _cwipc_kinect_dll_reference.cwipc_get_version_kinect.restype = ctypes.c_char_p
+
     _cwipc_kinect_dll_reference.cwipc_kinect.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_char_p), ctypes.c_ulong]
     _cwipc_kinect_dll_reference.cwipc_kinect.restype = cwipc_activesource_p
     
@@ -66,6 +70,12 @@ def cwipc_kinect_dll_load(libname : Optional[str]=None) -> ctypes.CDLL:
 
     return _cwipc_kinect_dll_reference
         
+
+def cwipc_get_version_module() -> str:
+    c_version = cwipc_kinect_dll_load().cwipc_get_version_kinect()
+    version = c_version.decode('utf8')
+    return version
+
 def cwipc_kinect(conffile : Optional[str]=None) -> cwipc_activesource_wrapper:
     """Returns a cwipc_source object that grabs from a kinect camera and returns cwipc object on every get() call."""
     errorString = ctypes.c_char_p()
