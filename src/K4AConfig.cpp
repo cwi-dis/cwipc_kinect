@@ -68,6 +68,9 @@ void K4ACaptureConfig::_from_json(const json& json_data) {
         config.all_camera_configs.push_back(camera_config);
         camera_index++;
     }
+    if (camera_index == 0) {
+        cwipc_log(CWIPC_LOG_LEVEL_WARNING, "cwipc_kinect", "No cameras in configuration");
+    }
 }
 
 void K4ACaptureConfig::_from_json_v4(const json& json_data) {

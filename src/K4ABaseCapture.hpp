@@ -115,6 +115,10 @@ public:
     }
 
     virtual std::string config_get() {
+        if (cameras.size() == 0) {
+            _log_error("Must start() before getting config");
+            return "";
+        }
         bool match_only = false;
         // We get parameters like exposure here.
         // But framerate and width/height are gotten in the camera code.
