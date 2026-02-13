@@ -44,6 +44,7 @@ struct K4ACameraHardwareConfig {
     int32_t color_sharpness = 2;         // default for manual: 2;
     int32_t color_gain = 0;              // default for manual: 100;
     int32_t color_powerline_frequency = 2;     // default for manual: 2;
+    bool color_mjpeg = false;       // Capture cameras in MJPEG in stead of BGRA.
 };
 
 struct K4ACaptureProcessingConfig {

@@ -32,6 +32,7 @@ void K4ACaptureConfig::_from_json(const json& json_data) {
         _CWIPC_CONFIG_JSON_GET(hardware_data, color_sharpness, hardware, color_sharpness);
         _CWIPC_CONFIG_JSON_GET(hardware_data, color_gain, hardware, color_gain);
         _CWIPC_CONFIG_JSON_GET(hardware_data, color_powerline_frequency, hardware, color_powerline_frequency);
+        _CWIPC_CONFIG_JSON_GET(hardware_data, color_mjpeg, hardware, color_mjpeg);
     }
     if (json_data.contains("processing")) {
         json processing_data = json_data.at("processing");
@@ -177,6 +178,7 @@ void K4ACaptureConfig::_to_json(json& json_data, bool for_recording) {
     _CWIPC_CONFIG_JSON_PUT(hardware_data, color_saturation, hardware, color_saturation);
     _CWIPC_CONFIG_JSON_PUT(hardware_data, color_gain, hardware, color_gain);
     _CWIPC_CONFIG_JSON_PUT(hardware_data, color_powerline_frequency, hardware, color_powerline_frequency);
+    _CWIPC_CONFIG_JSON_PUT(hardware_data, color_mjpeg, hardware, color_mjpeg);
     json_data["hardware"] = hardware_data;
 
     json processing_data;

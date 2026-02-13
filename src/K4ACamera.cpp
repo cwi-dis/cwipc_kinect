@@ -182,7 +182,7 @@ uint64_t K4ACamera::wait_for_captured_frameset(uint64_t minimum_timestamp) {
 }
 
 bool K4ACamera::_init_config_for_this_camera(k4a_device_configuration_t& device_config) {
-    device_config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
+    device_config.color_format = hardware.color_mjpeg? K4A_IMAGE_FORMAT_COLOR_MJPG : K4A_IMAGE_FORMAT_COLOR_BGRA32;
 
     switch (hardware.color_height) {
     case 720:
