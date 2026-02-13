@@ -25,7 +25,6 @@ protected:
     virtual bool _init_hardware_for_this_camera() override final;
     virtual void _start_capture_thread() override final;
     virtual void _capture_thread_main() override final;
-    k4a_image_t _uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) override final;
 
     k4a_record_t recorder = nullptr;
 private:

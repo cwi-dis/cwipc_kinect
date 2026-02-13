@@ -10,6 +10,7 @@ cmake_minimum_required(VERSION 3.16.0)
 add_library(cwipc_kinect 
 	SHARED 
 	cwipc_kinect.cpp 
+	K4ABaseCamera.cpp
 	K4ACapture.cpp 
 	K4ACamera.cpp 
 	K4APlaybackCapture.cpp 

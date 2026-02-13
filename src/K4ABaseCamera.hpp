@@ -41,6 +41,10 @@ typedef union {
     uint8_t v[4];  /**< Array representation of a vector */
 } cwi_bgra_t;
 
+/// Optionally uncompress color image.
+/// For code simplicity this always returns a value k4a_image_t, even though it may be wrong.
+k4a_image_t cwipc_k4a_uncompress_color_image(CwipcBaseCamera *cam, k4a_capture_t capture, k4a_image_t color_image);
+
 template<typename Type_api_camera> 
 class K4ABaseCamera : public CwipcBaseCamera {
 public:
@@ -219,7 +223,7 @@ public:
 
             if (metadata.want_rgb) {
                 std::string name = "rgb." + serial;
-                color_image = _uncompress_color_image(current_captured_frameset, color_image);
+                color_image = cwipc_k4a_uncompress_color_image(this, current_captured_frameset, color_image);
                 if (filtering.map_color_to_depth) {
                     k4a_image_t transformed_color_image = NULL;
                     k4a_result_t status;
@@ -459,7 +463,7 @@ protected:
             // Do processing on the images (filtering, decompressing)
             //
             _apply_filters_to_depth_image(depth_image); //filtering depthmap => better now because if we map depth to color then we need to filter more points.
-            color_image = _uncompress_color_image(processing_frameset, color_image);
+            color_image = cwipc_k4a_uncompress_color_image(this, processing_frameset, color_image);
             //  
             // generate pointcloud
             //
@@ -814,10 +818,7 @@ protected:
         pt.y = rotation[3] * x + rotation[4] * y + rotation[5] * z + translation[1];
         pt.z = rotation[6] * x + rotation[7] * y + rotation[8] * z + translation[2];
     }
-    /// Optionally uncompress color image.
-    /// For code simplicity this always returns a value k4a_image_t, even though it may be wrong.
-    virtual k4a_image_t _uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) = 0;
-
+  
     /// Old method to create point cloud from point cloud image and color image.
     /// Kept for referrence, because the new method _generate_point_cloud is much faster.
     virtual cwipc_pcl_pointcloud _old_generate_point_cloud(const k4a_image_t point_cloud_image, const k4a_image_t color_image) final {

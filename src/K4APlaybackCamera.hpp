@@ -30,7 +30,6 @@ protected:
     }
     virtual void _start_capture_thread() override final {};
     virtual void _capture_thread_main() override final {};
-    k4a_image_t _uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) override final;
 
 private:
     bool _capture_next_valid_frame();

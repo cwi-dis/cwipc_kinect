@@ -520,7 +520,3 @@ void K4ACamera::_capture_thread_main() {
 
     if (debug) _log_debug_thread("capture thread stopping");
 }
-
-k4a_image_t K4ACamera::_uncompress_color_image(k4a_capture_t capture, k4a_image_t color_image) {
-    return color_image;
-}
