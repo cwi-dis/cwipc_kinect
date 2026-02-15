@@ -435,11 +435,13 @@ protected:
             ///
             k4a_capture_t processing_frameset = NULL;
             bool ok = processing_frame_queue.wait_dequeue_timed(processing_frameset, std::chrono::milliseconds(10000));
-
+            if (end_of_stream_reached) break;
             if (!ok) {
                 if (waiting_for_capture) _log_warning("processing thread dequeue timeout");
+                std::this_thread::yield();
                 continue;
             }
+            waiting_for_capture = false;
             if (processing_frameset == nullptr) {
                 if (!camera_stopped) _log_error("processing thread dequeue produced NULL pointer");
                 break;

@@ -140,7 +140,6 @@ bool K4APlaybackCapture::_create_cameras() {
 }
 
 bool K4APlaybackCapture::_capture_all_cameras(uint64_t& timestamp) {
-    uint64_t first_timestamp = 0;
 
     //
     //f irst capture master frame (it is the referrence to sync).
@@ -148,14 +147,13 @@ bool K4APlaybackCapture::_capture_all_cameras(uint64_t& timestamp) {
     //
    for (auto cam : cameras) { //MASTER
         if (cam->is_sync_master()) {
-            first_timestamp = cam->wait_for_captured_frameset(0);
-            if (first_timestamp == 0) {
-                // For the master camera this is end-of-file, not an error.
-                // _log_error("Master camera " + cam->serial + " failed to capture frameset");
+            timestamp = cam->wait_for_captured_frameset(timestamp);
+            if (timestamp == 0) {
+                // For the master camera this is end-of-file
+                // _log_warning("failed to capture frameset for master " + cam->serial);
                 return false;
             }
             break;
-
         }
     }
 
@@ -165,14 +163,13 @@ bool K4APlaybackCapture::_capture_all_cameras(uint64_t& timestamp) {
     //
     for (auto cam : cameras) { //SUBORDINATE or STANDALONE
         if (!cam->is_sync_master()) {
-            uint64_t this_cam_timestamp = cam->wait_for_captured_frameset(first_timestamp);
+            uint64_t this_cam_timestamp = cam->wait_for_captured_frameset(timestamp);
             if (this_cam_timestamp == 0) {
-                _log_warning("no frameset captured for camera " + cam->serial);
+                _log_warning("failed to capture frameset for camera " + cam->serial);
                 return false;
             }
-            continue;
-            if (first_timestamp == 0) {
-                first_timestamp = this_cam_timestamp;
+            if (timestamp == 0) {
+                timestamp = this_cam_timestamp;
             }
         }
     }

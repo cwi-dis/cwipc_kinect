@@ -21,7 +21,7 @@ K4APlaybackCamera::K4APlaybackCamera(Type_api_camera _handle, K4ACaptureConfig& 
 
 uint64_t K4APlaybackCamera::wait_for_captured_frameset(uint64_t earliest_timestamp) {
     if (camera_stopped) {
-        return false;
+        return 0;
     }
     bool ok = true;
     if (earliest_timestamp > 0) {
@@ -75,9 +75,9 @@ bool K4APlaybackCamera::_capture_next_valid_frame() {
         if (stream_result == K4A_STREAM_RESULT_EOF) {
             end_of_stream_reached = true; // xxxjack note that this means eof is true *after all frames have been processed*.
             if (current_frameset_timestamp == 0) {
-                _log_warning("Recording file is empty: " + camera_config.filename);
+                _log_warning("Recording file is empty.");
             } else {
-                _log_trace("Recording file " + camera_config.filename + " reached EOF at frame " + std::to_string(capture_id));
+                _log_trace("Recording file reached EOF at frame " + std::to_string(capture_id));
             }
             return false;
         }
@@ -91,14 +91,12 @@ bool K4APlaybackCamera::_capture_next_valid_frame() {
         k4a_image_t color = k4a_capture_get_color_image(current_captured_frameset);
         k4a_image_t depth = k4a_capture_get_depth_image(current_captured_frameset);
 
+        succeeded = (color != nullptr && depth != nullptr);
         if (color == NULL) {
-            _log_warning("Color is missing in capture " + std::to_string(capture_id) + " serial " + camera_config.serial + " from " + camera_config.filename);
+            _log_warning("Color is missing in frame " + std::to_string(capture_id));
         } else if (depth == NULL) {
-            _log_warning("Depth is missing in capture " + std::to_string(capture_id) + " serial " + camera_config.serial + " from " + camera_config.filename);
-        } else {
-            succeeded = true;
+            _log_warning("Depth is missing in frame " + std::to_string(capture_id));
         }
-
         // xxxjack stop-gap: suddenly sometimes color is missing from the first frame.
         // Try to capture again.
         if (!succeeded) {
@@ -106,7 +104,7 @@ bool K4APlaybackCamera::_capture_next_valid_frame() {
         }
         // xxxjack note that this code uses *color* frame timestamp...
         current_frameset_timestamp = k4a_image_get_device_timestamp_usec(color);
-        if (debug) _log_debug("Prepared frame " + std::to_string(capture_id) + " with timestamp " + std::to_string(current_frameset_timestamp) + " from file " + camera_config.filename);
+        if (debug) _log_debug("Captured frame " + std::to_string(capture_id) + " with timestamp " + std::to_string(current_frameset_timestamp) + " from file " + camera_config.filename);
         k4a_image_release(color);
         k4a_image_release(depth);
     }
@@ -118,7 +116,7 @@ bool K4APlaybackCamera::_capture_frame_no_earlier_than_timestamp(uint64_t master
     //check if current frame already satisfies the condition
     if (current_captured_frameset != NULL && (current_frameset_timestamp > master_timestamp)) {
         // Even if the current frame is too far in the future we use it.
-        _log_warning("reusing frame " + std::to_string(current_frameset_timestamp) + " for master timestamp " +  std::to_string(master_timestamp));
+        _log_warning("Reusing frame with timestamp " + std::to_string(current_frameset_timestamp) + " for master timestamp " +  std::to_string(master_timestamp));
         return true;
     }
 
@@ -131,7 +129,7 @@ bool K4APlaybackCamera::_capture_frame_no_earlier_than_timestamp(uint64_t master
         if (current_frameset_timestamp > master_timestamp) {
             if (current_frameset_timestamp > (master_timestamp + max_delay)) {
                 // it is a future frame, we need to update master frame
-                _log_warning("return frame " + std::to_string(current_frameset_timestamp) + ", too early by " + std::to_string(current_frameset_timestamp - master_timestamp));
+                _log_warning("Using frame with timestamp " + std::to_string(current_frameset_timestamp) + ", too early by " + std::to_string(current_frameset_timestamp - master_timestamp));
                 return true;
             } else {  
                 return true;
