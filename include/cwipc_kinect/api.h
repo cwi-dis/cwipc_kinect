@@ -1,5 +1,10 @@
 #ifndef cwipc_kinect_api_h
 #define cwipc_kinect_api_h
+/** @file cwipc_kinect/api.h
+ * Header for cwipc Kinect capturer, including both C and C++ interfaces.
+ *
+ * This header is intended to be the only header needed to use the cwipc Kinect capturer.
+ */
 
 #include "cwipc_util/api.h"
 
