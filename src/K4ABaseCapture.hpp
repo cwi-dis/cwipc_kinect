@@ -55,7 +55,7 @@ public:
             break;
         }
         std::string msg = kinect_level + file + ":" + std::to_string (line) + ": " + message;
-        cwipc_log(CWIPC_LOG_LEVEL_TRACE, "kinect_sdk",msg );
+        cwipc_log(cwipc_level, "kinect_sdk",msg );
     }
 
     static void _install_k4a_logger() {
