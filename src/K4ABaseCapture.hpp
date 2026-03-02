@@ -28,12 +28,52 @@ public:
     /// Subclasses need to implement static count_devices().
 
     using CwipcBaseCapture::CwipcBaseCapture;
+    
+    static void _k4a_message_cb(void *context, k4a_log_level_t level, const char *file, const int line, const char *message) {
+        std::string kinect_level = "";
+        cwipc_log_level cwipc_level = CWIPC_LOG_LEVEL_WARNING;
+        switch(level) {
+        case K4A_LOG_LEVEL_CRITICAL:
+            cwipc_level = CWIPC_LOG_LEVEL_ERROR;
+            kinect_level = "(critical): ";
+            break;
+        case K4A_LOG_LEVEL_ERROR:
+            cwipc_level = CWIPC_LOG_LEVEL_ERROR;
+            break;
+        case K4A_LOG_LEVEL_WARNING:
+            cwipc_level = CWIPC_LOG_LEVEL_WARNING;
+            break;
+        case K4A_LOG_LEVEL_INFO:
+            cwipc_level = CWIPC_LOG_LEVEL_TRACE;
+            break;
+        case K4A_LOG_LEVEL_TRACE:
+            cwipc_level = CWIPC_LOG_LEVEL_DEBUG;
+            break;
+        default:
+            cwipc_level = CWIPC_LOG_LEVEL_WARNING;
+            kinect_level = "(unknown-k4a-level): ";
+            break;
+        }
+        std::string msg = kinect_level + file + ":" + std::to_string (line) + ": " + message;
+        cwipc_log(CWIPC_LOG_LEVEL_TRACE, "kinect_sdk",msg );
+    }
+
+    static void _install_k4a_logger() {
+        k4a_set_debug_message_handler(_k4a_message_cb, nullptr, K4A_LOG_LEVEL_TRACE);
+    }
+
+    static void _uninstall_k4a_logger() {
+        k4a_set_debug_message_handler(nullptr, nullptr, K4A_LOG_LEVEL_OFF);
+    }
+
+
     virtual ~K4ABaseCapture() {
         _unload_cameras();
         if (mergedPC) {
             mergedPC->free();
             mergedPC = nullptr;
         }
+        _uninstall_k4a_logger();
     }
 
     virtual bool can_start() override final {
@@ -107,6 +147,11 @@ public:
         }
         if (cwipc_log_get_level() >= CWIPC_LOG_LEVEL_DEBUG) {
             configuration.debug = true;
+        }
+        if (configuration.apiDebug) {
+            _install_k4a_logger();
+        } else {
+            _uninstall_k4a_logger();
         }
         auto camera_config_count = configuration.all_camera_configs.size();
         if (camera_config_count == 0) {

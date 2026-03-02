@@ -12,6 +12,7 @@ void K4ACaptureConfig::_from_json(const json& json_data) {
     _CWIPC_CONFIG_JSON_GET(system_data, single_tile, config, single_tile);
     _CWIPC_CONFIG_JSON_GET(system_data, record_to_directory, config, record_to_directory);
     _CWIPC_CONFIG_JSON_GET(system_data, debug, config, debug);
+    _CWIPC_CONFIG_JSON_GET(system_data, apiDebug, config, apiDebug);
     _CWIPC_CONFIG_JSON_GET(system_data, new_timestamps, config, new_timestamps);
     if (json_data.contains("sync")) {
         json sync_data = json_data.at("sync");
@@ -88,6 +89,7 @@ void K4ACaptureConfig::_from_json_v4(const json& json_data) {
     _CWIPC_CONFIG_JSON_GET(system_data, ignore_sync, sync, ignore_sync);
     _CWIPC_CONFIG_JSON_GET(system_data, record_to_directory, config, record_to_directory);
     _CWIPC_CONFIG_JSON_GET(system_data, debug, config, debug);
+    _CWIPC_CONFIG_JSON_GET(system_data, apiDebug, config, apiDebug);
     _CWIPC_CONFIG_JSON_GET(system_data, new_timestamps, config, new_timestamps);
     _CWIPC_CONFIG_JSON_GET(system_data, color_exposure_time, hardware, color_exposure_time);
     _CWIPC_CONFIG_JSON_GET(system_data, color_whitebalance, hardware, color_whitebalance);
