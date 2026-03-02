@@ -155,19 +155,34 @@ uint64_t K4ACamera::wait_for_captured_frameset(uint64_t minimum_timestamp) {
         if (new_frameset == nullptr) {
             _log_error("wait_for_captured_frameset: got nullptr");
         }
-        // We only look at the depth image timestamp.
+#ifdef _bad_kinect_timestamps
+        // The Kinect gives two timestamps, both not really convenient:
+        // - system timestamps (monotonic clock) of USB reception.
+        // - device timestamps.
+        // Both of these have an unspecified origin. And I don't think the device timestamps
+        // are synchronized between devices (at least the docs don't say anything about this).
+        //
+        // Therefore we have disabled this code, and just use the system time.
+
+        // We look at both the depth and color image timestamp.
         // We print a warning if they are not eqaul, and use the oldest.
         k4a_image_t depth_image = k4a_capture_get_depth_image(new_frameset);
-        uint64_t ts_depth_image = k4a_image_get_device_timestamp_usec(depth_image);
+        uint64_t ts_depth_image = k4a_image_get_system_timestamp_nsec(depth_image);
         k4a_image_release(depth_image);
         k4a_image_t color_image = k4a_capture_get_color_image(new_frameset);
-        uint64_t ts_color_image = k4a_image_get_device_timestamp_usec(color_image);
+        uint64_t ts_color_image = k4a_image_get_system_timestamp_nsec(color_image);
         k4a_image_release(color_image);
+        uint64_t ts_system = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
         if (debug) _log_debug("wait_for_captured_frameset: dts=" + std::to_string(ts_depth_image) + ", cts=" + std::to_string(ts_color_image));
         if (ts_depth_image != ts_color_image) {
-            _log_warning("Frameset has color_ts=" + std::to_string(ts_color_image) + " depth_ts=" + std::to_string(ts_depth_image));
+            // xxxjack this comparison should have some leeway
+            _log_warning("Frameset has color_ts=" + std::to_string(ts_color_image) + " depth_ts=" + std::to_string(ts_depth_image) + " system_ts=" + std::to_string(ts_system));
         }
         candidate_timestamp = ts_depth_image < ts_color_image ? ts_depth_image : ts_color_image;
+#else
+        uint64_t ts_system = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        candidate_timestamp = ts_system;
+#endif
         if (candidate_timestamp < minimum_timestamp) {
             _log_warning("Frameset skipped, ts=" + std::to_string(candidate_timestamp) + ", earlier than " + std::to_string(minimum_timestamp));
         }
