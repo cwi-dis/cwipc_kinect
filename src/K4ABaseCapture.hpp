@@ -7,7 +7,9 @@
 #include <fstream>
 
 #include <k4a/k4a.h>
+#ifdef CWIPC_WITH_KINECT_SKELETONS
 #include <k4abt.h>
+#endif
 
 #include "cwipc_util/internal/capturers.hpp"
 

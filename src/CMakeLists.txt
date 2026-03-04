@@ -37,7 +37,9 @@ target_sources(cwipc_kinect
 target_link_libraries(cwipc_kinect PUBLIC cwipc_util)
 target_link_libraries(cwipc_kinect PRIVATE ${PCL_LIBRARIES})
 target_link_libraries(cwipc_kinect PRIVATE k4a::k4a k4a::k4arecord)
-target_link_libraries(cwipc_kinect PRIVATE k4a::k4abt)
+if(CWIPC_WITH_KINECT_SKELETONS)
+	target_link_libraries(cwipc_kinect PRIVATE k4a::k4abt)
+endif()
 target_link_libraries(cwipc_kinect PRIVATE opencv_core opencv_imgproc)
 target_link_libraries(cwipc_kinect PRIVATE ZLIB::ZLIB) # Workaround for vcpkg
 target_link_libraries(cwipc_kinect PRIVATE libjpeg-turbo::turbojpeg)

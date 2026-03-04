@@ -8,8 +8,9 @@
 #include <k4a/k4a.h>
 #include <k4arecord/playback.h>
 #include <k4arecord/record.h>
+#ifdef CWIPC_WITH_KINECT_SKELETONS
 #include <k4abt.h>
-
+#endif
 #include "cwipc_util/api_pcl.h"
 #include "cwipc_kinect/api.h"
 #include "cwipc_util/internal/capturers.hpp"
@@ -73,12 +74,13 @@ public:
     virtual ~K4ABaseCamera() {
         if (debug) _log_debug("Destroying camera");
         assert(camera_stopped);
-
+#ifdef CWIPC_WITH_KINECT_SKELETONS
         if (tracker_handle) {
             k4abt_tracker_shutdown(tracker_handle);
             k4abt_tracker_destroy(tracker_handle);
             tracker_handle = nullptr;
         }
+#endif
     }
     /// Step 1 in starting: tell the camera we are going to start. Called for all cameras.
     virtual bool pre_start_all_cameras() final {
@@ -343,6 +345,7 @@ protected:
     }
 
     virtual bool _init_skeleton_tracker() override final {
+#ifdef CWIPC_WITH_KINECT_SKELETONS
         if (tracker_handle != NULL) {
             return true;
         }
@@ -379,6 +382,9 @@ protected:
         }
 
         return true;
+#else
+        return false;
+#endif
     }
 
     virtual void _apply_filters() final {
@@ -450,12 +456,14 @@ protected:
             assert(processing_frameset);
             
             std::lock_guard<std::mutex> lock(processing_mutex);
+#ifdef CWIPC_WITH_KINECT_SKELETONS
             //
             // use body tracker for skeleton extraction
             //
             if (tracker_handle) {
                 _feed_frameset_to_tracker(processing_frameset);
             }
+#endif
             //
             // get depth and color images. Apply filters and uncompress color image if needed
             //
@@ -577,6 +585,7 @@ protected:
 
     /// Kinect-specific: save skeleton metadata into point cloud.
     void _save_metadata_skeleton(cwipc_pointcloud* pc) {
+#ifdef CWIPC_WITH_KINECT_SKELETONS
         int n_skeletons = skeletons.size();
         size_t size_str = sizeof(cwipc_skeleton_collection) + n_skeletons * (int)K4ABT_JOINT_COUNT * sizeof(cwipc_skeleton_joint);
         cwipc_skeleton_collection* skl = (cwipc_skeleton_collection*)malloc(size_str);
@@ -603,6 +612,7 @@ protected:
             cwipc_metadata* ap = pc->access_metadata();
             ap->_add(name, "", (void*)skl, size_str, ::free);
         }
+#endif
     }
 
 
@@ -910,7 +920,9 @@ protected:
     bool camera_started = false;  //<! True when camera hardware is grabbing
     std::thread* camera_processing_thread = nullptr; //<! Handle for thread that runs processing loop
     std::thread* camera_capturer_thread = nullptr;  //<! Handle for thread that rungs grabber (if applicable)
+#ifdef CWIPC_WITH_KINECT_SKELETONS
     std::vector<k4abt_skeleton_t> skeletons; //<! Skeletons extracted using the body tracking sdk
+#endif
     cwipc_pcl_pointcloud current_pcl_pointcloud = nullptr;  //<! Most recent grabbed pointcloud
     k4a_transformation_t transformation_handle = nullptr; //<! k4a structure describing relationship between RGB and D cameras
     moodycamel::BlockingReaderWriterQueue<k4a_capture_t> captured_frame_queue;  //<! Frames from capture-thread, waiting to be inter-camera synchronized
@@ -923,8 +935,9 @@ protected:
     std::mutex processing_mutex;  //<! Exclusive lock for frame to pointcloud processing.
     std::condition_variable processing_done_cv; //<! Condition variable signalling pointcloud ready
     bool processing_done = false; //<! Boolean for processing_done_cv
-
+#ifdef CWIPC_WITH_KINECT_SKELETONS
     k4abt_tracker_t tracker_handle = nullptr; //<! Handle to k4abt skeleton tracker
+#endif
     k4a_calibration_t sensor_calibration; //<! k4a calibration data read from hardware camera or recording
     k4a_calibration_extrinsics_t depth_to_color_extrinsics; //<! k4a calibration data read from hardware camera or recording
     k4a_image_t depth_uv_mapping = NULL;

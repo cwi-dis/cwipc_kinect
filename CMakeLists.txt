@@ -26,7 +26,7 @@ endif()
 # Find Azure Kinect SDK (either with pkgconfig or with cmake)
 #
 find_package(k4a REQUIRED)
-find_package(k4abt REQUIRED)
+find_package(k4abt)
 
 # We need OpenCV for some image filtering
 
@@ -35,6 +35,12 @@ find_package( OpenCV REQUIRED
 	PATH_SUFFIXES build 
 	)
 include_directories( ${OpenCV_INCLUDE_DIRS} )
+
+# See if we have k4abt support
+if( k4abt_FOUND)
+	add_compile_definitions(CWIPC_WITH_KINECT_SKELETON)
+	set(CWIPC_WITH_KINECT_SKELETON)
+endif()
 
 # If we are on Linux we should skip tests if we have no X11 server
 if(NOT WIN32 AND NOT APPLE)

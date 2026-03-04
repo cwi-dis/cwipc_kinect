@@ -94,14 +94,14 @@ void K4ACamera::stop_camera() {
 
     delete camera_processing_thread;
     camera_processing_thread = nullptr;
-
+#ifdef CWIPC_WITH_KINECT_SKELETONS
     if (tracker_handle) {
         //Stop body tracker
         k4abt_tracker_shutdown(tracker_handle);
         k4abt_tracker_destroy(tracker_handle);
         tracker_handle = nullptr;
     }
-
+#endif
     if (camera_started) {
         // Stop camera
         k4a_device_stop_cameras(camera_handle);

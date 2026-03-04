@@ -207,9 +207,11 @@ void K4APlaybackCamera::stop_camera() {
     processing_done = true;
     processing_done_cv.notify_one();
 
+#ifdef CWIPC_WITH_KINECT_SKELETONS
     if (tracker_handle) {
         k4abt_tracker_destroy(tracker_handle);
         tracker_handle = nullptr;
     }
+#endif
 }
 
