@@ -69,7 +69,7 @@ endif()
 if(WIN32)
 	install(TARGETS cwipc_kinect
 	RUNTIME_DEPENDENCIES
-	PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-" "k4a"
+	PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-"
 	POST_EXCLUDE_REGEXES ".*system32/.*\\.dll"
 	EXPORT cwipc_kinect
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
