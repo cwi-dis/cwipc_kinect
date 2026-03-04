@@ -153,7 +153,10 @@ public:
         if (configuration.apiDebug) {
             _install_k4a_logger();
         } else {
+#if 0
+            // This triggers a bug in k4a, where an excpetion is thrown
             _uninstall_k4a_logger();
+#endif
         }
         auto camera_config_count = configuration.all_camera_configs.size();
         if (camera_config_count == 0) {
