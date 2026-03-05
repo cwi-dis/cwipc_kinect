@@ -140,6 +140,10 @@ public:
             _log_error("config_reload: cannot reload configuration while capturer is running");
             return false;
         }
+        // Workaround for bug in k4a, where an exception is thrown if we try to set the logger more than once. So we only set it once, and then leave it set.
+        if (getenv("K4A_ENABLE_LOG_TO_STDOUT") == nullptr) {
+            putenv("K4A_ENABLE_LOG_TO_STDOUT=0");
+        }
         //
         // Read the configuration.
         //
@@ -153,10 +157,7 @@ public:
         if (configuration.apiDebug) {
             _install_k4a_logger();
         } else {
-#if 0
-            // This triggers a bug in k4a, where an excpetion is thrown
             _uninstall_k4a_logger();
-#endif
         }
         auto camera_config_count = configuration.all_camera_configs.size();
         if (camera_config_count == 0) {
