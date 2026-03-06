@@ -77,6 +77,8 @@ if(WIN32)
 	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	PUBLIC_HEADER DESTINATION "include/cwipc_kinect"
 	)
+	# We also need to copy the depth engine
+	install(FILES $<TARGET_FILE_DIR:cwipc_kinect>/depthengine_2_0.dll DESTINATION ${CMAKE_INSTALL_BINDIR})
 else()
 	install(TARGETS cwipc_kinect
 	EXPORT cwipc_kinect
