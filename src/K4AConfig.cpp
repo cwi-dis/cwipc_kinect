@@ -132,12 +132,12 @@ void K4ACaptureConfig::_from_json_v4(const json& json_data) {
     }
 }
 
-void K4ACaptureConfig::_to_json(json& json_data, bool for_recording) {
+void K4ACaptureConfig::_to_json(json& json_data, bool for_recording) const {
     CwipcBaseCaptureConfig::_to_json(json_data, for_recording);
     if (for_recording) {
         json_data["type"] = "kinect_playback";
     }
-    K4ACaptureConfig& config = *this;
+    K4ACaptureConfig const& config = *this;
     json cameras;
     int camera_index = 0;
 
@@ -283,7 +283,7 @@ bool K4ACaptureConfig::from_string(const char* jsonBuffer, std::string typeWante
     return true;
 }
 
-std::string K4ACaptureConfig::to_string(bool for_recording) {
+std::string K4ACaptureConfig::to_string(bool for_recording) const {
     json result;
     _to_json(result, for_recording);
 
