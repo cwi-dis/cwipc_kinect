@@ -1,19 +1,18 @@
 #pragma once
 
-#include <string>
-#include <mutex>
-#include <condition_variable>
-#include <iostream>
-#include <fstream>
+#include "cwipc_util/internal/capturers.hpp"
+#include "K4AConfig.hpp"
 
 #include <k4a/k4a.h>
 #ifdef CWIPC_WITH_KINECT_SKELETONS
 #include <k4abt.h>
 #endif
 
-#include "cwipc_util/internal/capturers.hpp"
-
-#include "K4AConfig.hpp"
+#include <condition_variable>
+#include <iostream>
+#include <fstream>
+#include <mutex>
+#include <string>
 
 /** Base class for capturers that are implemented with the K4A API
  * 
@@ -169,7 +168,7 @@ public:
         return true;
     }
 
-    virtual std::string config_get() {
+    virtual std::string config_get() const {
         if (cameras.size() == 0) {
             _log_error("Must start() before getting config");
             return "";
@@ -179,7 +178,11 @@ public:
         // But framerate and width/height are gotten in the camera code.
         K4ACameraHardwareConfig curHardwareConfig;
         cameras[0]->get_camera_hardware_parameters(curHardwareConfig);
-        configuration.hardware = curHardwareConfig;
+
+        // Create a copy of the configuration and put the hardware config from the first camera in
+        K4ACaptureConfig new_configuration = configuration;
+        new_configuration.hardware = curHardwareConfig;
+
 #if 0
         for(auto cam : cameras) {
             bool ok = cam->match_camera_hardware_parameters(curHardwareConfig);
@@ -189,7 +192,16 @@ public:
             match_only = true;
         }
 #endif
-        return configuration.to_string();
+        return new_configuration.to_string();
+    }
+
+    /// Get a specific camera configuration.
+    virtual CwipcBaseCameraConfig const* get_camera_config(size_t index) const {
+        CwipcBaseCameraConfig const* ret{ nullptr };
+        if (index < configuration.all_camera_configs.size()) {
+            ret = &configuration.all_camera_configs.at(index);
+        }
+        return ret;
     }
 
     virtual void request_metadata(bool rgb, bool depth, bool timestamps, bool skeleton) override final {
@@ -643,12 +655,13 @@ protected:
 public:
     // public attributes. Mainly public so they can be accessed
     // from the Camera class.
-    K4ACaptureConfig configuration;  //!< Configuration of this capturer
-    K4ACaptureMetadataConfig metadata;
     std::string configurationCurrentFilename;  //!< Configuration filename
 
 protected:
     // protected attibutes. Accessible from subclasses.
+    K4ACaptureConfig configuration;  //!< Configuration of this capturer
+    K4ACaptureMetadataConfig metadata;
+
     std::vector<Type_our_camera*> cameras;  //<! Cameras used by this capturer
     bool _is_initialized = false; //<! True when configuration has been applied successfully
     bool stopped = false; //<! True when stopping capture
