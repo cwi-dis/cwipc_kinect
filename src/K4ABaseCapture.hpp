@@ -303,8 +303,24 @@ public:
     virtual bool seek(uint64_t timestamp) override = 0;
 
 protected:
+    //
+    // Abstract protected interface - will be implemented by derived classes.
+    //
+
+    // Capture all cameras
+    virtual bool _capture_all_cameras(uint64_t& timestamp) = 0;
+    // Load default configuration based on hardware cameras connected.
+    virtual bool _apply_auto_config() = 0;
+    /// Setup camera hardware parameters (white balance, etc).
+    virtual bool _init_hardware_for_all_cameras() = 0;
+    /// Create the per-camera capturers.
+    virtual bool _create_cameras() = 0;
+    /// Check that all cameras are connected.
+    virtual bool _check_cameras_connected() = 0;
+
+protected:
     /// Load configuration from file or string.
-    virtual bool _apply_config(const char *configFilename) override final {
+    bool _apply_config(const char *configFilename) {
         K4ACaptureConfig newConfig;
         if (configFilename == NULL || *configFilename == '\0') {
             configFilename = "cameraconfig.json";
@@ -333,10 +349,9 @@ protected:
 
         return false;
     }
-    /// Load default configuration based on hardware cameras connected.
-    virtual bool _apply_auto_config() override = 0;
+
     /// Get configuration for a single camera, by serial number.
-    virtual K4ACameraConfig* get_camera_config(std::string serial) final {
+    K4ACameraConfig* _get_camera_config_from_serial(std::string serial) {
         for (int i = 0; i < configuration.all_camera_configs.size(); i++) {
             if (configuration.all_camera_configs[i].serial == serial) {
                 return &configuration.all_camera_configs[i];
@@ -347,29 +362,24 @@ protected:
         return nullptr;
     }
     /// Create our wrapper around a single camera. Here because it needs to be templated.
-    virtual inline Type_our_camera *_create_single_camera(Type_api_camera _handle, K4ACaptureConfig& configuration, K4ACaptureMetadataConfig& metadata, int _camera_index) final {
+    inline Type_our_camera *_create_single_camera(Type_api_camera _handle, K4ACaptureConfig& configuration, K4ACaptureMetadataConfig& metadata, int _camera_index) {
         return new Type_our_camera(_handle, configuration, metadata, _camera_index);
     }
 
 
     /// Setup camera synchronization (if needed).
-    virtual bool _setup_inter_camera_sync() override final {
+    bool _setup_inter_camera_sync() {
         // Nothing to do for K4A: real cameras need some setup, but it is done
         // in K4ACamera::_init_config_for_this_camera().
         return true;
     }
+
     /// xxxjack another one?
-    virtual void _initial_camera_synchronization() {
+    void _initial_camera_synchronization() {
     }
 
-    /// Create the per-camera capturers.
-    virtual bool _create_cameras() override = 0;
-    /// Setup camera hardware parameters (white balance, etc).
-    virtual bool _init_hardware_for_all_cameras() override = 0;
-    /// Check that all cameras are connected.
-    virtual bool _check_cameras_connected() override = 0;
     /// Start all cameras.
-    virtual bool _start_cameras() override final {
+    bool _start_cameras() {
         //
         // start the cameras. First start all non-sync-master cameras, then start the sync-master camera.
         //
@@ -436,7 +446,7 @@ protected:
     }
 
     /// Stop and unload all cameras and release all resources.
-    virtual void _unload_cameras() override final {
+    void _unload_cameras() {
         if (cameras.empty()) return;
         _stop_cameras();
 
@@ -448,7 +458,7 @@ protected:
     }
 
     /// Stop all cameras.
-    virtual void _stop_cameras() override final {
+    void _stop_cameras() {
         stopped = true;
         mergedPC_is_fresh = true;
         mergedPC_want_new = false;
@@ -479,7 +489,7 @@ protected:
     }
 
     /// Create the cameraconfig file for the recording, if needed.
-    virtual void _post_stop_all_cameras() override final {
+    void _post_stop_all_cameras() {
         if (configuration.record_to_directory != "") {
             std::string recording_config = configuration.to_string(true);
             std::string filename = configuration.record_to_directory + "/" + "cameraconfig.json";
@@ -497,7 +507,7 @@ protected:
     /// in each stream)
 
 
-    virtual void _control_thread_main() final {
+    void _control_thread_main() {
         if (configuration.debug) _log_debug_thread("processing thread started");
         _initial_camera_synchronization();
         while (!stopped) {
@@ -607,9 +617,7 @@ protected:
         if (configuration.debug) _log_debug_thread("processing thread exiting");
     }
 
-    virtual bool _capture_all_cameras(uint64_t& timestamp) = 0;
-
-    virtual void _request_new_pointcloud() final {
+    void _request_new_pointcloud() {
         std::unique_lock<std::mutex> mylock(mergedPC_mutex);
 
         if (!mergedPC_want_new && !mergedPC_is_fresh) {

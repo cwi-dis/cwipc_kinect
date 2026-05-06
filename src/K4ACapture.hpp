@@ -21,13 +21,11 @@ public:
     virtual ~K4ACapture() {}
     bool seek(uint64_t timestamp) override final;
 
-protected:
+private:
     K4ACapture();
     virtual bool _capture_all_cameras(uint64_t& timestamp) override final;
     virtual bool _apply_auto_config() override final;
-
-private:
     virtual bool _init_hardware_for_all_cameras() override final; // initialize hardware parameters from configuration
-    virtual bool _check_cameras_connected() override final;
     virtual bool _create_cameras() override final;
+    virtual bool _check_cameras_connected() override final;
 };

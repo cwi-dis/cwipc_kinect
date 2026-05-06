@@ -10,11 +10,108 @@
 // if there is another one open.
 static int numberOfCapturersActive = 0;
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Public interface
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 K4APlaybackCapture::K4APlaybackCapture()
 : K4ABaseCapture("K4APlaybackCapture", "kinect_playback")
 {
 }
 
+bool K4APlaybackCapture::seek(uint64_t timestamp) {
+    for (auto cam : cameras) { //SUBORDINATE or STANDALONE
+        if (cam->seek(timestamp) != true) {
+            _log_error("Camera " + cam->serial + " failed to seek to timestamp " + std::to_string(timestamp));
+            return false;
+        }
+    }
+
+    return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Private methods
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool K4APlaybackCapture::_capture_all_cameras(uint64_t& timestamp) {
+
+    //
+    //f irst capture master frame (it is the referrence to sync).
+    // For the master we simply get the next frame available (indicated by timestamp==0)
+    //
+    for (auto cam : cameras) { //MASTER
+        if (cam->is_sync_master()) {
+            timestamp = cam->wait_for_captured_frameset(timestamp);
+            if (timestamp == 0) {
+                // For the master camera this is end-of-file
+                // _log_warning("failed to capture frameset for master " + cam->serial);
+                return false;
+            }
+            break;
+        }
+    }
+
+    //
+    // If we have a sync master we now know the timestamp we want from the other cameras.
+    // If we don't have a sync master we simply sync everything to the first camera.
+    //
+    for (auto cam : cameras) { //SUBORDINATE or STANDALONE
+        if (!cam->is_sync_master()) {
+            uint64_t this_cam_timestamp = cam->wait_for_captured_frameset(timestamp);
+            if (this_cam_timestamp == 0) {
+                _log_warning("failed to capture frameset for camera " + cam->serial);
+                return false;
+            }
+            if (timestamp == 0) {
+                timestamp = this_cam_timestamp;
+            }
+        }
+    }
+    return true;
+}
+
+bool K4APlaybackCapture::_apply_auto_config() { 
+    return false; 
+}
+
+bool K4APlaybackCapture::_init_hardware_for_all_cameras() { 
+    return true; 
+}
+
+bool K4APlaybackCapture::_check_cameras_connected() { 
+    return true; 
+}
+
+bool K4APlaybackCapture::_create_cameras() {
+    auto camera_config_count = configuration.all_camera_configs.size();
+    std::vector<Type_api_camera> camera_handles(camera_config_count, nullptr);
+    if (!_open_recording_files(camera_handles)) {
+        _unload_cameras();
+        return false;
+    }
+    for (uint32_t i = 0; i < camera_handles.size(); i++) {
+        assert (camera_handles[i] != nullptr);
+
+
+        // Found a kinect camera. Create a default data entry for it.
+        K4ACameraConfig& cd = configuration.all_camera_configs[i];
+        if (configuration.debug) _log_debug("opening camera " + cd.serial);
+        if (cd.type == "kinect_offline") {
+            _log_warning("camera with serial " + cd.serial + " has deprecated type 'kinect_offline', changing to 'kinect_playback'");
+            cd.type = "kinect_playback";
+        }
+        if (cd.type != "kinect_playback") {
+            _log_error("camera with serial " + cd.serial + " has wrong type " + cd.type);
+        }
+
+        int camera_index = cameras.size();
+
+        auto cam = _create_single_camera(camera_handles[i], configuration, metadata, camera_index);
+        cameras.push_back(cam);
+    }
+    return true;
+}
 
 bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& camera_handles) {
     int n_files = camera_handles.size();
@@ -27,7 +124,7 @@ bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& cam
 
     // Open each recording file and validate they were recorded in master/subordinate mode.
     for (size_t i = 0; i < n_files; i++) {
-        
+
 
         std::string camerafile(configuration.all_camera_configs[i].filename);
         if (camerafile == "") {
@@ -104,84 +201,6 @@ bool K4APlaybackCapture::_open_recording_files(std::vector<Type_api_camera>& cam
 
     if (master_id != -1 && configuration.sync.sync_master_serial != "") {
         sync_inuse = true;
-    }
-
-    return true;
-}
-
-bool K4APlaybackCapture::_create_cameras() {
-    auto camera_config_count = configuration.all_camera_configs.size();
-    std::vector<Type_api_camera> camera_handles(camera_config_count, nullptr);
-    if (!_open_recording_files(camera_handles)) {
-        _unload_cameras();
-        return false;
-    }
-    for (uint32_t i = 0; i < camera_handles.size(); i++) {
-        assert (camera_handles[i] != nullptr);
-
-
-        // Found a kinect camera. Create a default data entry for it.
-        K4ACameraConfig& cd = configuration.all_camera_configs[i];
-        if (configuration.debug) _log_debug("opening camera " + cd.serial);
-        if (cd.type == "kinect_offline") {
-            _log_warning("camera with serial " + cd.serial + " has deprecated type 'kinect_offline', changing to 'kinect_playback'");
-            cd.type = "kinect_playback";
-        }
-        if (cd.type != "kinect_playback") {
-            _log_error("camera with serial " + cd.serial + " has wrong type " + cd.type);
-        }
-
-        int camera_index = cameras.size();
-
-        auto cam = _create_single_camera(camera_handles[i], configuration, metadata, camera_index);
-        cameras.push_back(cam);
-    }
-    return true;
-}
-
-bool K4APlaybackCapture::_capture_all_cameras(uint64_t& timestamp) {
-
-    //
-    //f irst capture master frame (it is the referrence to sync).
-    // For the master we simply get the next frame available (indicated by timestamp==0)
-    //
-   for (auto cam : cameras) { //MASTER
-        if (cam->is_sync_master()) {
-            timestamp = cam->wait_for_captured_frameset(timestamp);
-            if (timestamp == 0) {
-                // For the master camera this is end-of-file
-                // _log_warning("failed to capture frameset for master " + cam->serial);
-                return false;
-            }
-            break;
-        }
-    }
-
-    //
-    // If we have a sync master we now know the timestamp we want from the other cameras.
-    // If we don't have a sync master we simply sync everything to the first camera.
-    //
-    for (auto cam : cameras) { //SUBORDINATE or STANDALONE
-        if (!cam->is_sync_master()) {
-            uint64_t this_cam_timestamp = cam->wait_for_captured_frameset(timestamp);
-            if (this_cam_timestamp == 0) {
-                _log_warning("failed to capture frameset for camera " + cam->serial);
-                return false;
-            }
-            if (timestamp == 0) {
-                timestamp = this_cam_timestamp;
-            }
-        }
-    }
-    return true;
-}
-
-bool K4APlaybackCapture::seek(uint64_t timestamp) {
-    for (auto cam : cameras) { //SUBORDINATE or STANDALONE
-        if (cam->seek(timestamp) != true) {
-            _log_error("Camera " + cam->serial + " failed to seek to timestamp " + std::to_string(timestamp));
-            return false;
-        }
     }
 
     return true;

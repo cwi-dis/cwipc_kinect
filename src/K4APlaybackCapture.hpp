@@ -24,17 +24,17 @@ public:
     // methods
     bool seek(uint64_t timestamp) override;
 
-protected:
-    K4APlaybackCapture();
-    virtual bool _capture_all_cameras(uint64_t& timestamp) override;
-    virtual bool _apply_auto_config() override { return false; }
-
 private:
-    virtual bool _init_hardware_for_all_cameras() override final { return true; }
-    virtual bool _check_cameras_connected() override final { return true;};
+    K4APlaybackCapture();
+    virtual bool _capture_all_cameras(uint64_t& timestamp) override final;
+    virtual bool _apply_auto_config() override final;
+    virtual bool _init_hardware_for_all_cameras() override final;
+    virtual bool _check_cameras_connected() override final;
     virtual bool _create_cameras() override final;
+
     bool _open_recording_files(std::vector<Type_api_camera>& camera_handles); // Open the recordings
 
+private:
     // variables
     bool sync_inuse = false;
     int master_id = -1;
