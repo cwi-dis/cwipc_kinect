@@ -256,10 +256,11 @@ public:
         return ret;
     }
 
-    virtual void request_metadata(bool rgb, bool depth, bool timestamps, bool skeleton) override final {
+    virtual void request_metadata(bool rgb, bool depth, bool timestamps, bool skeleton, bool camera_specs) override final {
         metadata.want_rgb = rgb;
         metadata.want_depth = depth;
         metadata.want_skeleton = skeleton;
+        metadata.want_camera_specs = camera_specs;
     }
 
 

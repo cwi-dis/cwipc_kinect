@@ -332,6 +332,9 @@ public:
         if (metadata.want_skeleton) {
             _save_metadata_skeleton(pc);
         }
+        if (metadata.want_camera_specs) {
+            _save_metadata_camera_specs(pc);
+        }
     }
 
 protected:
@@ -615,6 +618,29 @@ protected:
 #endif
     }
 
+    /// Kinect-specific: save camera specifics metadata.
+    void _save_metadata_camera_specs(cwipc_pointcloud* pc) {
+
+        // Get calibration (color and depth)
+        const k4a_calibration_t& calibration = sensor_calibration;
+        const k4a_calibration_camera_t& color_calibration = calibration.color_camera_calibration;
+        const k4a_calibration_camera_t& depth_calibration = calibration.depth_camera_calibration;
+
+        // Extract the required specs
+        K4ACaptureMetadataCameraSpecs* specs = (K4ACaptureMetadataCameraSpecs*)malloc(sizeof(K4ACaptureMetadataCameraSpecs));
+        // K4ACaptureMetadataCameraSpecs* specs = new K4ACaptureMetadataCameraSpecs();
+        specs->focal_length_x = color_calibration.intrinsics.parameters.param.fx;
+        specs->focal_length_y = color_calibration.intrinsics.parameters.param.fy;
+        specs->principal_point_x = color_calibration.intrinsics.parameters.param.cx;
+        specs->principal_point_y = color_calibration.intrinsics.parameters.param.cy;
+        specs->color_image_width = static_cast<unsigned int>(color_calibration.resolution_width);
+        specs->color_image_height = static_cast<unsigned int>(color_calibration.resolution_height);
+
+        // Save the specs in the meta-data
+        const std::string name = "camera." + serial;
+        cwipc_metadata* ap = pc->access_metadata();
+        ap->_add(name, "", (void*)specs, sizeof(K4ACaptureMetadataCameraSpecs), ::free);
+    }
 
     //virtual void _computePointSize() = 0;
 
