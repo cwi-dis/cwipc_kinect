@@ -627,7 +627,7 @@ protected:
         const k4a_calibration_camera_t& depth_calibration = calibration.depth_camera_calibration;
 
         // Extract the required specs
-        K4ACaptureMetadataCameraSpecs* specs = (K4ACaptureMetadataCameraSpecs*)malloc(sizeof(K4ACaptureMetadataCameraSpecs));
+        K4ACameraMetadataCameraSpecs* specs = (K4ACameraMetadataCameraSpecs*)malloc(sizeof(K4ACameraMetadataCameraSpecs));
         // K4ACaptureMetadataCameraSpecs* specs = new K4ACaptureMetadataCameraSpecs();
         specs->focal_length_x = color_calibration.intrinsics.parameters.param.fx;
         specs->focal_length_y = color_calibration.intrinsics.parameters.param.fy;
@@ -635,11 +635,13 @@ protected:
         specs->principal_point_y = color_calibration.intrinsics.parameters.param.cy;
         specs->color_image_width = static_cast<unsigned int>(color_calibration.resolution_width);
         specs->color_image_height = static_cast<unsigned int>(color_calibration.resolution_height);
+        specs->near_plane = 10.0f; // 10mm
+        specs->far_plane = 10000.0f; // 10000mm
 
         // Save the specs in the meta-data
         const std::string name = "camera." + serial;
         cwipc_metadata* ap = pc->access_metadata();
-        ap->_add(name, "", (void*)specs, sizeof(K4ACaptureMetadataCameraSpecs), ::free);
+        ap->_add(name, "", (void*)specs, sizeof(K4ACameraMetadataCameraSpecs), ::free);
     }
 
     //virtual void _computePointSize() = 0;

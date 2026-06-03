@@ -74,7 +74,7 @@ struct K4ACaptureMetadataConfig {
     bool want_camera_specs = false;
 };
 
-struct K4ACaptureMetadataCameraSpecs {
+struct K4ACameraMetadataCameraSpecs {
     // Focal length in pixels
     float focal_length_x; 
     float focal_length_y;
@@ -84,6 +84,9 @@ struct K4ACaptureMetadataCameraSpecs {
     // Color image size
     unsigned int color_image_width;
     unsigned int color_image_height;
+    // Default near and far plane
+    float near_plane;
+    float far_plane;
 };
 
 struct K4ACaptureConfig : CwipcBaseCaptureConfig {
