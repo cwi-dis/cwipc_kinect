@@ -635,8 +635,11 @@ protected:
         specs->principal_point_y = color_calibration.intrinsics.parameters.param.cy;
         specs->color_image_width = static_cast<unsigned int>(color_calibration.resolution_width);
         specs->color_image_height = static_cast<unsigned int>(color_calibration.resolution_height);
-        specs->near_plane = 10.0f; // 10mm
-        specs->far_plane = 10000.0f; // 10000mm
+        // note: the official values from the API are given in millimeters
+        // but the units of the 3D points are already converted to meters, 
+        // so use meters here as well.
+        specs->near_plane = 0.01f; // 10.0f = 10mm
+        specs->far_plane = 10.0f; // 10000.0f = 10000mm
 
         // Save the specs in the meta-data
         const std::string name = "camera." + serial;
