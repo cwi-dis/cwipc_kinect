@@ -1,4 +1,8 @@
-# cwipc_kinect
+# WARNING. This repository is outdated.
+
+This `cwipc_kinect` repository has been merged into the <https://github.com/cwi-dis/cwipc> repository as of August 2026.
+
+## cwipc_kinect
 
 
 This project has software for capturing point clouds using Microsoft Azure Kinect cameras, _k4a_ for short. The software turns k4a depth- and colorframes into cwipc pointclouds.
